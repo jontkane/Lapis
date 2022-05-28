@@ -22,23 +22,49 @@ int main(int argc, char* argv[])
 
 	log.logProgress("Done!");
 
+	//immediate next task:
+	//test usableparameters
 	
-	//TODO for alpha:
-	//write ini
+	//semi-ordered to-do list:
+	
+	//restructure lapiscontroller to allow for unit testing
+	//write unit testing for lapiscontroller elements:
+	//	initialization from options (esp. checking outalign, CRSes, and units)
+	//	point distribution into raster cells
+	//	point metric calculation
+	//	csm calculation
 
-	//TODO for beta:
-	//GUI
-	//make raster IO understand full hard drives
-	//Enable checkpointing
-	//double check my withheld implementation with las 1.0 files
-	//create a test suite that goes through the various combinations of full runs
-	//make sure you don't try to read points with too many user-defined bytes
-	//test the various class flags in both point10 and point14
-	//investigate better algorithms for estimating quantiles from a histogram
-	//write metadata html
-	//do an optimization pass--especially alignment creation and CSM merging
-	//add a check forbidding lat/lon output
+	//add parameter output
 
-	//TODO for 1.0:
-	//the rest of the owl
+	//write a gui
+
+	//add html metadata, in a way that isn't a pain in the ass to extend
+
+	//do an optimization pass
+
+	//add checkpointing
+
+	//add smoothing and hole filling to csm
+
+	//add watershed segmentation
+
+	//another optimization pass
+
+	//add automatic unit detection
+
+	//add advanced point metrics
+
+	//add csm metrics
+
+	//add topographic metrics
+
+	//another optimization pass
+
+	//add plot metrics
+
+	//make an installer
+
+	//write a manual
+
+	//one final optimization pass
 }

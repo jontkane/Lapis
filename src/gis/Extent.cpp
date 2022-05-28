@@ -144,7 +144,7 @@ namespace lapis {
 	}
 
 	void Extent::defineCRS(CoordRef&& crs) {
-		_crs = crs;
+		_crs = std::move(crs);
 	}
 
 	void Extent::checkValidExtent() {

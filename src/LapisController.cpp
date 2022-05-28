@@ -20,10 +20,10 @@ namespace lapis {
 		dtmCRSOverride = opt.dataOptions.demCRS;
 		dtmUnitOverride = opt.dataOptions.demUnits;
 
-		iterateOverInput<LasExtent>(opt.dataOptions.lasFileSpecifiers, tryLasFile, lasLocs, log,
+		iterateOverFileSpecifiers<LasExtent>(opt.dataOptions.lasFileSpecifiers, tryLasFile, lasLocs, log,
 			lasCRSOverride,lasUnitOverride);
 		log.logProgress(std::to_string(lasLocs.size()) + " point cloud files identified");
-		iterateOverInput<Alignment>(opt.dataOptions.demFileSpecifiers, tryDtmFile, dtmLocs, log,
+		iterateOverFileSpecifiers<Alignment>(opt.dataOptions.demFileSpecifiers, tryDtmFile, dtmLocs, log,
 			dtmCRSOverride,dtmUnitOverride);
 		log.logProgress(std::to_string(dtmLocs.size()) + " DEM files identified");
 
@@ -462,7 +462,7 @@ namespace lapis {
 	}
 
 	LapisController::ThreadController::ThreadController(const LapisController& lc) :
-		pointRast(lc.outAlign), sofar(0), globalMut(), cellMuts()
+		pointRast(lc.outAlign), sofar(0), globalMut(), cellMuts(mutexN)
 	{
 
 		PointMetricCalculator::setInfo(lc.canopy_cutoff, lc.maxht, lc.binsize);

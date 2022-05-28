@@ -49,7 +49,7 @@ namespace lapis {
 			size_t sofar;
 			std::mutex globalMut; //for general operations
 			static const cell_t mutexN = 10000; //the number of mutexes--ideally, a balance between reducing the chance of two threads colliding, and not wanting to overuse memory
-			std::array<std::mutex,mutexN> cellMuts; //for locking individual cells of the output rasters
+			std::vector<std::mutex> cellMuts; //for locking individual cells of the output rasters
 
 			//a sorted list of files in a reasonable order to process them in to minimize stray points
 			std::vector<std::string> lasFiles;
