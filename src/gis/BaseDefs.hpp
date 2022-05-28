@@ -10,7 +10,7 @@ namespace lapis {
 	typedef double coord_t;
 	typedef std::int64_t cell_t;
 	typedef int rowcol_t;
-	constexpr coord_t LP_EPSILON = 0.0001;
+	constexpr coord_t LAPIS_EPSILON = 0.0001;
 
 	struct CoordXY {
 		coord_t x, y;

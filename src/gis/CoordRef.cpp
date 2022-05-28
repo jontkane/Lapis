@@ -89,7 +89,7 @@ namespace lapis {
 		if (_zUnits.isUnknown() || otherUnits.isUnknown()) {
 			return true;
 		}
-		if (std::abs(_zUnits.convFactor - otherUnits.convFactor) < LP_EPSILON) {
+		if (std::abs(_zUnits.convFactor - otherUnits.convFactor) < LAPIS_EPSILON) {
 			return true;
 		}
 		return false;

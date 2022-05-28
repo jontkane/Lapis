@@ -20,9 +20,9 @@ namespace lapis {
 		EXPECT_EQ(h.VersionMinor, 0);
 		EXPECT_EQ(h.PointLength, 28);
 
-		EXPECT_NEAR(h.ScaleFactor.x, 0.01,LP_EPSILON);
-		EXPECT_NEAR(h.ScaleFactor.y, 0.01, LP_EPSILON);
-		EXPECT_NEAR(h.ScaleFactor.z, 0.01, LP_EPSILON);
+		EXPECT_NEAR(h.ScaleFactor.x, 0.01,LAPIS_EPSILON);
+		EXPECT_NEAR(h.ScaleFactor.y, 0.01, LAPIS_EPSILON);
+		EXPECT_NEAR(h.ScaleFactor.z, 0.01, LAPIS_EPSILON);
 
 		EXPECT_EQ(h.Offset.x, 2200000);
 		EXPECT_EQ(h.Offset.y, 1100000);
@@ -86,9 +86,9 @@ namespace lapis {
 		EXPECT_EQ(h.VersionMinor, 4);
 		EXPECT_EQ(h.PointLength, 30);
 
-		EXPECT_NEAR(h.ScaleFactor.x, 0.01, LP_EPSILON);
-		EXPECT_NEAR(h.ScaleFactor.y, 0.01, LP_EPSILON);
-		EXPECT_NEAR(h.ScaleFactor.z, 0.01, LP_EPSILON);
+		EXPECT_NEAR(h.ScaleFactor.x, 0.01, LAPIS_EPSILON);
+		EXPECT_NEAR(h.ScaleFactor.y, 0.01, LAPIS_EPSILON);
+		EXPECT_NEAR(h.ScaleFactor.z, 0.01, LAPIS_EPSILON);
 
 		EXPECT_EQ(h.Offset.x, 0);
 		EXPECT_EQ(h.Offset.y, 0);

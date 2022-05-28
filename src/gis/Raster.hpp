@@ -61,9 +61,7 @@ namespace lapis {
 		auto atXY(const coord_t x, const coord_t y) {
 			return (*this)[cellFromXY(x, y)];
 		}
-		auto operator[](const cell_t cell) {
-			return _data[cell];
-		}
+
 		const auto atCell(const cell_t cell) const {
 			_checkCell(cell);
 			return (*this)[cell];
@@ -74,13 +72,10 @@ namespace lapis {
 		const auto& atXY(const coord_t x, const coord_t y) const {
 			return (*this)[cellFromXY(x, y)];
 		}
-		const auto operator[](const cell_t cell) const {
-			return _data[cell];
-		}
+
 
 		//Versions of atRC, and atXY that don't bother with bounds checking, and thus have minimal overhead
 		//only use if you're completely confident that you don't need bounds checking
-		//operator[] is already an unsafe atCell, so that one isn't included here
 		auto atRCUnsafe(const rowcol_t row, const rowcol_t col) {
 			return (*this)[cellFromRowColUnsafe(row, col)];
 		}
@@ -92,6 +87,18 @@ namespace lapis {
 		}
 		const auto atXYUnsafe(const coord_t x, const coord_t y) const {
 			return (*this)[cellFromRowColUnsafe(rowFromYUnsafe(y), colFromXUnsafe(x))];
+		}
+		const auto operator[](const cell_t cell) const {
+			return _data[cell];
+		}
+		auto operator[](const cell_t cell) {
+			return _data[cell];
+		}
+		auto atCellUnsafe(const cell_t cell) {
+			return _data[cell];
+		}
+		const auto atCellUnsafe(const cell_t cell) const {
+			return _data[cell];
 		}
 
 		//This function is similar to atXY, but returns nodata if the point is outside of the extent

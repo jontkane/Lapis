@@ -9,7 +9,7 @@ namespace chr = std::chrono;
 
 int main(int argc, char* argv[])
 {
-	/*Logger log;
+	Logger log;
 	auto parsed = parseOptions(argc, argv, log);
 	if (std::holds_alternative<std::exception>(parsed)) {
 		std::cout << "Error parsing command line\n";
@@ -20,18 +20,7 @@ int main(int argc, char* argv[])
 	LapisController lc{ opt };
 	lc.processFullArea();
 
-	log.logProgress("Done!");*/
-
-	LasIO laz{ "C:/lapis/src/test/testfiles/testlaz14.laz" };
-
-	std::array<char, 256> buffer;
-	LasPoint14* point = (LasPoint14*)buffer.data();
-
-	for (size_t i = 0; i < laz.header.NumberOfPoints(); ++i) {
-		laz.readPoint(buffer.data());
-		std::bitset<8> b(point->returnByte);
-		std::cout << i << " "<< (int)point->returnNumber() << " " << (int)point->numberOfReturns() << " " << b << "\n";
-	}
+	log.logProgress("Done!");
 
 	
 	//TODO for alpha:

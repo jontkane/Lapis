@@ -30,6 +30,8 @@ namespace lapis {
 
 		_xmax = _xmin + _ncol * _xres;
 		_ymax = _ymin + _nrow * _yres;
+
+		checkValidAlignment();
 	}
 
 	Alignment::Alignment(const std::string& filename) {
@@ -170,10 +172,10 @@ namespace lapis {
 		if (_nrow < 0 || _ncol < 0 || _xres <= 0 || _yres <= 0) {
 			throw InvalidAlignmentException("");
 		}
-		if ((_xmax - _xmin) / _ncol - _xres > LP_EPSILON) {
+		if ((_xmax - _xmin) / _ncol - _xres > LAPIS_EPSILON) {
 			throw InvalidAlignmentException("");
 		}
-		if ((_ymax - _ymin) / _nrow - _yres > LP_EPSILON) {
+		if ((_ymax - _ymin) / _nrow - _yres > LAPIS_EPSILON) {
 			throw InvalidAlignmentException("");
 		}
 	}

@@ -66,7 +66,8 @@ namespace lapis {
 			return (cell_t)_nrow * _ncol;
 		}
 
-		//These functions return the x and y coordinates that are closest to 0 without being negative, if the alignment were to be extended all the way to the origin
+		//These functions return the x and y coordinates of the cell corner that is closest to 0 without being negative,
+		//if the alignment were to be extended all the way to the origin
 		coord_t xOrigin() const {
 			coord_t out = std::fmod(xmin(), xres());
 			if (out < 0) {
