@@ -70,6 +70,10 @@ namespace lapis {
 
 		//the minimum and maximum values for non-outlier las returns
 		coord_t minht, maxht;
+
+		std::filesystem::path outfolder;
+
+		std::mutex globalMut;
 	};
 
 	//this class stores all the parameters of the run in a form usable by the actual logic of the app

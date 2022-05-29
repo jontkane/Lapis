@@ -6,81 +6,60 @@ namespace chr = std::chrono;
 namespace fs = std::filesystem;
 
 namespace lapis {
-
-	/*LapisController::LapisController(const FullOptions& opt)
+	LapisController::LapisController() : params()
 	{
-		outFolder = opt.dataOptions.outfolder;
-
-		binsize = convertUnits(opt.processingOptions.binSize, linearUnitDefs::meter, opt.dataOptions.outUnits);
-
-		nThread = opt.processingOptions.nThread.value_or(defaultNThread());
-
-		lasCRSOverride = opt.dataOptions.lasCRS;
-		lasUnitOverride = opt.dataOptions.lasUnits;
-		dtmCRSOverride = opt.dataOptions.demCRS;
-		dtmUnitOverride = opt.dataOptions.demUnits;
-
-		iterateOverFileSpecifiers<LasExtent>(opt.dataOptions.lasFileSpecifiers, tryLasFile, lasLocs, log,
-			lasCRSOverride,lasUnitOverride);
-		log.logProgress(std::to_string(lasLocs.size()) + " point cloud files identified");
-		iterateOverFileSpecifiers<Alignment>(opt.dataOptions.demFileSpecifiers, tryDtmFile, dtmLocs, log,
-			dtmCRSOverride,dtmUnitOverride);
-		log.logProgress(std::to_string(dtmLocs.size()) + " DEM files identified");
-
-		minht = opt.metricOptions.minht.value_or(convertUnits(-2,linearUnitDefs::meter,opt.dataOptions.outUnits));
-		maxht = opt.metricOptions.maxht.value_or(convertUnits(100, linearUnitDefs::meter, opt.dataOptions.outUnits));
-		
-		canopy_cutoff = opt.metricOptions.canopyCutoff.value_or(convertUnits(2, linearUnitDefs::meter, opt.dataOptions.outUnits));
-
-		_setFilters(opt);
-		_setMetrics(opt);
-		_setOutAlign(opt);
-
-		docsm = true;
+		gp = params.globalParams.get();
+		lp = params.lasParams.get();
+	}
+	LapisController::LapisController(const FullOptions& opt) : params(opt)
+	{
+		gp = params.globalParams.get();
+		lp = params.lasParams.get();
 	}
 
 	void LapisController::processFullArea()
 	{
-		ThreadController con{ *this };
-		
-		auto pointMetricThreadFunc = [&] {pointMetricThread(con); };
-		fs::path pointMetricDir = fs::path(outFolder) / "PointMetrics";
+		size_t soFarLas = 0;
+		auto pointMetricThreadFunc = [&] {pointMetricThread(soFarLas); };
+		fs::path pointMetricDir = gp->outfolder / "PointMetrics";
 		fs::create_directories(pointMetricDir);
 
 		std::vector<std::thread> threads;
-		for (int i = 0; i < nThread; ++i) {
+		for (int i = 0; i < gp->nThread; ++i) {
 			threads.push_back(std::thread(pointMetricThreadFunc));
 		}
-		for (int i = 0; i < nThread; ++i) {
+		for (int i = 0; i < gp->nThread; ++i) {
 			threads[i].join();
 		}
 
-		log.logProgress("Writing point metric rasters");
-		for (auto& metric : con.metrics) {
+		gp->log.logProgress("Writing point metric rasters");
+		for (auto& metric : lp->metricRasters) {
 			std::string filename = (pointMetricDir / (metric.metric.name + ".tif")).string();
 			try {
 				metric.rast.writeRaster(filename);
 			}
 			catch (InvalidRasterFileException e) {
-				log.logError("Error Writing " + filename);
+				gp->log.logError("Error Writing " + filename);
 			}
 		}
 
-		log.logProgress("Merging CSMs");
+		gp->log.logProgress("Merging CSMs");
 
-		cell_t targetNCell = maxCsmBytes / sizeof(csm_data);
+		cell_t targetNCell = gp->maxCSMBytes / sizeof(csm_data);
 		rowcol_t targetNRowCol = (rowcol_t)std::sqrt(targetNCell);
-		coord_t tileRes = targetNRowCol * csmAlign.xres();
-		Alignment layout{ csmAlign,0,0,tileRes,tileRes };
+		coord_t tileRes = targetNRowCol * gp->csmAlign.xres();
+		Alignment layout{ gp->csmAlign,0,0,tileRes,tileRes };
 
-		auto csmMergeThreadFunc = [&] {mergeCSMThread(con, layout); };
+		cell_t soFarCSM = 0;
+		auto csmMergeThreadFunc = [&] {mergeCSMThread(layout, soFarCSM); };
 
-		con.getReadyForCSMMerging();
+		params.cleanUpAfterPointMetrics();
+		lp = nullptr;
 		threads.clear();
-		for (int i = 0; i < nThread; ++i) {
+		for (int i = 0; i < gp->nThread; ++i) {
 			threads.push_back(std::thread(csmMergeThreadFunc));
 		}
-		for (int i = 0; i < nThread; ++i) {
+		for (int i = 0; i < gp->nThread; ++i) {
 			threads[i].join();
 		}
 
@@ -100,95 +79,95 @@ namespace lapis {
 		return out;
 	}
 
-	void LapisController::pointMetricThread(ThreadController& con) const
+	void LapisController::pointMetricThread(size_t& soFar) const
 	{
 		while (true) {
 
-			std::string lasname;
+			LasFileExtent lasExt;
 			size_t thisidx = 0;
 			{
-				std::lock_guard lock1(con.globalMut);
-				if (con.sofar >= con.lasFiles.size()) {
+				std::lock_guard lock1(gp->globalMut);
+				if (soFar >= gp->sortedLasFiles.size()) {
 					break;
 				}
-				lasname = con.lasFiles[con.sofar];
-				++con.sofar;
-				thisidx = con.sofar;
-				log.logProgress("las file " + std::to_string(con.sofar) + " out of " + std::to_string(con.lasFiles.size()) + " started");
+				lasExt = gp->sortedLasFiles[soFar];
+				++soFar;
+				thisidx = soFar;
+				gp->log.logProgress("las file " + std::to_string(soFar) + " out of " + std::to_string(gp->sortedLasFiles.size()) + " started");
 			}
 			LasReader lr;
 			try {
-				lr = LasReader(lasname);
-				if (!lasCRSOverride.isEmpty()) {
-					lr.defineCRS(lasCRSOverride);
+				lr = LasReader(lasExt.filename);
+				if (!lp->lasCRSOverride.isEmpty()) {
+					lr.defineCRS(lp->lasCRSOverride);
 				}
-				if (!lasUnitOverride.isUnknown()) {
-					lr.setZUnits(lasUnitOverride);
+				if (!lp->lasUnitOverride.isUnknown()) {
+					lr.setZUnits(lp->lasUnitOverride);
 				}
 			}
 			catch (InvalidLasFileException e) {
-				log.logError(e.what());
+				gp->log.logError(e.what());
 				continue;
 			}
 
 			auto startTime = chr::high_resolution_clock::now();
 
-			lr.setHeightLimits(minht, maxht, outAlign.crs().getZUnits());
-			for (auto& f : filters) {
+			lr.setHeightLimits(gp->minht, gp->maxht, gp->metricAlign.crs().getZUnits());
+			for (auto& f : lp->filters) {
 				lr.addFilter(f);
 			}
-			QuadExtent q{ lr,outAlign.crs() };
+			QuadExtent q{ lr,gp->metricAlign.crs() };
 
 			std::optional<Raster<csm_data>> thiscsm;
-			if (docsm) {
-				thiscsm = Raster<csm_data>(crop(csmAlign, q.outerExtent(), SnapType::out));
+			if (true) { //the ability to skip calculating the CSM might go here eventually
+				thiscsm = Raster<csm_data>(crop(gp->csmAlign, q.outerExtent(), SnapType::out));
 			}
 
 			
-			for (auto& d : dtmLocs) {
+			for (auto& d : gp->demFiles) {
 				try {
-					lr.addDTM(d.first, dtmCRSOverride, dtmUnitOverride);
+					lr.addDEM(d.filename, lp->demCRSOverride, lp->demUnitOverride);
 				}
 				catch (InvalidRasterFileException e) {
-					log.logError(e.what());
+					gp->log.logError(e.what());
 				}
 			}
 			
 			long long nPoints = 0;
 
-			nPoints = assignPoints(lr, con, thiscsm);
+			nPoints = assignPoints(lr, thiscsm);
 			if (thiscsm.has_value()) {
 				std::string filename = (getCSMTempDir() / (std::to_string(thisidx) + ".tif")).string();
 				try {
 					thiscsm.value().writeRaster(filename);
 				}
 				catch (InvalidRasterFileException e) {
-					log.logError("Error Writing " + filename);
+					gp->log.logError("Error Writing " + filename);
 					throw InvalidRasterFileException(filename);
 				}
 			}
 			
-			processPoints(lr, con);
+			processPoints(lr);
 
 			auto endTime = chr::high_resolution_clock::now();
 			auto duration = chr::duration_cast<chr::seconds>(endTime - startTime).count();
-			log.logDiagnostic(lasname + " " + std::to_string(nPoints) + " points read and processed in " + std::to_string(duration) + " seconds");
+			gp->log.logDiagnostic(lasExt.filename + " " + std::to_string(nPoints) + " points read and processed in " + std::to_string(duration) + " seconds");
 		}
 	}
 
-	long long LapisController::assignPoints(LasReader& lr, ThreadController& con, std::optional<Raster<csm_data>>& csm) const
+	long long LapisController::assignPoints(LasReader& lr, std::optional<Raster<csm_data>>& csm) const
 	{
 
 		auto points = lr.getPoints(lr.nPoints());
-		points.transform(con.pointRast.crs());
+		points.transform(lp->calculators.crs());
 		for (auto& p : points) {
-			if (!con.pointRast.strictContains(p.x, p.y)) {
+			if (!lp->calculators.strictContains(p.x, p.y)) {
 				continue;
 			}
-			cell_t cell = con.pointRast.cellFromXYUnsafe(p.x, p.y);
+			cell_t cell = lp->calculators.cellFromXYUnsafe(p.x, p.y);
 
-			std::lock_guard lock{ con.cellMuts[cell % con.mutexN] };
-			con.pointRast[cell].value().addPoint(p);
+			std::lock_guard lock{ lp->cellMuts[cell % lp->mutexN] };
+			lp->calculators[cell].value().addPoint(p);
 		}
 		if (csm.has_value()) {
 			auto& csmv = csm.value();
@@ -212,33 +191,33 @@ namespace lapis {
 		
 	}
 
-	void LapisController::processPoints(const Extent& e, ThreadController& con) const
+	void LapisController::processPoints(const Extent& e) const
 	{
-		QuadExtent q{ e,con.nLaz.crs() };
-		std::vector<cell_t> cells = con.nLaz.cellsFromExtent(q.outerExtent(),SnapType::out);
+		QuadExtent q{ e,lp->nLaz.crs() };
+		std::vector<cell_t> cells = lp->nLaz.cellsFromExtent(q.outerExtent(),SnapType::out);
 		for (cell_t cell : cells) {
-			processCell(con, cell);
+			processCell(cell);
 		}
 	}
 
-	void LapisController::processCell(ThreadController& con, cell_t cell) const
+	void LapisController::processCell(cell_t cell) const
 	{
-		std::scoped_lock lock{ con.cellMuts[cell % con.mutexN] };
-		con.nLaz[cell].value()--;
-		if (con.nLaz[cell].value() != 0) {
+		std::scoped_lock lock{ lp->cellMuts[cell % lp->mutexN] };
+		lp->nLaz[cell].value()--;
+		if (lp->nLaz[cell].value() != 0) {
 			return;
 		}
-		auto& pmc = con.pointRast[cell].value();
-		for (size_t i = 0; i < con.metrics.size(); ++i) {
-			auto& f = con.metrics[i].metric.fun;
-			(pmc.*f)(con.metrics[i].rast, cell);
+		auto& pmc = lp->calculators[cell].value();
+		for (size_t i = 0; i < lp->metricRasters.size(); ++i) {
+			auto& f = lp->metricRasters[i].metric.fun;
+			(pmc.*f)(lp->metricRasters[i].rast, cell);
 		}
 		pmc.cleanUp();
 	}
 
 	fs::path LapisController::getCSMTempDir() const
 	{
-		fs::path baseout{ outFolder };
+		fs::path baseout = gp->outfolder;
 		fs::path csmtempdir = baseout / "CanopySurfaceModel" / "Temp";
 		fs::create_directories(csmtempdir);
 		return csmtempdir;
@@ -246,13 +225,13 @@ namespace lapis {
 
 	fs::path LapisController::getCSMPermanentDir() const
 	{
-		fs::path baseout{ outFolder };
+		fs::path baseout = gp->outfolder;
 		fs::path csmtempdir = baseout / "CanopySurfaceModel";
 		fs::create_directories(csmtempdir);
 		return csmtempdir;
 	}
 
-	void LapisController::mergeCSMThread(ThreadController& con, const Alignment& layout)
+	void LapisController::mergeCSMThread(const Alignment& layout, cell_t& soFar)
 	{
 		cell_t thisidx = 0;
 		Extent thistile;
@@ -260,21 +239,21 @@ namespace lapis {
 		fs::path permcsmdir = getCSMPermanentDir();
 		while (true) {
 			{
-				std::lock_guard lock(con.globalMut);
+				std::lock_guard lock(gp->globalMut);
 #pragma warning (suppress: 4018)
-				if (con.sofar >= layout.ncell()) {
+				if (soFar >= layout.ncell()) {
 					break;
 				}
-				thistile = layout.extentFromCell(con.sofar);
-				thisidx = con.sofar;
-				++con.sofar;
+				thistile = layout.extentFromCell(soFar);
+				thisidx = soFar;
+				++soFar;
 				
 			}
-			log.logProgress("Merging CSM tile " + std::to_string(thisidx+1) + " of approx. " + std::to_string(layout.ncell()));
+			gp->log.logProgress("Merging CSM tile " + std::to_string(thisidx+1) + " of approx. " + std::to_string(layout.ncell()));
 
 			//when tree ID is added, we may need to introduce buffering of the CSM tiles to get an overlap zone
 			//in the unbuffered case, lower-left snapping ensures that each output cell appears in exactly one tile
-			Raster<csm_data> fullTile(crop(csmAlign, thistile, SnapType::ll));
+			Raster<csm_data> fullTile(crop(gp->csmAlign, thistile, SnapType::ll));
 
 			bool hasAnyValue = false;
 
@@ -282,9 +261,8 @@ namespace lapis {
 			rowcol_t mincol = std::numeric_limits<rowcol_t>::max();
 			rowcol_t maxrow = std::numeric_limits<rowcol_t>::lowest();
 			rowcol_t maxcol = std::numeric_limits<rowcol_t>::lowest();
-			for (size_t i = 0; i < con.lasFiles.size(); ++i) {
-				//this calculation has already been done and if this code is slow enough to bother optimizing, this is a good place to look
-				Extent thisext = QuadExtent(lasLocs[con.lasFiles[i]], fullTile.crs()).outerExtent();
+			for (size_t i = 0; i < gp->sortedLasFiles.size(); ++i) {
+				Extent thisext = gp->sortedLasFiles[i].ext;
 
 				//Because the geotiff format doesn't store the entire WKT, you will sometimes end up in the situation where the WKT you set
 				//and the WKT you get by writing and then reading a tif are not the same
@@ -341,147 +319,4 @@ namespace lapis {
 			}
 		}
 	}
-
-	void LapisController::_setOutAlign(const FullOptions& opt)
-	{
-		Extent lasFullExtent;
-		bool extInit = false;
-		for (auto& v : lasLocs) {
-			if (!extInit) {
-				lasFullExtent = v.second;
-				extInit = true;
-			}
-			else {
-				if (v.second.crs().isConsistentHoriz(lasFullExtent.crs())) {
-					lasFullExtent = extend(lasFullExtent, v.second);
-				}
-				else {
-					QuadExtent q{ v.second,lasFullExtent.crs() };
-					lasFullExtent = extend(lasFullExtent, q.outerExtent());
-				}
-			}
-		}
-
-		if (std::holds_alternative<alignmentFromFile>(opt.dataOptions.outAlign)) {
-			const alignmentFromFile& optAlign = std::get<alignmentFromFile>(opt.dataOptions.outAlign);
-			Alignment fileAlign;
-			try {
-				fileAlign = Alignment(optAlign.filename);
-			}
-			catch (std::runtime_error e) {
-				log.logError(e.what());
-				throw e;
-			}
-
-			QuadExtent q{ lasFullExtent,fileAlign.crs() };
-			lasFullExtent = q.outerExtent();
-			outAlign = Alignment(lasFullExtent, fileAlign.xOrigin(), fileAlign.yOrigin(), fileAlign.xres(), fileAlign.yres());
-			if (optAlign.useType == alignmentFromFile::alignType::crop) {
-				try {
-					outAlign = crop(outAlign, fileAlign);
-				}
-				catch (InvalidExtentException e) {
-					log.logError("Specified output alignment does not overlap with input point cloud files");
-					throw e;
-				}
-			}
-		}
-		else {
-			const manualAlignment& optAlign = std::get<manualAlignment>(opt.dataOptions.outAlign);
-			if (!optAlign.crs.isEmpty()) {
-				QuadExtent q{ lasFullExtent, optAlign.crs };
-				lasFullExtent = q.outerExtent();
-			}
-			coord_t res = 30;
-			if (optAlign.res.has_value()) {
-				res = convertUnits(optAlign.res.value(), opt.dataOptions.outUnits, lasFullExtent.crs().getXYUnits());
-			}
-			else {
-				res = convertUnits(res, linearUnitDefs::meter, lasFullExtent.crs().getXYUnits());
-			}
-			outAlign = Alignment(lasFullExtent, res / 2, res / 2, res, res);
-		}
-
-		coord_t csmres = 1;
-		if (opt.dataOptions.csmRes.has_value()) {
-			csmres = convertUnits(opt.dataOptions.csmRes.value(), opt.dataOptions.outUnits, lasFullExtent.crs().getXYUnits());
-		}
-		else {
-			csmres = convertUnits(csmres, linearUnitDefs::meter, lasFullExtent.crs().getXYUnits());
-		}
-
-		csmAlign = Alignment(lasFullExtent, csmres / 2, csmres / 2, csmres, csmres);
-
-		if (!opt.dataOptions.outUnits.isUnknown()) {
-			outAlign.setZUnits(opt.dataOptions.outUnits);
-			csmAlign.setZUnits(opt.dataOptions.outUnits);
-		}
-		else if (!lasUnitOverride.isUnknown()) {
-			outAlign.setZUnits(lasUnitOverride);
-			csmAlign.setZUnits(lasUnitOverride);
-		}
-	}
-
-	void LapisController::_setFilters(const FullOptions& opt)
-	{
-		if (opt.metricOptions.whichReturns == MetricOptions::WhichReturns::only) {
-			filters.push_back(std::make_shared<LasFilterOnlyReturns>());
-		}
-		else if (opt.metricOptions.whichReturns == MetricOptions::WhichReturns::first) {
-			filters.push_back(std::make_shared<LasFilterFirstReturns>());
-		}
-
-		if (opt.metricOptions.classes.has_value()) {
-			if (opt.metricOptions.classes.value().whiteList) {
-				filters.push_back(std::make_shared<LasFilterClassWhitelist>(opt.metricOptions.classes.value().classes));
-			}
-			else {
-				filters.push_back(std::make_shared<LasFilterClassBlacklist>(opt.metricOptions.classes.value().classes));
-			}
-		}
-		if (!opt.metricOptions.useWithheld) {
-			filters.push_back(std::make_shared<LasFilterWithheld>());
-		}
-
-		if (opt.metricOptions.maxScanAngle.has_value()) {
-			filters.push_back(std::make_shared<LasFilterMaxScanAngle>(opt.metricOptions.maxScanAngle.value()));
-		}
-		log.logDiagnostic(std::to_string(filters.size()) + " filters applied");
-	}
-
-	void LapisController::_setMetrics(const FullOptions& opt)
-	{
-		point_metrics.emplace_back("Mean_CanopyHeight", &PointMetricCalculator::meanCanopy);
-		point_metrics.emplace_back("StdDev_CanopyHeight", &PointMetricCalculator::stdDevCanopy);
-		point_metrics.emplace_back("25thPercentile_CanopyHeight", &PointMetricCalculator::p25Canopy);
-		point_metrics.emplace_back("50thPercentile_CanopyHeight", &PointMetricCalculator::p50Canopy);
-		point_metrics.emplace_back("75thPercentile_CanopyHeight", &PointMetricCalculator::p75Canopy);
-		point_metrics.emplace_back("95thPercentile_CanopyHeight", &PointMetricCalculator::p95Canopy);
-		point_metrics.emplace_back("TotalReturnCount", &PointMetricCalculator::returnCount);
-		point_metrics.emplace_back("CanopyCover", &PointMetricCalculator::canopyCover);
-	}
-
-	LapisController::ThreadController::ThreadController(const LapisController& lc) :
-		pointRast(lc.outAlign), sofar(0), globalMut(), cellMuts(mutexN)
-	{
-
-		PointMetricCalculator::setInfo(lc.canopy_cutoff, lc.maxht, lc.binsize);
-
-		nLaz = getNLazRaster(lc.outAlign, lc.lasLocs);
-
-		lasFiles = std::vector<std::string>();
-		lasFiles.reserve(lc.lasLocs.size());
-		for (auto& v : lc.lasLocs) {
-			lasFiles.emplace_back(v.first);
-		}
-		std::sort(lasFiles.begin(), lasFiles.end(), [&](const std::string& a, const std::string& b) {
-			return extentSorter(lc.lasLocs.at(a), lc.lasLocs.at(b));
-			});
-
-		for (auto& m : lc.point_metrics) {
-			metrics.emplace_back(m, lc.outAlign);
-		}
-	}*/
-
-
 }

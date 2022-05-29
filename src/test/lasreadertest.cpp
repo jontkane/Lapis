@@ -75,7 +75,7 @@ namespace lapis{
 
 		file = LAPISTESTFILES;
 		file = file + "testlazground.img";
-		lr.addDTM(file);
+		lr.addDEM(file);
 
 		auto points = lr.getPoints(100);
 		EXPECT_EQ((size_t)93, points.size());

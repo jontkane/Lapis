@@ -284,6 +284,8 @@ namespace lapis {
 			value_or(convertUnits(-2, linearUnitDefs::meter, globalParams->metricAlign.crs().getZUnits()));
 		globalParams->maxht = opt.metricOptions.maxht.
 			value_or(convertUnits(100, linearUnitDefs::meter, globalParams->metricAlign.crs().getZUnits()));
+
+		globalParams->outfolder = opt.dataOptions.outfolder;
 	}
 
 	void UsableParameters::makeNLaz()

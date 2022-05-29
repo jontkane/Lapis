@@ -60,7 +60,7 @@ namespace lapis {
 		_maxht = convertUnits(maxht, units, crs().getZUnits());
 	}
 
-	void LasReader::addDTM(const std::string& file, const CoordRef& crsOverride, const Unit& unitOverride) {
+	void LasReader::addDEM(const std::string& file, const CoordRef& crsOverride, const Unit& unitOverride) {
 
 		Extent rastExt = Alignment(file); //this kind of goofy line forces the check that file is a raster file and not some other object
 		QuadExtent thisProjExt{ *this,rastExt.crs() };
