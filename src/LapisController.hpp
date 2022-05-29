@@ -41,7 +41,7 @@ namespace lapis {
 
 		//assigns points from a file to the correct cells of the output
 		//returns the number of points that pass the filters and get used in later processing
-		long long assignPoints(LasReader& las, std::optional<Raster<csm_data>>& csm) const;
+		long long assignPoints(const LidarPointVector& points, std::optional<Raster<csm_data>>& csm) const;
 
 		//processes the points that have already been found and assigns the output to rasters
 		//returns the number of points freed from memory
@@ -58,6 +58,10 @@ namespace lapis {
 		//This is the function that performs the work of merging the temporary CSM files into their final tiles
 		//layout is an alignment whose cells represent the extents of the final tiles.
 		void mergeCSMThread(const Alignment& layout, cell_t& soFar);
+
+		//returns the points belonging to the nth las file in sortedlasextents
+		//may throw an InvalidLasFileException if something goes wrong
+		LidarPointVector getPoints(size_t n) const;
 
 
 		LapisObjects obj;

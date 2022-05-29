@@ -95,47 +95,21 @@ namespace lapis {
 				thisidx = soFar;
 				gp->log.logProgress("las file " + std::to_string(soFar) + " out of " + std::to_string(gp->sortedLasFiles.size()) + " started");
 			}
-			LasReader lr;
-			try {
-				lr = LasReader(lasExt.filename);
-				if (!lp->lasCRSOverride.isEmpty()) {
-					lr.defineCRS(lp->lasCRSOverride);
-				}
-				if (!lp->lasUnitOverride.isUnknown()) {
-					lr.setZUnits(lp->lasUnitOverride);
-				}
-			}
-			catch (InvalidLasFileException e) {
-				gp->log.logError(e.what());
-				continue;
-			}
+			
 
 			auto startTime = chr::high_resolution_clock::now();
 
-			lr.setHeightLimits(gp->minht, gp->maxht, gp->metricAlign.crs().getZUnits());
-			for (auto& f : lp->filters) {
-				lr.addFilter(f);
-			}
-			QuadExtent q{ lr,gp->metricAlign.crs() };
-
 			std::optional<Raster<csm_data>> thiscsm;
 			if (true) { //the ability to skip calculating the CSM might go here eventually
-				thiscsm = Raster<csm_data>(crop(gp->csmAlign, q.outerExtent(), SnapType::out));
+				thiscsm = Raster<csm_data>(crop(gp->csmAlign, lasExt.ext, SnapType::out));
 			}
 
 			
-			for (auto& d : gp->demFiles) {
-				try {
-					lr.addDEM(d.filename, lp->demCRSOverride, lp->demUnitOverride);
-				}
-				catch (InvalidRasterFileException e) {
-					gp->log.logError(e.what());
-				}
-			}
+			LidarPointVector points = getPoints(thisidx);
 			
 			long long nPoints = 0;
 
-			nPoints = assignPoints(lr, thiscsm);
+			nPoints = assignPoints(points, thiscsm);
 			if (thiscsm.has_value()) {
 				std::string filename = (getCSMTempDir() / (std::to_string(thisidx) + ".tif")).string();
 				try {
@@ -147,7 +121,7 @@ namespace lapis {
 				}
 			}
 			
-			processPoints(lr);
+			processPoints(lasExt.ext);
 
 			auto endTime = chr::high_resolution_clock::now();
 			auto duration = chr::duration_cast<chr::seconds>(endTime - startTime).count();
@@ -155,11 +129,8 @@ namespace lapis {
 		}
 	}
 
-	long long LapisController::assignPoints(LasReader& lr, std::optional<Raster<csm_data>>& csm) const
+	long long LapisController::assignPoints(const LidarPointVector& points, std::optional<Raster<csm_data>>& csm) const
 	{
-
-		auto points = lr.getPoints(lr.nPoints());
-		points.transform(lp->calculators.crs());
 		for (auto& p : points) {
 			if (!lp->calculators.strictContains(p.x, p.y)) {
 				continue;
@@ -318,5 +289,36 @@ namespace lapis {
 				fullTile.writeRaster((permcsmdir / outname).string());
 			}
 		}
+	}
+	
+	LidarPointVector LapisController::getPoints(size_t n) const
+	{
+		LasReader lr;
+		lr = LasReader(gp->sortedLasFiles[n].filename); //may throw
+		if (!lp->lasCRSOverride.isEmpty()) {
+			lr.defineCRS(lp->lasCRSOverride);
+		}
+		if (!lp->lasUnitOverride.isUnknown()) {
+			lr.setZUnits(lp->lasUnitOverride);
+		}
+
+		lr.setHeightLimits(gp->minht, gp->maxht, gp->metricAlign.crs().getZUnits());
+		for (auto& f : lp->filters) {
+			lr.addFilter(f);
+		}
+
+		for (auto& d : gp->demFiles) {
+			try {
+				lr.addDEM(d.filename, lp->demCRSOverride, lp->demUnitOverride);
+			}
+			catch (InvalidRasterFileException e) {
+				gp->log.logError(e.what());
+			}
+		}
+
+		auto points = lr.getPoints(lr.nPoints());
+		points.transform(lp->calculators.crs());
+
+		return points;
 	}
 }

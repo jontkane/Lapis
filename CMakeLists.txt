@@ -57,8 +57,8 @@ set(LAPIS_APP_SOURCES
 		src/options.hpp
 		src/pointmetriccalculator.cpp
 		src/pointmetriccalculator.hpp
-		src/usableparameters.hpp
-		src/usableparameters.cpp
+		src/lapisobjects.hpp
+		src/lapisobjects.cpp
 		)
 
 set(LAPIS_TEST_SOURCES
@@ -72,7 +72,8 @@ set(LAPIS_TEST_SOURCES
 		src/test/lasreadertest.cpp
 		src/test/quadextenttest.cpp
 		src/test/rastertest.cpp
-		src/test/usableparameterstest.cpp
+		src/test/lapisobjectstest.cpp
+		src/test/pointmetriccalculatortest.cpp
 		)
 
 

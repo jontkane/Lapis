@@ -43,7 +43,6 @@ namespace lapis {
 		}
 		_tmp.clear(); //you could deallocate here and nothing would break but it seems uneccesary
 
-
 		LidarPointVector out{ _crs };
 		out.reserve(points.size());
 		for (size_t i = 0; i < points.size(); ++i) {

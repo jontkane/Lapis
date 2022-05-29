@@ -24,7 +24,6 @@ int main(int argc, char* argv[])
 	//restructure lapiscontroller to allow for unit testing
 	//write unit testing for lapiscontroller elements:
 	//	point distribution into raster cells
-	//	point metric calculation
 	//	csm calculation
 
 	//add parameter output
