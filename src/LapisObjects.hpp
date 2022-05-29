@@ -1,6 +1,6 @@
 #pragma once
-#ifndef lp_usableparameters_h
-#define lp_usableparameters_h
+#ifndef lp_lapisobjects_h
+#define lp_lapisobjects_h
 
 #include"Options.hpp"
 #include"gis/Raster.hpp"
@@ -11,7 +11,7 @@ namespace lapis {
 
 	//parameters that are only needed during the portion of the program where laz files are being read, and can be safely cleaned up after that
 	//laz reading is guaranteed to be the first 
-	struct LasParameters {
+	struct LasProcessingObjects {
 
 		//a raster, aligning to the metric grid, whose values are initialized to the number of LAZ files whose extents overlap that cell
 		//as the progressing progresses, the values will be reduced to indicating the number of yet-unprocessed LAZ files whose extents overlap that cell
@@ -40,7 +40,7 @@ namespace lapis {
 	};
 
 	//parameters that need to exist even after the laz reading is done
-	struct GlobalParameters {
+	struct GlobalProcessingObjects {
 
 		//the (rough) max size a CSM tile should be
 		inline static constexpr size_t maxCSMBytes = 1024 * 1024 * 1024; //1gb
@@ -78,16 +78,16 @@ namespace lapis {
 
 	//this class stores all the parameters of the run in a form usable by the actual logic of the app
 	//as well as the logic to convert from user-specified options into app-usable parameters
-	class UsableParameters {
+	class LapisObjects {
 	public:
-		UsableParameters();
-		UsableParameters(const FullOptions& opt);
+		LapisObjects();
+		LapisObjects(const FullOptions& opt);
 
 		//there's a lot of memory that just isn't important after you finish with the point metrics and can be freed
 		void cleanUpAfterPointMetrics();
 
-		std::unique_ptr<LasParameters> lasParams;
-		std::unique_ptr<GlobalParameters> globalParams;
+		std::unique_ptr<LasProcessingObjects> lasProcessingObjects;
+		std::unique_ptr<GlobalProcessingObjects> globalProcessingObjects;
 
 		//these functions are protected instead of private to enable easier testing 
 	protected:

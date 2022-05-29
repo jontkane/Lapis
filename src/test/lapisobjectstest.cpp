@@ -1,4 +1,4 @@
-#include"..\UsableParameters.hpp"
+#include"..\LapisObjects.hpp"
 #include<gtest/gtest.h>
 
 
@@ -10,7 +10,7 @@ namespace lapis {
 	namespace fs = std::filesystem;
 
 	//just a wrapper that makes the protected functions of UsableParameters public in order to test them
-	class UsableParametersDerived : public UsableParameters {
+	class LapisObjectsDerived : public LapisObjects {
 	public:
 		void identifyLasFiles_test(const FullOptions& opt) {
 			identifyLasFiles(opt);
@@ -93,14 +93,14 @@ namespace lapis {
 	}
 
 	//this test uses the laz files in the test files folder as a test--that means that if additional files are added, this test will need to be updated
-	TEST(UsableParametersTest, identifyLasFiles) {
+	TEST(LapisObjectsTest, identifyLasFiles) {
 		fs::path testfolder = LAPISTESTFILES;
 		const int expectedNumberOfLaz = 4;
 
 		FullOptions opt;
 		auto& lazSpec = opt.dataOptions.lasFileSpecifiers;
-		UsableParametersDerived param;
-		auto& foundLaz = param.globalParams->sortedLasFiles;
+		LapisObjectsDerived param;
+		auto& foundLaz = param.globalProcessingObjects->sortedLasFiles;
 
 		lazSpec = { testfolder.string() };
 		param.identifyLasFiles_test(opt);
@@ -137,14 +137,14 @@ namespace lapis {
 		foundLaz.clear();
 	}
 
-	TEST(UsableParametersTest, identifyDEMFiles) {
+	TEST(LapisObjectsTest, identifyDEMFiles) {
 		fs::path testfolder = LAPISTESTFILES;
 		const int expectedNumberOfDem = 3;
 
 		FullOptions opt;
 		auto& demSpec = opt.dataOptions.demFileSpecifiers;
-		UsableParametersDerived param;
-		auto& foundDem = param.globalParams->demFiles;
+		LapisObjectsDerived param;
+		auto& foundDem = param.globalProcessingObjects->demFiles;
 
 		demSpec = { testfolder.string() };
 		param.identifyDEMFiles_test(opt);
@@ -181,10 +181,10 @@ namespace lapis {
 		foundDem.clear();
 	}
 
-	TEST(UsableParametersTest, setFilters) {
+	TEST(LapisObjectsTest, setFilters) {
 		FullOptions opt;
-		UsableParametersDerived param;
-		auto& filters = param.lasParams->filters;
+		LapisObjectsDerived param;
+		auto& filters = param.lasProcessingObjects->filters;
 		
 		opt.metricOptions.useWithheld = false;
 
@@ -233,15 +233,15 @@ namespace lapis {
 		filters.clear();
 	}
 
-	TEST(UsableParametersTest, createOutAlignment) {
+	TEST(LapisObjectsTest, createOutAlignment) {
 
 		CoordRef utm{ "26911" };
 		CoordRef sp{ "2927" };
 		
 		FullOptions opt;
-		UsableParametersDerived param;
-		Alignment& outAlign = param.globalParams->metricAlign;
-		Alignment& csmAlign = param.globalParams->csmAlign;
+		LapisObjectsDerived param;
+		Alignment& outAlign = param.globalProcessingObjects->metricAlign;
+		Alignment& csmAlign = param.globalProcessingObjects->csmAlign;
 
 		//first, when the user doesn't specify an alignment from file
 		opt.dataOptions.outAlign = ManualAlignment();
@@ -250,7 +250,7 @@ namespace lapis {
 
 
 		std::cout << "-----\nspecify nothing\n-----\n";
-		param.globalParams->sortedLasFiles = { {"a.laz",Extent(0,100,0,100,utm)},
+		param.globalProcessingObjects->sortedLasFiles = { {"a.laz",Extent(0,100,0,100,utm)},
 			{"b.laz",Extent(100,200,100,150,utm)} };
 		ma.crs = CoordRef("");
 		ma.res.reset(); //specifying neither
@@ -264,7 +264,7 @@ namespace lapis {
 
 
 		std::cout << "-----\nspecify only crs\n-----\n";
-		param.globalParams->sortedLasFiles = { {"a.laz",Extent(0,100,0,100,utm)},
+		param.globalProcessingObjects->sortedLasFiles = { {"a.laz",Extent(0,100,0,100,utm)},
 			{"b.laz",Extent(100,200,100,150,utm)} };
 		ma.crs = sp;
 		ma.res.reset();
@@ -277,7 +277,7 @@ namespace lapis {
 
 
 		std::cout << "-----\nspecify res only\n-----\n";
-		param.globalParams->sortedLasFiles = { {"a.laz",Extent(0,100,0,100,utm)},
+		param.globalProcessingObjects->sortedLasFiles = { {"a.laz",Extent(0,100,0,100,utm)},
 			{"b.laz",Extent(100,200,100,150,utm)} };
 		ma.crs = CoordRef("");
 		ma.res = 20;
@@ -300,7 +300,7 @@ namespace lapis {
 		aff.useType = alignmentFromFile::alignType::alignOnly;
 
 		std::cout << "-----\nfrom file\n-----\n";
-		param.globalParams->sortedLasFiles = { {"a.laz",Extent(0,100,0,100,utm)},
+		param.globalProcessingObjects->sortedLasFiles = { {"a.laz",Extent(0,100,0,100,utm)},
 			{"b.laz",Extent(100,200,100,150,utm)} };
 		param.createOutAlignment_test(opt);
 		checkOutAlign(outAlign, 0.75,
@@ -310,7 +310,7 @@ namespace lapis {
 			{"b.laz",Extent(100,200,100,150,utm)} });
 
 		std::cout << "-----\nfrom file, crs mismatch\n-----\n";
-		param.globalParams->sortedLasFiles = { {"a.laz",Extent(0,100,0,100,sp)},
+		param.globalProcessingObjects->sortedLasFiles = { {"a.laz",Extent(0,100,0,100,sp)},
 			{"b.laz",Extent(100,200,100,150,sp)} };
 		param.createOutAlignment_test(opt);
 		checkOutAlign(outAlign, 0.75,
@@ -318,5 +318,22 @@ namespace lapis {
 			CoordRef("26911"),
 			{ {"a.laz",Extent(0,100,0,100,sp)},
 			{"b.laz",Extent(100,200,100,150,sp)} });
+	}
+
+	TEST(LapisObjectsTest, makeNLaz) {
+		LapisObjectsDerived params;
+		Alignment& a = params.globalProcessingObjects->metricAlign;
+		a = Alignment{ Extent(0,100,200,300),2,2 };
+
+		params.globalProcessingObjects->sortedLasFiles = {
+			{"a.laz",Extent(-50,20,150,220)},
+			{"b.laz",Extent(0,40,180,320)}
+		};
+		params.makeNLaz_test();
+		std::vector<int> expected = { 1,0,2,0 };
+
+		for (int i = 0; i < a.ncell(); ++i) {
+			EXPECT_EQ(expected[i], params.lasProcessingObjects->nLaz[i].value());
+		}
 	}
 }

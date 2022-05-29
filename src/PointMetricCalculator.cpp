@@ -36,6 +36,11 @@ namespace lapis {
 	{
 		_hist.clear();
 		_hist.shrink_to_fit();
+
+		//zeroing these doesn't matter for normal runs but makes testing easier
+		_canopySum = 0;
+		_canopyCount = 0;
+		_count = 0;
 	}
 
 	void PointMetricCalculator::meanCanopy(Raster<metric_t>& r, cell_t cell)
@@ -108,43 +113,53 @@ namespace lapis {
 	void PointMetricCalculator::_quantileCanopy(Raster<metric_t>& r, cell_t cell, metric_t q)
 	{
 		//the exact threshold is arguable, but quantiles are meaningless at low point counts
-		//and the math gets a lot more annoying if you need to account for the case with exactly one point
+		//and the math gets a lot more annoying if you need to account for the case where the very first point might be the quantile
 		if (_canopyCount < 4) { 
 			r[cell].has_value() = false;
 			return;
 		}
 
-		metric_t needed = q * _canopyCount;
-		int prev = 0;
-		int next = 0;
-		int lastidxwithvalues = -1;
-		for (int i = 0; i < _hist.size(); ++i) {
-			next += _hist[i];
-			if (next < needed) {
-				if (_hist[i]) {
-					lastidxwithvalues = i;
-				}
-				prev = next;
-				continue;
+		coord_t previousvalue = std::numeric_limits<coord_t>::lowest(); //the estimated value of the last valid point, in case the quantile point is the first in its bin
+		metric_t needed = (_canopyCount-1) * q; //the quantile is the value that exceeds exactly this many points (slightly shifted when needed isn't an integer)
+		size_t binIdx = -1;
+		while (true) {
+			binIdx++;
+			int fudgedBin = _hist[binIdx];
+			//the very first element doesn't "count" when calculating quantiles
+			if (previousvalue < _canopy && fudgedBin > 0) {
+				previousvalue = _estimatePointValue(binIdx, 1);
+				fudgedBin = fudgedBin - 1;
 			}
-
-			if (next - needed < 1) { //the very first point in this bin crosses the threshold, so the true quantile should be less than this bin's lower bound
-				//estimating this point at the bottom of the bin and prev point at the top of that bin
-				metric_t thisbinmin = _canopy + i * _binsize;
-				metric_t prevbinmax = _canopy + (lastidxwithvalues + 1) * _binsize;
-				r[cell].has_value() = true;
-				r[cell].value() = prevbinmax + (thisbinmin - prevbinmax) * (next - needed);
-				return;
+			needed -= fudgedBin;
+			if (needed <= 0) {
+				break;
 			}
-
-			//this match assumes a uniform distribution of points within each bin
-			metric_t perc = (needed - prev) / (next - prev);
-			coord_t thisbinmin = _canopy + i * _binsize;
-			metric_t quant = (1 - perc) * thisbinmin + perc * (thisbinmin + _binsize);
-			r[cell].has_value() = true;
-			r[cell].value() = quant;
-			break;
+			if (fudgedBin>0) {
+				previousvalue = _estimatePointValue(binIdx, _hist[binIdx]);
+			}
+			
 		}
+
+		needed = std::abs(needed); //needed now contains the degree by which we've gone too far by jumping to the end of the bin
+		if (needed > 1) {
+			previousvalue = _estimatePointValue(binIdx, (int)needed);
+		}
+		metric_t followingvalue = _estimatePointValue(binIdx, (int)(needed + 1));
+		needed = std::fmod(needed, 1);
+		metric_t quantile = followingvalue - needed * (followingvalue - previousvalue);
+
+		r[cell].has_value() = true;
+		r[cell].value() = quantile;
+	}
+
+	//naming the parameter ordinal to emphasize that this math is 1-indexed; this is desirable throughout this algorithm,
+	//but don't get tripped up trying to correct imaginary oboes
+	metric_t PointMetricCalculator::_estimatePointValue(size_t binNumber, int ordinal)
+	{
+		//estimating that the sequence formed by the bin min, the observations, and the bin max is uniform
+		metric_t binmin = _canopy + _binsize * binNumber;
+		metric_t step = _binsize / (_hist[binNumber] + 1);
+		return binmin + step * ordinal;
 	}
 
 }

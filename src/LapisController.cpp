@@ -6,15 +6,15 @@ namespace chr = std::chrono;
 namespace fs = std::filesystem;
 
 namespace lapis {
-	LapisController::LapisController() : params()
+	LapisController::LapisController() : obj()
 	{
-		gp = params.globalParams.get();
-		lp = params.lasParams.get();
+		gp = obj.globalProcessingObjects.get();
+		lp = obj.lasProcessingObjects.get();
 	}
-	LapisController::LapisController(const FullOptions& opt) : params(opt)
+	LapisController::LapisController(const FullOptions& opt) : obj(opt)
 	{
-		gp = params.globalParams.get();
-		lp = params.lasParams.get();
+		gp = obj.globalProcessingObjects.get();
+		lp = obj.lasProcessingObjects.get();
 	}
 
 	void LapisController::processFullArea()
@@ -53,7 +53,7 @@ namespace lapis {
 		cell_t soFarCSM = 0;
 		auto csmMergeThreadFunc = [&] {mergeCSMThread(layout, soFarCSM); };
 
-		params.cleanUpAfterPointMetrics();
+		obj.cleanUpAfterPointMetrics();
 		lp = nullptr;
 		threads.clear();
 		for (int i = 0; i < gp->nThread; ++i) {

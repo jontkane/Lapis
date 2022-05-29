@@ -6,7 +6,7 @@ using namespace lapis;
 int main(int argc, char* argv[])
 {
 
-	/*Logger log;
+	Logger log;
 	auto parsed = parseOptions(argc, argv, log);
 	if (std::holds_alternative<std::exception>(parsed)) {
 		std::cout << "Error parsing command line\n";
@@ -17,10 +17,7 @@ int main(int argc, char* argv[])
 	LapisController lc{ opt };
 	lc.processFullArea();
 
-	log.logProgress("Done!");*/
-
-	//immediate next task:
-	//test usableparameters
+	log.logProgress("Done!");
 	
 	//semi-ordered to-do list:
 	

@@ -7,7 +7,7 @@
 #include"PointMetricCalculator.hpp"
 #include"Options.hpp"
 #include"LapisUtils.hpp"
-#include"UsableParameters.hpp"
+#include"LapisObjects.hpp"
 
 namespace std {
 	namespace filesystem {
@@ -60,9 +60,9 @@ namespace lapis {
 		void mergeCSMThread(const Alignment& layout, cell_t& soFar);
 
 
-		UsableParameters params;
-		GlobalParameters* gp;
-		LasParameters* lp;
+		LapisObjects obj;
+		GlobalProcessingObjects* gp;
+		LasProcessingObjects* lp;
 	};
 }
 

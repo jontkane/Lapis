@@ -18,6 +18,7 @@ namespace lapis {
 
 		//This should be called before any PointMetricCalculators are constructed, and shouldn't be called after any are constructed
 		//as you might guess from the names, max should be strictly greater than canopyCutoff, and binsize should be positive
+		//it's the callers responsibility to ensure that these are in the right units
 		static void setInfo(coord_t canopyCutoff, coord_t max, coord_t binsize);
 
 		//Adds an observed lidar return to this object
@@ -43,9 +44,11 @@ namespace lapis {
 		std::vector<int> _hist;
 		coord_t _canopySum = 0.;
 		int _count = 0;
-		int _canopyCount;
+		int _canopyCount = 0;
 
 		void _quantileCanopy(Raster<metric_t>& r, cell_t cell, metric_t q);
+
+		metric_t _estimatePointValue(size_t binNumber, int ordinal);
 	};
 
 	using MetricFunc = void(PointMetricCalculator::*)(Raster<metric_t>& r, cell_t cell);

@@ -1,17 +1,17 @@
 #include"app_pch.hpp"
-#include"UsableParameters.hpp"
+#include"LapisObjects.hpp"
 
 namespace lapis {
 
-	UsableParameters::UsableParameters()
+	LapisObjects::LapisObjects()
 	{
-		lasParams = std::make_unique<LasParameters>();
-		globalParams = std::make_unique<GlobalParameters>();
+		lasProcessingObjects = std::make_unique<LasProcessingObjects>();
+		globalProcessingObjects = std::make_unique<GlobalProcessingObjects>();
 	}
-	UsableParameters::UsableParameters(const FullOptions& opt)
+	LapisObjects::LapisObjects(const FullOptions& opt)
 	{
-		lasParams = std::make_unique<LasParameters>();
-		globalParams = std::make_unique<GlobalParameters>();
+		lasProcessingObjects = std::make_unique<LasProcessingObjects>();
+		globalProcessingObjects = std::make_unique<GlobalProcessingObjects>();
 
 		identifyLasFiles(opt);
 		createOutAlignment(opt);
@@ -25,28 +25,28 @@ namespace lapis {
 
 		finalParams(opt);
 	}
-	void UsableParameters::cleanUpAfterPointMetrics()
+	void LapisObjects::cleanUpAfterPointMetrics()
 	{
-		lasParams.reset(nullptr);
+		lasProcessingObjects.reset(nullptr);
 	}
-	void UsableParameters::identifyLasFiles(const FullOptions& opt)
+	void LapisObjects::identifyLasFiles(const FullOptions& opt)
 	{
 		std::vector<LasFileExtent> foundLaz = iterateOverFileSpecifiers<LasFileExtent>(opt.dataOptions.lasFileSpecifiers, &tryLasFile,
-			globalParams->log, lasParams->lasCRSOverride, lasParams->lasUnitOverride);
+			globalProcessingObjects->log, lasProcessingObjects->lasCRSOverride, lasProcessingObjects->lasUnitOverride);
 		std::unordered_set<std::string> unique;
 		for (auto& v : foundLaz) {
 			if (unique.count(v.filename)) {
 				continue;
 			}
 			unique.insert(v.filename);
-			globalParams->sortedLasFiles.push_back(v);
+			globalProcessingObjects->sortedLasFiles.push_back(v);
 		}
-		globalParams->log.logProgress(std::to_string(globalParams->sortedLasFiles.size()) + " point cloud files identified");
+		globalProcessingObjects->log.logProgress(std::to_string(globalProcessingObjects->sortedLasFiles.size()) + " point cloud files identified");
 	}
 
-	void UsableParameters::identifyDEMFiles(const FullOptions& opt)
+	void LapisObjects::identifyDEMFiles(const FullOptions& opt)
 	{
-		std::vector<DemFileAlignment> foundDem = iterateOverFileSpecifiers<DemFileAlignment>(opt.dataOptions.demFileSpecifiers, &tryDtmFile, globalParams->log,
+		std::vector<DemFileAlignment> foundDem = iterateOverFileSpecifiers<DemFileAlignment>(opt.dataOptions.demFileSpecifiers, &tryDtmFile, globalProcessingObjects->log,
 			opt.dataOptions.demCRS, opt.dataOptions.demUnits);
 		std::unordered_set<std::string> unique;
 		for (auto& v : foundDem) {
@@ -54,14 +54,14 @@ namespace lapis {
 				continue;
 			}
 			unique.insert(v.filename);
-			globalParams->demFiles.push_back(v);
+			globalProcessingObjects->demFiles.push_back(v);
 		}
-		globalParams->log.logProgress(std::to_string(globalParams->demFiles.size()) + " DEM files identified");
+		globalProcessingObjects->log.logProgress(std::to_string(globalProcessingObjects->demFiles.size()) + " DEM files identified");
 	}
 
-	void UsableParameters::setFilters(const FullOptions& opt)
+	void LapisObjects::setFilters(const FullOptions& opt)
 	{
-		auto& filters = lasParams->filters;
+		auto& filters = lasProcessingObjects->filters;
 
 		if (opt.metricOptions.whichReturns == MetricOptions::WhichReturns::only) {
 			filters.push_back(std::make_shared<LasFilterOnlyReturns>());
@@ -85,13 +85,13 @@ namespace lapis {
 		if (opt.metricOptions.maxScanAngle.has_value()) {
 			filters.push_back(std::make_shared<LasFilterMaxScanAngle>(opt.metricOptions.maxScanAngle.value()));
 		}
-		globalParams->log.logDiagnostic(std::to_string(filters.size()) + " filters applied");
+		globalProcessingObjects->log.logDiagnostic(std::to_string(filters.size()) + " filters applied");
 	}
 
-	void UsableParameters::setPointMetrics(const FullOptions& opt)
+	void LapisObjects::setPointMetrics(const FullOptions& opt)
 	{
-		auto& pointMetrics = lasParams->metricRasters;
-		auto& metricAlign = globalParams->metricAlign;
+		auto& pointMetrics = lasProcessingObjects->metricRasters;
+		auto& metricAlign = globalProcessingObjects->metricAlign;
 
 		auto addMetric = [&](std::string&& name, MetricFunc f) {
 			pointMetrics.emplace_back(PointMetricDefn{ std::move(name),f }, metricAlign);
@@ -107,7 +107,7 @@ namespace lapis {
 		addMetric("CanopyCover", &PointMetricCalculator::canopyCover);
 	}
 
-	void UsableParameters::createOutAlignment(const FullOptions& opt) {
+	void LapisObjects::createOutAlignment(const FullOptions& opt) {
 		//this one is a bit of a doozy because of all the branching logic
 		//if the user specifies an alignment from a file, that choice is respected
 		//if they choose to crop by that file, then that's it: the alignment is trimmed to where laz files exist and nothing else
@@ -122,7 +122,7 @@ namespace lapis {
 
 		//in all cases, the vertical units will be set to the user-defined units
 
-		Alignment& metricAlign = globalParams->metricAlign;
+		Alignment& metricAlign = globalProcessingObjects->metricAlign;
 
 		bool alignFinalized = false;
 		CoordRef outCRS;
@@ -133,15 +133,15 @@ namespace lapis {
 				metricAlign = Alignment(aff.filename);
 			}
 			catch (InvalidRasterFileException e) {
-				globalParams->log.logError(e.what());
+				globalProcessingObjects->log.logError(e.what());
 				throw e;
 			}
 			catch (InvalidAlignmentException e) {
-				globalParams->log.logError(e.what());
+				globalProcessingObjects->log.logError(e.what());
 				throw e;
 			}
 			catch (InvalidExtentException e) {
-				globalParams->log.logError(e.what());
+				globalProcessingObjects->log.logError(e.what());
 				throw e;
 			}
 
@@ -155,10 +155,10 @@ namespace lapis {
 
 			}
 			else {
-				for (size_t i = 0; i < globalParams->sortedLasFiles.size(); ++i) {
+				for (size_t i = 0; i < globalProcessingObjects->sortedLasFiles.size(); ++i) {
 					//if the user won't specify the CRS, just use the laz CRS
-					if (!globalParams->sortedLasFiles[i].ext.crs().isEmpty()) {
-						outCRS = globalParams->sortedLasFiles[i].ext.crs();
+					if (!globalProcessingObjects->sortedLasFiles[i].ext.crs().isEmpty()) {
+						outCRS = globalProcessingObjects->sortedLasFiles[i].ext.crs();
 						break;
 					}
 				}
@@ -175,15 +175,15 @@ namespace lapis {
 		}
 
 		if (!outCRS.isProjected()) {
-			globalParams->log.logError("Latitude/Longitude output not supported");
+			globalProcessingObjects->log.logError("Latitude/Longitude output not supported");
 			throw std::runtime_error("Latitude/Longitude output not supported");
 		}
 
 		Extent fullExtent;
 		bool initExtent = false;
 
-		for (size_t i = 0; i < globalParams->sortedLasFiles.size(); ++i) {
-			Extent& e = globalParams->sortedLasFiles[i].ext;
+		for (size_t i = 0; i < globalProcessingObjects->sortedLasFiles.size(); ++i) {
+			Extent& e = globalProcessingObjects->sortedLasFiles[i].ext;
 			if (!e.crs().isConsistentHoriz(outCRS)) {
 				QuadExtent q{ e, outCRS };
 				e = q.outerExtent();
@@ -209,7 +209,7 @@ namespace lapis {
 					metricAlign = crop(metricAlign, fullExtent, SnapType::out);
 				}
 				catch (InvalidExtentException e) {
-					globalParams->log.logError("Snap raster does not ovarlap with las files and user specified to crop by snap raster");
+					globalProcessingObjects->log.logError("Snap raster does not ovarlap with las files and user specified to crop by snap raster");
 					throw std::runtime_error("Snap raster does not ovarlap with las files and user specified to crop by snap raster");
 				}
 			}
@@ -225,9 +225,9 @@ namespace lapis {
 		if (csmcellsize <= 0) {
 			csmcellsize = convertUnits(1, linearUnitDefs::meter, outCRS.getXYUnits());
 		}
-		globalParams->csmAlign = Alignment(fullExtent, metricAlign.xOrigin(), metricAlign.yOrigin(), csmcellsize, csmcellsize);
+		globalProcessingObjects->csmAlign = Alignment(fullExtent, metricAlign.xOrigin(), metricAlign.yOrigin(), csmcellsize, csmcellsize);
 	}
-	void UsableParameters::sortLasFiles(const FullOptions& opt)
+	void LapisObjects::sortLasFiles(const FullOptions& opt)
 	{
 		//this just sorts north->south in a sort of naive way that ought to present a relatively minimal surface area when the data is tiled
 		auto lasExtentSorter = [](const LasFileExtent& a, const LasFileExtent& b) {
@@ -262,37 +262,37 @@ namespace lapis {
 			return true;
 		};
 
-		std::sort(globalParams->sortedLasFiles.begin(), globalParams->sortedLasFiles.end(), lasExtentSorter);
+		std::sort(globalProcessingObjects->sortedLasFiles.begin(), globalProcessingObjects->sortedLasFiles.end(), lasExtentSorter);
 	}
 
-	void UsableParameters::finalParams(const FullOptions& opt)
+	void LapisObjects::finalParams(const FullOptions& opt)
 	{
-		lasParams->calculators = Raster<PointMetricCalculator>(globalParams->metricAlign);
-		lasParams->cellMuts = std::vector<std::mutex>(lasParams->mutexN);
-		lasParams->lasCRSOverride = opt.dataOptions.lasCRS;
-		lasParams->lasUnitOverride = opt.dataOptions.lasUnits;
-		lasParams->demCRSOverride = opt.dataOptions.demCRS;
-		lasParams->demUnitOverride = opt.dataOptions.demUnits;
+		lasProcessingObjects->calculators = Raster<PointMetricCalculator>(globalProcessingObjects->metricAlign);
+		lasProcessingObjects->cellMuts = std::vector<std::mutex>(lasProcessingObjects->mutexN);
+		lasProcessingObjects->lasCRSOverride = opt.dataOptions.lasCRS;
+		lasProcessingObjects->lasUnitOverride = opt.dataOptions.lasUnits;
+		lasProcessingObjects->demCRSOverride = opt.dataOptions.demCRS;
+		lasProcessingObjects->demUnitOverride = opt.dataOptions.demUnits;
 
-		globalParams->nThread = opt.processingOptions.nThread.value_or(defaultNThread());
-		globalParams->binSize = opt.processingOptions.binSize;
+		globalProcessingObjects->nThread = opt.processingOptions.nThread.value_or(defaultNThread());
+		globalProcessingObjects->binSize = opt.processingOptions.binSize;
 
-		globalParams->canopyCutoff = opt.metricOptions.canopyCutoff.
-			value_or(convertUnits(2, linearUnitDefs::meter, globalParams->metricAlign.crs().getZUnits()));
+		globalProcessingObjects->canopyCutoff = opt.metricOptions.canopyCutoff.
+			value_or(convertUnits(2, linearUnitDefs::meter, globalProcessingObjects->metricAlign.crs().getZUnits()));
 
-		globalParams->minht = opt.metricOptions.minht.
-			value_or(convertUnits(-2, linearUnitDefs::meter, globalParams->metricAlign.crs().getZUnits()));
-		globalParams->maxht = opt.metricOptions.maxht.
-			value_or(convertUnits(100, linearUnitDefs::meter, globalParams->metricAlign.crs().getZUnits()));
+		globalProcessingObjects->minht = opt.metricOptions.minht.
+			value_or(convertUnits(-2, linearUnitDefs::meter, globalProcessingObjects->metricAlign.crs().getZUnits()));
+		globalProcessingObjects->maxht = opt.metricOptions.maxht.
+			value_or(convertUnits(100, linearUnitDefs::meter, globalProcessingObjects->metricAlign.crs().getZUnits()));
 
-		globalParams->outfolder = opt.dataOptions.outfolder;
+		globalProcessingObjects->outfolder = opt.dataOptions.outfolder;
 	}
 
-	void UsableParameters::makeNLaz()
+	void LapisObjects::makeNLaz()
 	{
-		auto& nLaz = lasParams->nLaz;
-		nLaz = Raster<int>{ globalParams->metricAlign };
-		for (auto& file : globalParams->sortedLasFiles) {
+		auto& nLaz = lasProcessingObjects->nLaz;
+		nLaz = Raster<int>{ globalProcessingObjects->metricAlign };
+		for (auto& file : globalProcessingObjects->sortedLasFiles) {
 			std::vector<cell_t> cells = nLaz.cellsFromExtent(file.ext, SnapType::out);
 			for (cell_t cell : cells) {
 				nLaz[cell].value()++;
@@ -302,7 +302,7 @@ namespace lapis {
 	}
 
 	template<class T>
-	std::vector<T> UsableParameters::iterateOverFileSpecifiers(const std::vector<std::string>& specifiers, openFuncType<T> openFunc, Logger& log,
+	std::vector<T> LapisObjects::iterateOverFileSpecifiers(const std::vector<std::string>& specifiers, openFuncType<T> openFunc, Logger& log,
 		const CoordRef& crsOverride, const Unit& zUnitOverride)
 	{
 
@@ -356,10 +356,10 @@ namespace lapis {
 		return fileList;
 	}
 
-	template std::vector<LasFileExtent> UsableParameters::iterateOverFileSpecifiers<LasFileExtent>(const std::vector<std::string>& specifiers,
+	template std::vector<LasFileExtent> LapisObjects::iterateOverFileSpecifiers<LasFileExtent>(const std::vector<std::string>& specifiers,
 		openFuncType<LasFileExtent> openFunc, Logger& log,
 		const CoordRef& crsOverride, const Unit& zUnitOverride);
-	template std::vector<DemFileAlignment> UsableParameters::iterateOverFileSpecifiers<DemFileAlignment>(const std::vector<std::string>& specifiers,
+	template std::vector<DemFileAlignment> LapisObjects::iterateOverFileSpecifiers<DemFileAlignment>(const std::vector<std::string>& specifiers,
 		openFuncType<DemFileAlignment> openFunc, Logger& log,
 		const CoordRef& crsOverride, const Unit& zUnitOverride);
 
@@ -416,7 +416,7 @@ namespace lapis {
 	}
 
 	//returns a useful default for the number of concurrent threads to run
-	unsigned int UsableParameters::defaultNThread() {
+	unsigned int LapisObjects::defaultNThread() {
 		unsigned int out = std::thread::hardware_concurrency();
 		return out > 1 ? out - 1 : 1;
 	}
