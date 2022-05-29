@@ -1,15 +1,12 @@
-#include"lapis_pch.hpp"
 #include"LapisController.hpp"
 #include"Options.hpp"
 
 using namespace lapis;
 
-namespace fs = std::filesystem;
-namespace chr = std::chrono;
-
 int main(int argc, char* argv[])
 {
-	Logger log;
+
+	/*Logger log;
 	auto parsed = parseOptions(argc, argv, log);
 	if (std::holds_alternative<std::exception>(parsed)) {
 		std::cout << "Error parsing command line\n";
@@ -20,7 +17,7 @@ int main(int argc, char* argv[])
 	LapisController lc{ opt };
 	lc.processFullArea();
 
-	log.logProgress("Done!");
+	log.logProgress("Done!");*/
 
 	//immediate next task:
 	//test usableparameters
@@ -29,7 +26,6 @@ int main(int argc, char* argv[])
 	
 	//restructure lapiscontroller to allow for unit testing
 	//write unit testing for lapiscontroller elements:
-	//	initialization from options (esp. checking outalign, CRSes, and units)
 	//	point distribution into raster cells
 	//	point metric calculation
 	//	csm calculation

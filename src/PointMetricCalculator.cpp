@@ -1,4 +1,4 @@
-#include"lapis_pch.hpp"
+#include"app_pch.hpp"
 #include"PointMetricCalculator.hpp"
 
 namespace lapis {

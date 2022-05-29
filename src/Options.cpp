@@ -1,4 +1,4 @@
-#include"lapis_pch.hpp"
+#include"app_pch.hpp"
 #include"Options.hpp"
 #include"Logger.hpp"
 #include"gis/Alignment.hpp"
@@ -172,8 +172,8 @@ namespace lapis {
 				}
 			}
 			else {
-				opt.dataOptions.outAlign = manualAlignment{};
-				manualAlignment& align = std::get<manualAlignment>(opt.dataOptions.outAlign);
+				opt.dataOptions.outAlign = ManualAlignment{};
+				ManualAlignment& align = std::get<ManualAlignment>(opt.dataOptions.outAlign);
 
 				if (vmFull.count("cellsize")) {
 					align.res = vmFull["cellsize"].as<coord_t>();

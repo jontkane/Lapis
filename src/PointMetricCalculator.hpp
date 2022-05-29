@@ -2,7 +2,7 @@
 #ifndef lp_pointmetriccalculator_h
 #define lp_pointmetriccalculator_h
 
-#include"lapis_pch.hpp"
+#include"app_pch.hpp"
 #include"gis/BaseDefs.hpp"
 #include"gis/Raster.hpp"
 #include"gis/LasReader.hpp"

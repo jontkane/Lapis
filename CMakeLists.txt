@@ -45,9 +45,8 @@ set(LAPIS_GIS_SOURCES
 		src/gis/Unit.hpp
 		)
 
-set(LAPIS_EXE_SOURCES
-		src/lapis.cpp
-		src/lapis_pch.hpp
+set(LAPIS_APP_SOURCES
+		src/app_pch.hpp
 		src/lapiscontroller.cpp
 		src/lapiscontroller.hpp
 		src/lapisutils.cpp
@@ -58,6 +57,8 @@ set(LAPIS_EXE_SOURCES
 		src/options.hpp
 		src/pointmetriccalculator.cpp
 		src/pointmetriccalculator.hpp
+		src/usableparameters.hpp
+		src/usableparameters.cpp
 		)
 
 set(LAPIS_TEST_SOURCES
@@ -71,16 +72,20 @@ set(LAPIS_TEST_SOURCES
 		src/test/lasreadertest.cpp
 		src/test/quadextenttest.cpp
 		src/test/rastertest.cpp
+		src/test/usableparameterstest.cpp
 		)
 
 
 add_library(Lapis_gis STATIC ${LAPIS_GIS_SOURCES})
+add_library(Lapis_app STATIC ${LAPIS_APP_SOURCES})
 
-add_executable(Lapis ${LAPIS_EXE_SOURCES})
+add_executable(Lapis src/lapis.cpp)
 target_link_libraries(Lapis PUBLIC Lapis_gis)
+target_link_libraries(Lapis PUBLIC Lapis_app)
 
 add_executable(Lapis_test ${LAPIS_TEST_SOURCES})
 target_link_libraries(Lapis_test PUBLIC Lapis_gis)
+target_link_libraries(Lapis_test PUBLIC Lapis_app)
 
 find_package(Boost 1.74 COMPONENTS program_options REQUIRED)
 include_directories(PRIVATE ${Boost_INCLUDE_DIRS})
@@ -114,7 +119,7 @@ include_directories(PRIVATE ${XTL_INCLUDE_DIR})
 
 find_package(gtest REQUIRED)
 
-target_precompile_headers(Lapis PRIVATE src/lapis_pch.hpp)
+target_precompile_headers(Lapis_app PRIVATE src/app_pch.hpp)
 target_precompile_headers(Lapis_gis PRIVATE src/gis/gis_pch.hpp)
 
 if(MSVC)

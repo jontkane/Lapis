@@ -8,7 +8,7 @@
 #include"Options.hpp"
 #include"LapisUtils.hpp"
 
-namespace std {
+/*namespace std {
 	namespace filesystem {
 		class path;
 	}
@@ -139,6 +139,6 @@ namespace lapis {
 		//not intended to be configurable
 		const long long maxCsmBytes = 1024 * 1024 * 1024; //1 GB
 	};
-}
+}*/
 
 #endif

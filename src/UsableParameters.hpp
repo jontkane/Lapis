@@ -88,7 +88,7 @@ namespace lapis {
 		//these functions are protected instead of private to enable easier testing 
 	protected:
 
-		void otherParams(const FullOptions& opt);
+		void finalParams(const FullOptions& opt);
 		void identifyLasFiles(const FullOptions& opt);
 		void identifyDEMFiles(const FullOptions& opt);
 		void setFilters(const FullOptions& opt);
@@ -103,7 +103,7 @@ namespace lapis {
 		using openFuncType = void(const std::filesystem::path&, std::vector<T>&, Logger&,
 			const CoordRef&, const Unit&);
 		template<class T>
-		void iterateOverFileSpecifiers(const std::vector<std::string>& specifiers, openFuncType<T> openFunc, std::vector<T>& fileList, Logger& log,
+		std::vector<T> iterateOverFileSpecifiers(const std::vector<std::string>& specifiers, openFuncType<T> openFunc, Logger& log,
 			const CoordRef& crsOverride, const Unit& zUnitOverride);
 
 		//returns a useful default for the number of concurrent threads to run

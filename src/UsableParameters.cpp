@@ -1,7 +1,8 @@
-#include"lapis_pch.hpp"
+#include"app_pch.hpp"
 #include"UsableParameters.hpp"
 
 namespace lapis {
+
 	UsableParameters::UsableParameters()
 	{
 		lasParams = std::make_unique<LasParameters>();
@@ -22,7 +23,7 @@ namespace lapis {
 
 		makeNLaz();
 
-		otherParams(opt);
+		finalParams(opt);
 	}
 	void UsableParameters::cleanUpAfterPointMetrics()
 	{
@@ -30,15 +31,31 @@ namespace lapis {
 	}
 	void UsableParameters::identifyLasFiles(const FullOptions& opt)
 	{
-		iterateOverFileSpecifiers<LasFileExtent>(opt.dataOptions.lasFileSpecifiers, &tryLasFile, globalParams->sortedLasFiles,
+		std::vector<LasFileExtent> foundLaz = iterateOverFileSpecifiers<LasFileExtent>(opt.dataOptions.lasFileSpecifiers, &tryLasFile,
 			globalParams->log, lasParams->lasCRSOverride, lasParams->lasUnitOverride);
+		std::unordered_set<std::string> unique;
+		for (auto& v : foundLaz) {
+			if (unique.count(v.filename)) {
+				continue;
+			}
+			unique.insert(v.filename);
+			globalParams->sortedLasFiles.push_back(v);
+		}
 		globalParams->log.logProgress(std::to_string(globalParams->sortedLasFiles.size()) + " point cloud files identified");
 	}
 
 	void UsableParameters::identifyDEMFiles(const FullOptions& opt)
 	{
-		iterateOverFileSpecifiers<DemFileAlignment>(opt.dataOptions.demFileSpecifiers, &tryDtmFile, globalParams->demFiles,globalParams->log,
+		std::vector<DemFileAlignment> foundDem = iterateOverFileSpecifiers<DemFileAlignment>(opt.dataOptions.demFileSpecifiers, &tryDtmFile, globalParams->log,
 			opt.dataOptions.demCRS, opt.dataOptions.demUnits);
+		std::unordered_set<std::string> unique;
+		for (auto& v : foundDem) {
+			if (unique.count(v.filename)) {
+				continue;
+			}
+			unique.insert(v.filename);
+			globalParams->demFiles.push_back(v);
+		}
 		globalParams->log.logProgress(std::to_string(globalParams->demFiles.size()) + " DEM files identified");
 	}
 
@@ -74,17 +91,37 @@ namespace lapis {
 	void UsableParameters::setPointMetrics(const FullOptions& opt)
 	{
 		auto& pointMetrics = lasParams->metricRasters;
-		pointMetrics.emplace_back("Mean_CanopyHeight", &PointMetricCalculator::meanCanopy);
-		pointMetrics.emplace_back("StdDev_CanopyHeight", &PointMetricCalculator::stdDevCanopy);
-		pointMetrics.emplace_back("25thPercentile_CanopyHeight", &PointMetricCalculator::p25Canopy);
-		pointMetrics.emplace_back("50thPercentile_CanopyHeight", &PointMetricCalculator::p50Canopy);
-		pointMetrics.emplace_back("75thPercentile_CanopyHeight", &PointMetricCalculator::p75Canopy);
-		pointMetrics.emplace_back("95thPercentile_CanopyHeight", &PointMetricCalculator::p95Canopy);
-		pointMetrics.emplace_back("TotalReturnCount", &PointMetricCalculator::returnCount);
-		pointMetrics.emplace_back("CanopyCover", &PointMetricCalculator::canopyCover);
+		auto& metricAlign = globalParams->metricAlign;
+
+		auto addMetric = [&](std::string&& name, MetricFunc f) {
+			pointMetrics.emplace_back(PointMetricDefn{ std::move(name),f }, metricAlign);
+		};
+
+		addMetric("Mean_CanopyHeight", &PointMetricCalculator::meanCanopy);
+		addMetric("StdDev_CanopyHeight", &PointMetricCalculator::stdDevCanopy);
+		addMetric("25thPercentile_CanopyHeight", &PointMetricCalculator::p25Canopy);
+		addMetric("50thPercentile_CanopyHeight", &PointMetricCalculator::p50Canopy);
+		addMetric("75thPercentile_CanopyHeight", &PointMetricCalculator::p75Canopy);
+		addMetric("95thPercentile_CanopyHeight", &PointMetricCalculator::p95Canopy);
+		addMetric("TotalReturnCount", &PointMetricCalculator::returnCount);
+		addMetric("CanopyCover", &PointMetricCalculator::canopyCover);
 	}
 
 	void UsableParameters::createOutAlignment(const FullOptions& opt) {
+		//this one is a bit of a doozy because of all the branching logic
+		//if the user specifies an alignment from a file, that choice is respected
+		//if they choose to crop by that file, then that's it: the alignment is trimmed to where laz files exist and nothing else
+		//if they don't choose to crop, then the alignment from the file is instead extended to where the laz files are
+		
+		//if they don't specify by file, then they may specify a cellsize or a crs (both optional)
+		//if they don't specify a crs, then the crs from one of the las files is used. No guarantee which is used if they disagree
+		//if they don't specify a cellsize, it's set to 30 meters
+		//if they do specify a cellsize, it's interpretted to be in the user units
+
+		//the csm alignment will always be in the same crs as the metric alignment, with cellsize defaulting to 1 meter
+
+		//in all cases, the vertical units will be set to the user-defined units
+
 		Alignment& metricAlign = globalParams->metricAlign;
 
 		bool alignFinalized = false;
@@ -112,7 +149,7 @@ namespace lapis {
 			outCRS = metricAlign.crs();
 		}
 		else {
-			const manualAlignment& ma = std::get<manualAlignment>(opt.dataOptions.outAlign);
+			const ManualAlignment& ma = std::get<ManualAlignment>(opt.dataOptions.outAlign);
 			if (!ma.crs.isEmpty()) {
 				outCRS = ma.crs;
 
@@ -153,6 +190,7 @@ namespace lapis {
 			}
 			if (!initExtent) {
 				fullExtent = e;
+				initExtent = true;
 			}
 			else {
 				fullExtent = extend(fullExtent, e);
@@ -187,7 +225,7 @@ namespace lapis {
 		if (csmcellsize <= 0) {
 			csmcellsize = convertUnits(1, linearUnitDefs::meter, outCRS.getXYUnits());
 		}
-		globalParams->csmAlign = Alignment((Extent)metricAlign, metricAlign.xOrigin(), metricAlign.yOrigin(), csmcellsize, csmcellsize);
+		globalParams->csmAlign = Alignment(fullExtent, metricAlign.xOrigin(), metricAlign.yOrigin(), csmcellsize, csmcellsize);
 	}
 	void UsableParameters::sortLasFiles(const FullOptions& opt)
 	{
@@ -224,10 +262,10 @@ namespace lapis {
 			return true;
 		};
 
-		std::sort(globalParams->sortedLasFiles.begin(), globalParams->sortedLasFiles.end(), &lasExtentSorter);
+		std::sort(globalParams->sortedLasFiles.begin(), globalParams->sortedLasFiles.end(), lasExtentSorter);
 	}
 
-	void UsableParameters::otherParams(const FullOptions& opt)
+	void UsableParameters::finalParams(const FullOptions& opt)
 	{
 		lasParams->calculators = Raster<PointMetricCalculator>(globalParams->metricAlign);
 		lasParams->cellMuts = std::vector<std::mutex>(lasParams->mutexN);
@@ -262,9 +300,14 @@ namespace lapis {
 	}
 
 	template<class T>
-	void UsableParameters::iterateOverFileSpecifiers(const std::vector<std::string>& specifiers, openFuncType<T> openFunc, std::vector<T>& fileList, Logger& log,
+	std::vector<T> UsableParameters::iterateOverFileSpecifiers(const std::vector<std::string>& specifiers, openFuncType<T> openFunc, Logger& log,
 		const CoordRef& crsOverride, const Unit& zUnitOverride)
 	{
+
+		namespace fs = std::filesystem;
+
+		std::vector<T> fileList;
+
 		std::queue<std::string> toCheck;
 
 		for (const std::string& spec : specifiers) {
@@ -286,7 +329,7 @@ namespace lapis {
 			if (fs::is_regular_file(specPath)) {
 
 				//if it's a file, try to add it to the map
-				(*openFunc)(specPath, fileMap, log, crsOverride, zUnitOverride);
+				(*openFunc)(specPath, fileList, log, crsOverride, zUnitOverride);
 			}
 
 			//wildcard specifiers (e.g. C:\data\*.laz) are basically a non-recursive directory check with an extension
@@ -308,12 +351,14 @@ namespace lapis {
 				}
 			}
 		}
+		return fileList;
 	}
 
-	template void UsableParameters::iterateOverFileSpecifiers<LasFileExtent>(const std::vector<std::string>& specifiers, openFuncType<LasFileExtent> openFunc, std::vector<LasFileExtent>& fileList, Logger& log,
+	template std::vector<LasFileExtent> UsableParameters::iterateOverFileSpecifiers<LasFileExtent>(const std::vector<std::string>& specifiers,
+		openFuncType<LasFileExtent> openFunc, Logger& log,
 		const CoordRef& crsOverride, const Unit& zUnitOverride);
-	template void UsableParameters::iterateOverFileSpecifiers<DemFileAlignment>(const std::vector<std::string>& specifiers, openFuncType<DemFileAlignment> openFunc,
-		std::vector<DemFileAlignment>& fileMap, Logger& log,
+	template std::vector<DemFileAlignment> UsableParameters::iterateOverFileSpecifiers<DemFileAlignment>(const std::vector<std::string>& specifiers,
+		openFuncType<DemFileAlignment> openFunc, Logger& log,
 		const CoordRef& crsOverride, const Unit& zUnitOverride);
 
 	void tryLasFile(const std::filesystem::path& file, std::vector<LasFileExtent>& data, Logger& log,

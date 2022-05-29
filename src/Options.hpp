@@ -2,7 +2,7 @@
 #ifndef lp_options_h
 #define lp_options_h
 
-#include"lapis_pch.hpp"
+#include"app_pch.hpp"
 #include"Logger.hpp"
 #include"gis/BaseDefs.hpp"
 #include"gis/CoordRef.hpp"
@@ -17,7 +17,7 @@ namespace lapis {
 	//Generally, they will be stored as provided by the user--turning them into something usable is the responsibility of other classes
 
 	//these are structs for how a user specifies an alignment
-	struct manualAlignment {
+	struct ManualAlignment {
 		boost::optional<coord_t> res = 0.;
 		CoordRef crs;
 	};
@@ -44,7 +44,7 @@ namespace lapis {
 		std::string outfolder;
 
 		//the output alignment, either as a manually specified resolution+crs, or as a filename+whether to align, crop, or mask
-		std::variant<manualAlignment, alignmentFromFile> outAlign;
+		std::variant<ManualAlignment, alignmentFromFile> outAlign;
 
 		//some sort of syntax for specifying the units and crs of the las and dem files
 		Unit lasUnits;

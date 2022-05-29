@@ -2,7 +2,7 @@
 #ifndef lp_logger_h
 #define lp_logger_h
 
-#include"lapis_pch.hpp"
+#include"app_pch.hpp"
 
 namespace lapis {
 	

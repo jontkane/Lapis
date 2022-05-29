@@ -1,4 +1,4 @@
-#include"lapis_pch.hpp"
+#include"app_pch.hpp"
 #include"LapisController.hpp"
 
 
@@ -7,7 +7,7 @@ namespace fs = std::filesystem;
 
 namespace lapis {
 
-	LapisController::LapisController(const FullOptions& opt)
+	/*LapisController::LapisController(const FullOptions& opt)
 	{
 		outFolder = opt.dataOptions.outfolder;
 
@@ -481,7 +481,7 @@ namespace lapis {
 		for (auto& m : lc.point_metrics) {
 			metrics.emplace_back(m, lc.outAlign);
 		}
-	}
+	}*/
 
 
 }
