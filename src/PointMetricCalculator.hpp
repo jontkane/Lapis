@@ -54,7 +54,7 @@ namespace lapis {
 	using MetricFunc = void(PointMetricCalculator::*)(Raster<metric_t>& r, cell_t cell);
 	struct PointMetricDefn {
 		std::string name;
-		MetricFunc fun;
+		MetricFunc fun =  nullptr;
 	};
 	struct PointMetricRaster {
 		Raster<metric_t> rast;

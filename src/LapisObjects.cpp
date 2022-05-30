@@ -227,6 +227,11 @@ namespace lapis {
 		}
 		globalProcessingObjects->csmAlign = Alignment(fullExtent, metricAlign.xOrigin(), metricAlign.yOrigin(), csmcellsize, csmcellsize);
 
+		if (!opt.dataOptions.outUnits.isUnknown()) {
+			globalProcessingObjects->metricAlign.setZUnits(opt.dataOptions.outUnits);
+			globalProcessingObjects->csmAlign.setZUnits(opt.dataOptions.outUnits);
+		}
+
 		globalProcessingObjects->log.logDiagnostic("Alignment calculated");
 	}
 	void LapisObjects::sortLasFiles(const FullOptions& opt)

@@ -91,9 +91,10 @@ namespace lapis {
 					break;
 				}
 				lasExt = gp->sortedLasFiles[soFar];
-				++soFar;
 				thisidx = soFar;
-				gp->log.logProgress("las file " + std::to_string(soFar) + " out of " + std::to_string(gp->sortedLasFiles.size()) + " started");
+				++soFar;
+
+				gp->log.logProgress("las file " + std::to_string(thisidx+1) + " out of " + std::to_string(gp->sortedLasFiles.size()) + " started");
 			}
 			
 
@@ -214,7 +215,6 @@ namespace lapis {
 		while (true) {
 			{
 				std::lock_guard lock(gp->globalMut);
-#pragma warning (suppress: 4018)
 				if (soFar >= layout.ncell()) {
 					break;
 				}
@@ -249,7 +249,7 @@ namespace lapis {
 					continue;
 				}
 				thisext = crop(thisext, fullTile);
-				Raster<csm_data> thisr{ (tempcsmdir / (std::to_string(i+1) + ".tif")).string(),thisext, SnapType::near };
+				Raster<csm_data> thisr{ (tempcsmdir / (std::to_string(i) + ".tif")).string(),thisext, SnapType::near };
 
 				//for the same reason as the above comment
 				thisr.defineCRS(fullTile.crs());

@@ -248,9 +248,9 @@ namespace lapis {
 
 		std::unique_ptr<std::ifstream> _ifs;
 		lazperf::las_decompressor::ptr _decompressor;
-		lazperf::chunk* _currentChunk;
+		lazperf::chunk* _currentChunk = nullptr;
 		std::vector<lazperf::chunk> _chunks;
-		uint64_t _pointInChunk;
+		uint64_t _pointInChunk = 0;
 
 	};
 

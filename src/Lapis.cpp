@@ -20,11 +20,6 @@ int main(int argc, char* argv[])
 	log.logProgress("Done!");
 	
 	//semi-ordered to-do list:
-	
-	//restructure lapiscontroller to allow for unit testing
-	//write unit testing for lapiscontroller elements:
-	//	point distribution into raster cells
-	//	csm calculation
 
 	//add parameter output
 
@@ -33,6 +28,15 @@ int main(int argc, char* argv[])
 	//add html metadata, in a way that isn't a pain in the ass to extend
 
 	//do an optimization pass
+	//	memory usage of sparse histograms
+	//	whatever is causing alignment calculation to be really slow--is it possible to reuse coordtransform objects?
+	//	profile time spent on various per-point tasks to identify the bottlenecks, and thus where to devote optimization efforts:
+	//		reading off the harddrive and decompressing
+	//		applying filters and populating the initial data structure
+	//		normalizing
+	//		copying to skip un-normalized and outlier points
+	//		projecting to output CRS
+	//		sorting to PointMetricCalculators
 
 	//add checkpointing
 

@@ -103,7 +103,7 @@ namespace lapis {
 			size_t nPointsRemaining() const;
 
 		protected:
-			size_t _currentPoint;
+			size_t _currentPoint = 0;
 
 			void advance() {
 				_las.readPoint(_buffer.data());
@@ -115,9 +115,9 @@ namespace lapis {
 			inline static const int MAXBUFFERSIZE = 256;
 			LasIO _las;
 			std::array<char, MAXBUFFERSIZE> _buffer;
-			coord_t _x, _y, _z;
+			coord_t _x = 0, _y = 0, _z = 0;
 
-			bool _ispoint14;
+			bool _ispoint14 = false;
 
 			LasPoint14* _point14() const {
 				return (LasPoint14*)_buffer.data();

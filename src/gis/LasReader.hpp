@@ -59,7 +59,7 @@ namespace lapis {
 	private:
 		std::vector<std::shared_ptr<LasFilter>> _filters;
 		std::vector<Raster<coord_t>> _dtms;
-		coord_t _minht, _maxht;
+		coord_t _minht = std::numeric_limits<coord_t>::lowest(), _maxht = std::numeric_limits<coord_t>::max();
 
 		LidarPointVector _tmp;
 
