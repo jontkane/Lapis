@@ -268,7 +268,7 @@ namespace lapis {
 	void LapisObjects::finalParams(const FullOptions& opt)
 	{
 		lasProcessingObjects->calculators = Raster<PointMetricCalculator>(globalProcessingObjects->metricAlign);
-		lasProcessingObjects->cellMuts = std::vector<std::mutex>(lasProcessingObjects->mutexN);
+		lasProcessingObjects->cellMuts = std::vector<std::mutex>(LasProcessingObjects::mutexN);
 		lasProcessingObjects->lasCRSOverride = opt.dataOptions.lasCRS;
 		lasProcessingObjects->lasUnitOverride = opt.dataOptions.lasUnits;
 		lasProcessingObjects->demCRSOverride = opt.dataOptions.demCRS;
@@ -286,6 +286,8 @@ namespace lapis {
 			value_or(convertUnits(100, linearUnitDefs::meter, globalProcessingObjects->metricAlign.crs().getZUnits()));
 
 		globalProcessingObjects->outfolder = opt.dataOptions.outfolder;
+
+		PointMetricCalculator::setInfo(globalProcessingObjects->canopyCutoff, globalProcessingObjects->maxht, globalProcessingObjects->binSize);
 	}
 
 	void LapisObjects::makeNLaz()
