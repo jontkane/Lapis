@@ -26,6 +26,17 @@ namespace lapis{
 		EXPECT_EQ((size_t)0, lr.nPointsRemaining());
 	}
 
+	TEST(LasReaderTest, largeFile) {
+		std::string file = std::string(LAPISTESTFILES) + "largelaz.laz";
+		
+		LasReader lr{ file };
+		lr.setHeightLimits(1284, 1421, linearUnitDefs::unkLinear); //all correctly-read points will get through but if values start reading garbage they'll fail this
+		
+		auto points = lr.getPoints(lr.nPoints());
+		EXPECT_EQ(points.size(), 169873);
+		EXPECT_NEAR(points[100000].z, 1317, 1);
+	}
+
 	TEST(LasReaderTest, filterFirstReturns) {
 		std::string file = LAPISTESTFILES;
 		file = file + "testlaz14.laz";

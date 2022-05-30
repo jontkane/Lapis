@@ -226,6 +226,8 @@ namespace lapis {
 			csmcellsize = convertUnits(1, linearUnitDefs::meter, outCRS.getXYUnits());
 		}
 		globalProcessingObjects->csmAlign = Alignment(fullExtent, metricAlign.xOrigin(), metricAlign.yOrigin(), csmcellsize, csmcellsize);
+
+		globalProcessingObjects->log.logDiagnostic("Alignment calculated");
 	}
 	void LapisObjects::sortLasFiles(const FullOptions& opt)
 	{

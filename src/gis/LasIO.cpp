@@ -28,6 +28,9 @@ namespace lapis {
 		}
 
 		_ifs->seekg(header.OffsetToPointData + sizeof(uint64_t), std::ios_base::beg);
+
+		_pointInChunk = 0;
+		_currentChunk = nullptr;
 	}
 
 	void LasIO::_readHeader() {

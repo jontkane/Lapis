@@ -95,7 +95,7 @@ namespace lapis {
 	//this test uses the laz files in the test files folder as a test--that means that if additional files are added, this test will need to be updated
 	TEST(LapisObjectsTest, identifyLasFiles) {
 		fs::path testfolder = LAPISTESTFILES;
-		const int expectedNumberOfLaz = 4;
+		const int expectedNumberOfLaz = 5;
 
 		FullOptions opt;
 		auto& lazSpec = opt.dataOptions.lasFileSpecifiers;
