@@ -106,10 +106,10 @@ namespace lapis {
 
 			
 			LidarPointVector points = getPoints(thisidx);
-			
-			long long nPoints = 0;
 
-			nPoints = assignPoints(points, thiscsm);
+			assignPointsToCalculators(points);
+			assignPointsToCSM(points, thiscsm);
+
 			if (thiscsm.has_value()) {
 				std::string filename = (getCSMTempDir() / (std::to_string(thisidx) + ".tif")).string();
 				try {
@@ -125,11 +125,11 @@ namespace lapis {
 
 			auto endTime = chr::high_resolution_clock::now();
 			auto duration = chr::duration_cast<chr::seconds>(endTime - startTime).count();
-			gp->log.logDiagnostic(lasExt.filename + " " + std::to_string(nPoints) + " points read and processed in " + std::to_string(duration) + " seconds");
+			gp->log.logDiagnostic(lasExt.filename + " " + std::to_string(points.size()) + " points read and processed in " + std::to_string(duration) + " seconds");
 		}
 	}
 
-	long long LapisController::assignPoints(const LidarPointVector& points, std::optional<Raster<csm_data>>& csm) const
+	void LapisController::assignPointsToCalculators(const LidarPointVector& points) const
 	{
 		for (auto& p : points) {
 			if (!lp->calculators.strictContains(p.x, p.y)) {
@@ -140,32 +140,35 @@ namespace lapis {
 			std::lock_guard lock{ lp->cellMuts[cell % lp->mutexN] };
 			lp->calculators[cell].value().addPoint(p);
 		}
-		if (csm.has_value()) {
-			auto& csmv = csm.value();
-			for (auto& p : points) {
-				if (!csmv.strictContains(p.x, p.y)) {
-					continue;
-				}
-				cell_t cell = csmv.cellFromXYUnsafe(p.x, p.y);
-				if (!csmv[cell].has_value()) {
-					csmv[cell].has_value() = true;
-					csmv[cell].value() = (csm_data)p.z;
-				}
-				else {
-					csmv[cell].value() = std::max(csmv[cell].value(), (csm_data)p.z);
-				}
-				
-			}
-		}
-
-		return points.size();
 		
+		
+	}
+
+	void LapisController::assignPointsToCSM(const LidarPointVector& points, std::optional<Raster<csm_data>>& csm) const
+	{
+		if (!csm) {
+			return;
+		}
+		auto& csmv = csm.value();
+		for (auto& p : points) {
+			if (!csmv.strictContains(p.x, p.y)) {
+				continue;
+			}
+			cell_t cell = csmv.cellFromXYUnsafe(p.x, p.y);
+			if (!csmv[cell].has_value()) {
+				csmv[cell].has_value() = true;
+				csmv[cell].value() = (csm_data)p.z;
+			}
+			else {
+				csmv[cell].value() = std::max(csmv[cell].value(), (csm_data)p.z);
+			}
+
+		}
 	}
 
 	void LapisController::processPoints(const Extent& e) const
 	{
-		QuadExtent q{ e,lp->nLaz.crs() };
-		std::vector<cell_t> cells = lp->nLaz.cellsFromExtent(q.outerExtent(),SnapType::out);
+		std::vector<cell_t> cells = lp->nLaz.cellsFromExtent(e,SnapType::out);
 		for (cell_t cell : cells) {
 			processCell(cell);
 		}

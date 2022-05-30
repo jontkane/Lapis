@@ -18,11 +18,10 @@ namespace std {
 namespace lapis {
 
 	namespace fs = std::filesystem;
+
+	using csm_data = coord_t;
 	
 	class LapisController {
-
-		using csm_data = coord_t;
-
 	public:
 
 		LapisController();
@@ -31,7 +30,6 @@ namespace lapis {
 		void processFullArea();
 
 	protected:
-
 		//returns the filenames of the las/dtm files that overlap the given extent
 		template<class T>
 		T filesByExtent(const Extent& e, const T& files) const;
@@ -41,7 +39,9 @@ namespace lapis {
 
 		//assigns points from a file to the correct cells of the output
 		//returns the number of points that pass the filters and get used in later processing
-		long long assignPoints(const LidarPointVector& points, std::optional<Raster<csm_data>>& csm) const;
+		void assignPointsToCalculators(const LidarPointVector& points) const;
+
+		void assignPointsToCSM(const LidarPointVector& points, std::optional<Raster<csm_data>>& csm) const;
 
 		//processes the points that have already been found and assigns the output to rasters
 		//returns the number of points freed from memory
