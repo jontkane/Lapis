@@ -18,6 +18,8 @@ int main(int argc, char* argv[])
 	lc.processFullArea();
 
 	log.logProgress("Done!");
+
+
 	
 	//semi-ordered to-do list:
 
@@ -37,6 +39,10 @@ int main(int argc, char* argv[])
 	//		copying to skip un-normalized and outlier points
 	//		projecting to output CRS
 	//		sorting to PointMetricCalculators
+
+	//consider odd parameters--turn off csm creation? turn off wkt cleanup?
+
+	//check if the occasional multi-cm disagreement between fusion and lapis is because I'm calculating the bilinear interp *wrong* (as opposed to *different*)
 
 	//add checkpointing
 

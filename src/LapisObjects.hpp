@@ -74,6 +74,9 @@ namespace lapis {
 		std::filesystem::path outfolder;
 
 		std::mutex globalMut;
+
+		bool docsm = true;
+		bool cleanwkt = true;
 	};
 
 	//this class stores all the parameters of the run in a form usable by the actual logic of the app

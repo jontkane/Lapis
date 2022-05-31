@@ -37,7 +37,7 @@ namespace lapis {
 		if (isEmpty()) {
 			return std::string("");
 		}
-		const char* wkt = proj_as_wkt(ProjContextByThread::get(), _p.ptr(), PJ_WKT2_2019_SIMPLIFIED, nullptr);
+		const char* wkt = proj_as_wkt(ProjContextByThread::get(), _p.ptr(), PJ_WKT2_2019, nullptr);
 		std::string out{ wkt };
 		return out;
 	}
@@ -191,6 +191,18 @@ namespace lapis {
 			return out;
 		}
 
+	}
+
+	CoordRef CoordRef::getCleanEPSG() const
+	{
+		std::string epsg = getEPSG();
+		std::regex re{ "Unknown" };
+		if (std::regex_match(epsg, re)) {
+			return *this;
+		}
+		else {
+			return CoordRef(epsg);
+		}
 	}
 
 	PJ* CoordRef::getPtr() {

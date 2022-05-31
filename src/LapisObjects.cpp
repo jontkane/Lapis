@@ -147,11 +147,17 @@ namespace lapis {
 
 			alignFinalized = true;
 			outCRS = metricAlign.crs();
+			if (globalProcessingObjects->cleanwkt) {
+				outCRS = outCRS.getCleanEPSG();
+			}
 		}
 		else {
 			const ManualAlignment& ma = std::get<ManualAlignment>(opt.dataOptions.outAlign);
 			if (!ma.crs.isEmpty()) {
 				outCRS = ma.crs;
+				if (globalProcessingObjects->cleanwkt) {
+					outCRS = outCRS.getCleanEPSG();
+				}
 
 			}
 			else {
@@ -159,6 +165,9 @@ namespace lapis {
 					//if the user won't specify the CRS, just use the laz CRS
 					if (!globalProcessingObjects->sortedLasFiles[i].ext.crs().isEmpty()) {
 						outCRS = globalProcessingObjects->sortedLasFiles[i].ext.crs();
+						if (globalProcessingObjects->cleanwkt) {
+							outCRS = outCRS.getCleanEPSG();
+						}
 						break;
 					}
 				}
@@ -198,7 +207,7 @@ namespace lapis {
 		}
 
 		fullExtent.defineCRS(outCRS); //getting the units right and maybe cleaning up some wkt nonsense
-
+		globalProcessingObjects->metricAlign.defineCRS(outCRS); //either harmless or cleans up the wkt
 		if (!alignFinalized) {
 			metricAlign = Alignment(fullExtent, 0, 0, cellsize, cellsize);
 		}
@@ -231,6 +240,8 @@ namespace lapis {
 			globalProcessingObjects->metricAlign.setZUnits(opt.dataOptions.outUnits);
 			globalProcessingObjects->csmAlign.setZUnits(opt.dataOptions.outUnits);
 		}
+		globalProcessingObjects->csmAlign.defineCRS(outCRS);
+		
 
 		globalProcessingObjects->log.logDiagnostic("Alignment calculated");
 	}

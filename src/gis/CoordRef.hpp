@@ -62,6 +62,9 @@ namespace lapis {
 		//a CRS that can't be found in the EPSG database is reported as "Unknown"
 		std::string getEPSG() const;
 
+		//returns the CoordRef defined by the epsg code getEPSG identifies, or a copy of this coordref if that doesn't exist
+		CoordRef getCleanEPSG() const;
+
 		PJ* getPtr();
 		const PJ* getPtr() const;
 
