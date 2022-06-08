@@ -482,7 +482,7 @@ namespace lapis {
 		}
 		std::array<double, 6> gt = { _xmin, _xres,0,_ymax,0,-(_yres) };
 		wgd->SetGeoTransform(gt.data());
-		wgd->SetProjection(_crs.getWKT().c_str());
+		wgd->SetProjection(_crs.getCompleteWKT().c_str());
 		for (cell_t cell = 0; cell < ncell(); ++cell) {
 			if (!_data[cell].has_value()) {
 				_data[cell].value() = navalue;

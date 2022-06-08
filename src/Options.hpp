@@ -6,6 +6,7 @@
 #include"Logger.hpp"
 #include"gis/BaseDefs.hpp"
 #include"gis/CoordRef.hpp"
+#include"gis/Alignment.hpp"
 
 //these 26495 warnings come from the implementation of boost::optional
 //and completely don't matter because a default-constructed optional will have has_value false
@@ -15,19 +16,6 @@ namespace lapis {
 
 	//These structs contain the parameters that define an individual lapis run
 	//Generally, they will be stored as provided by the user--turning them into something usable is the responsibility of other classes
-
-	//these are structs for how a user specifies an alignment
-	struct ManualAlignment {
-		boost::optional<coord_t> res = 0.;
-		CoordRef crs;
-	};
-	struct alignmentFromFile {
-		enum class alignType {
-			alignOnly, crop
-		};
-		std::string filename;
-		alignType useType;
-	};
 
 	//this struct contains options like the location of the input and the alignment of the output
 	struct DataOptions {
@@ -43,35 +31,33 @@ namespace lapis {
 		//the location for the output
 		std::string outfolder;
 
-		//the output alignment, either as a manually specified resolution+crs, or as a filename+whether to align, crop, or mask
-		std::variant<ManualAlignment, alignmentFromFile> outAlign;
-
 		//some sort of syntax for specifying the units and crs of the las and dem files
 		Unit lasUnits;
 		Unit demUnits;
 		CoordRef lasCRS;
 		CoordRef demCRS;
 
-		//the output units for metrics with units, and also for user-specified heights like canopy cutoff
-		Unit outUnits;
-
 		//the cellsize of the output CSM
 		boost::optional<coord_t> csmRes;
+
+		void write(std::ostream& out) const;
 	};
 
 	//this struct contains options like the amount of memory and threads to use
-	struct ProcessingOptions {
-		//how much to print
-		boost::optional<Logger::Level> logLevel;
-
+	struct ComputerOptions {
 		//how many threads to run on
 		boost::optional<int> nThread;
 
-		coord_t binSize;
+		bool performance;
+
+		void write(std::ostream& out) const;
 	};
 
 	//this struct contains options that change how the metrics are calculated, like canopy cutoffs
-	struct MetricOptions {
+	struct ProcessingOptions {
+
+		//the output units for metrics with units, and also for user-specified heights like canopy cutoff
+		Unit outUnits;
 
 		//the outlier cutoffs for minimum and maximum height
 		boost::optional<coord_t> minht, maxht;
@@ -102,12 +88,17 @@ namespace lapis {
 
 		//the strata breaks to calculate cover on
 		boost::optional<std::vector<coord_t>> strata;
+
+		//the output alignment, either as a manually specified resolution+crs, or as a filename+whether to align, crop, or mask
+		boost::optional<Alignment> outAlign;
+
+		void write(std::ostream& out) const;
 	};
 
 	struct FullOptions {
 		DataOptions dataOptions;
+		ComputerOptions computerOptions;
 		ProcessingOptions processingOptions;
-		MetricOptions metricOptions;
 	};
 
 	//takes command line input and parses it into a FullOptions object

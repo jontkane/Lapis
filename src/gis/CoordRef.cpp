@@ -27,17 +27,43 @@ namespace lapis {
 	{
 	}
 
+	CoordRef::CoordRef(const ProjPJWrapper& pj)
+	{
+		_p = pj;
+		_zUnits = _inferZUnits();
+	}
+
 	CoordRef::CoordRef(const LasIO& las)
 	{
 		_crsFromLasIO(las);
 		_zUnits = _inferZUnits();
 	}
 
-	const std::string CoordRef::getWKT() const {
+	const std::string CoordRef::getPrettyWKT() const {
+		if (isEmpty()) {
+			return std::string("");
+		}
+		const char* wkt = proj_as_wkt(ProjContextByThread::get(), _p.ptr(), PJ_WKT2_2019_SIMPLIFIED, nullptr);
+		std::string out{ wkt };
+		return out;
+	}
+
+	const std::string CoordRef::getCompleteWKT() const
+	{
 		if (isEmpty()) {
 			return std::string("");
 		}
 		const char* wkt = proj_as_wkt(ProjContextByThread::get(), _p.ptr(), PJ_WKT2_2019, nullptr);
+		std::string out{ wkt };
+		return out;
+	}
+
+	const std::string CoordRef::getSingleLineWKT() const
+	{
+		if (isEmpty()) {
+			return std::string("");
+		}
+		const char* wkt = proj_as_wkt(ProjContextByThread::get(), _p.ptr(), PJ_WKT1_ESRI, nullptr);
 		std::string out{ wkt };
 		return out;
 	}
@@ -196,12 +222,24 @@ namespace lapis {
 	CoordRef CoordRef::getCleanEPSG() const
 	{
 		std::string epsg = getEPSG();
-		std::regex re{ "Unknown" };
-		if (std::regex_match(epsg, re)) {
+		std::regex horizunknown{ "Unknown.*" };
+		std::regex vertunknown{ ".*Unknown" };
+		//TODO: if the horizontal is Unknown, return *this
+		//if the horizontal is known, clean it up and then read the units from the vertical
+		if (std::regex_match(epsg, horizunknown)) {
 			return *this;
 		}
-		else {
-			return CoordRef(epsg);
+		else if (std::regex_match(epsg, vertunknown)) {
+			auto horiz = ProjPJWrapper(proj_crs_get_sub_crs(ProjContextByThread::get(), _p.ptr(), 0));
+			CoordRef out = CoordRef(CoordRef(horiz).getEPSG());
+			Unit vertUnits = getZUnits();
+			out.setZUnits(vertUnits);
+			return out;
+		} else {
+			Unit vertUnits = getZUnits();
+			CoordRef out = CoordRef(epsg);
+			out.setZUnits(vertUnits);
+			return out;
 		}
 	}
 
@@ -220,7 +258,6 @@ namespace lapis {
 	const ProjPJWrapper& CoordRef::getWrapper() const {
 		return _p;
 	}
-
 
 	void CoordRef::_crsFromString(const std::string& s) {
 		if (!s.size()) {

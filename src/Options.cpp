@@ -52,8 +52,7 @@ namespace lapis {
 					"Defaults to 1 meter")
 				("out-crs",po::value<std::string>(),
 					"The desired CRS for the output layers\n"
-					"Incompatible with the --alignment options")
-				
+					"Incompatible with the --alignment options")				
 				;
 
 
@@ -68,12 +67,11 @@ namespace lapis {
 				("dem-units", po::value(&demunit),"")
 				("las-crs", po::value(&lascrs),"")
 				("dem-crs", po::value(&demcrs),"")
-				("crop", "")
 				;
 
 			po::options_description processOpts;
 			processOpts.add_options()
-				("thread", po::value(&opt.processingOptions.nThread),
+				("thread", po::value(&opt.computerOptions.nThread),
 					"The number of threads to run Lapis on. Defaults to the number of cores on the computer")
 				("performance", 
 					"Run in performance mode, with a vertical resolution of 10cm instead of 1cm.")
@@ -87,11 +85,11 @@ namespace lapis {
 				("user-units", po::value(&userunit),
 					"The units you want to specify minht, maxht, and canopy in. Defaults to meters.\n"
 					"\tValues: m (for meters), f (for international feet), usft (for us survey feet)")
-				("canopy", po::value(&opt.metricOptions.canopyCutoff),
+				("canopy", po::value(&opt.processingOptions.canopyCutoff),
 					"The height threshold for a point to be considered canopy.")
-				("minht", po::value(&opt.metricOptions.minht),
+				("minht", po::value(&opt.processingOptions.minht),
 					"The threshold for low outliers. Points with heights below this value will be excluded.")
-				("maxht", po::value(&opt.metricOptions.maxht),
+				("maxht", po::value(&opt.processingOptions.maxht),
 					"The threshold for high outliers. Points with heights above this value will be excluded.")
 				("first",
 					"Perform this run using only first returns.")
@@ -103,8 +101,12 @@ namespace lapis {
 			po::options_description hiddenMetricOpts;
 			hiddenMetricOpts.add_options()
 				("use-withheld","")
-				("max-scan-angle",po::value(&opt.metricOptions.maxScanAngle),"")
+				("max-scan-angle",po::value(&opt.processingOptions.maxScanAngle),"")
 				("only","")
+				("xres",po::value<coord_t>())
+				("yres",po::value<coord_t>())
+				("xorigin",po::value<coord_t>())
+				("yorigin",po::value<coord_t>())
 				;
 
 
@@ -156,62 +158,109 @@ namespace lapis {
 				throw std::runtime_error("Don't specify output alignment via both a file and cellsize/crs");
 			}
 
-			if (vmFull.count("alignment")) {
-				//this is just to get it to throw an exception if the string isn't a valid raster file name
-#pragma warning(suppress: 26444)
-				Alignment(vmFull["alignment"].as<std::string>());
-
-				opt.dataOptions.outAlign = alignmentFromFile{};
-				alignmentFromFile& align = std::get<alignmentFromFile>(opt.dataOptions.outAlign);
-				align.filename = vmFull["alignment"].as<std::string>();
-				if (vmFull.count("crop")) {
-					align.useType = alignmentFromFile::alignType::crop;
+			auto readCRS = [&](CoordRef& crs, std::string s) {
+				try {
+					crs = CoordRef(s);
 				}
-				else {
-					align.useType = alignmentFromFile::alignType::alignOnly;
+				catch (UnableToDeduceCRSException e) {
+					log.logError("Could not read as crs:\n" + s);
+					throw e;
+				}
+			};
+
+			try {
+				readCRS(opt.dataOptions.lasCRS, lascrs.value_or(""));
+				readCRS(opt.dataOptions.demCRS, demcrs.value_or(""));
+			}
+			catch (UnableToDeduceCRSException e) {
+				return e;
+			}
+			opt.dataOptions.lasUnits = Unit(lasunit.value_or(""));
+			opt.dataOptions.demUnits = Unit(demunit.value_or(""));
+			opt.processingOptions.outUnits = Unit(userunit.value_or("m"));
+
+			if (vmFull.count("alignment")) {
+				try {
+					opt.processingOptions.outAlign = Alignment(vmFull["alignment"].as<std::string>());
+				}
+				catch (InvalidRasterFileException e) {
+					log.logError("Could not open as raster: " + vmFull["alignment"].as<std::string>());
+					return e;
 				}
 			}
 			else {
-				opt.dataOptions.outAlign = ManualAlignment{};
-				ManualAlignment& align = std::get<ManualAlignment>(opt.dataOptions.outAlign);
+				CoordRef crs;
+				try {
+					crs = vmFull.count("out-crs") ? CoordRef(vmFull["out-crs"].as<std::string>()) : CoordRef("");
+					crs.setZUnits(opt.processingOptions.outUnits);
+				}
+				catch (UnableToDeduceCRSException e) {
+					log.logError("Unable to read out-crs. Is it correctly formatted?");
+					return e;
+				}
 
+				coord_t xres = NAN; coord_t yres = NAN; coord_t xorigin = NAN; coord_t yorigin = NAN;
 				if (vmFull.count("cellsize")) {
-					align.res = vmFull["cellsize"].as<coord_t>();
+					xres = vmFull["cellsize"].as<coord_t>();
+					yres = vmFull["cellsize"].as<coord_t>();
 				}
 				else {
-					align.res = boost::optional<coord_t>();
+					if (vmFull.count("xres") && vmFull.count("yres")) {
+						xres = vmFull["xres"].as<coord_t>();
+						yres = vmFull["yres"].as<coord_t>();
+					}
+					else if (vmFull.count("xres")) {
+						xres = vmFull["xres"].as<coord_t>();
+						yres = vmFull["xres"].as<coord_t>();
+					}
+					else if (vmFull.count("yres")) {
+						xres = vmFull["yres"].as<coord_t>();
+						yres = vmFull["yres"].as<coord_t>();
+					}
+					//no default value here. xres and yres being NAN is a sign the user didn't specify enough info
 				}
-
+				if (vmFull.count("xorigin") && vmFull.count("yOrigin")) {
+					xorigin = vmFull["xorigin"].as<coord_t>();
+					yorigin = vmFull["yorigin"].as<coord_t>();
+				}
+				else if (vmFull.count("xorigin")) {
+					xorigin = vmFull["xorigin"].as<coord_t>();
+					yorigin = vmFull["xorigin"].as<coord_t>();
+				}
+				else if (vmFull.count("yorigin")) {
+					xorigin = vmFull["yorigin"].as<coord_t>();
+					yorigin = vmFull["yorigin"].as<coord_t>();
+				}
+				else {
+					xorigin = 0;
+					yorigin = 0;
+				}
+				if (!std::isnan(xres)) {
+					opt.processingOptions.outAlign = Alignment(Extent(0, 100, 0, 100, crs), xorigin, yorigin, xres, yres);
+				}
 				
-				align.crs = vmFull.count("out-crs") ? CoordRef(vmFull["out-crs"].as<std::string>()) : CoordRef("");
 			}
 
-			opt.dataOptions.lasCRS = CoordRef(lascrs.value_or(""));
-			opt.dataOptions.demCRS = CoordRef(demcrs.value_or(""));
-			opt.dataOptions.lasUnits = Unit(lasunit.value_or(""));
-			opt.dataOptions.demUnits = Unit(demunit.value_or(""));
-			opt.dataOptions.outUnits = Unit(userunit.value_or("m"));
-
-			opt.processingOptions.binSize = vmFull.count("performance") ? 0.1 : 0.01;
+			opt.computerOptions.performance = vmFull.count("performance");
 
 
 			if (vmFull.count("only")) {
-				opt.metricOptions.whichReturns = MetricOptions::WhichReturns::only;
+				opt.processingOptions.whichReturns = ProcessingOptions::WhichReturns::only;
 			}
 			else if (vmFull.count("first")) {
-				opt.metricOptions.whichReturns = MetricOptions::WhichReturns::first;
+				opt.processingOptions.whichReturns = ProcessingOptions::WhichReturns::first;
 			}
 			else {
-				opt.metricOptions.whichReturns = MetricOptions::WhichReturns::all;
+				opt.processingOptions.whichReturns = ProcessingOptions::WhichReturns::all;
 			}
 
-			opt.metricOptions.useWithheld = vmFull.count("use-withheld");
+			opt.processingOptions.useWithheld = vmFull.count("use-withheld");
 
 			std::regex whitelistregex{ "[0-9]+(,[0-9]+)*" };
 			std::regex blacklistregex{ "~[0-9]+(,[0-9]+)*" };
 			if (vmFull.count("class")) {
 				std::string classlist = vmFull.at("class").as<std::string>();
-				MetricOptions::classificationSet useclasses;
+				ProcessingOptions::classificationSet useclasses;
 				if (std::regex_match(classlist, whitelistregex)) {
 					useclasses.whiteList = true;
 				}
@@ -223,11 +272,11 @@ namespace lapis {
 					throw std::runtime_error("Invalid formatting for classification list: " + classlist);
 				}
 
-				opt.metricOptions.classes = useclasses;
+				opt.processingOptions.classes = useclasses;
 				std::stringstream tokenizer{ classlist };
 				std::string temp;
 				while (std::getline(tokenizer, temp, ',')) {
-					opt.metricOptions.classes.value().classes.insert(std::stoi(temp));
+					opt.processingOptions.classes.value().classes.insert(std::stoi(temp));
 				}
 			}
 
@@ -243,4 +292,104 @@ namespace lapis {
 		}
 	}
 
+	void DataOptions::write(std::ostream& out) const
+	{
+		out << std::setprecision(std::numeric_limits<coord_t>::digits10 + 1);
+		out << "#Data Parameters\n";
+		for (auto& v : lasFileSpecifiers) {
+			out << "las=" << v << "\n";
+		}
+		for (auto& v : demFileSpecifiers) {
+			out << "dem=" << v << "\n";
+		}
+		out << "output=" << outfolder << "\n";
+		if (csmRes.has_value()) {
+			out << "csm-cellsize=" << csmRes.value() << "\n";
+		}
+		if (!lasUnits.isUnknown()) {
+			out << "las-units=" << lasUnits.name << "\n";
+		}
+		if (!lasCRS.isEmpty()) {
+			std::string wkt = lasCRS.getSingleLineWKT();
+			out << "las-crs=" << wkt << "\n";
+		}
+		if (!demUnits.isUnknown()) {
+			out << "dem-units=" << demUnits.name << "\n";
+		}
+		if (!demCRS.isEmpty()) {
+			std::string wkt = demCRS.getSingleLineWKT();
+			out << "dem-crs=" << wkt << "\n";
+		}
+		out << "\n";
+	}
+	void ComputerOptions::write(std::ostream& out) const
+	{
+		out << "#Computer-specific Parameters\n";
+		if (nThread.has_value()) {
+			out << "thread=" << nThread.value() << "\n";
+		}
+
+		if (performance) {
+			out << "performance=\n";
+		}
+		out << "\n";
+	}
+	void ProcessingOptions::write(std::ostream& out) const
+	{
+		out << "#Processing Parameters\n";
+		if (outAlign.has_value()) {
+			auto& a = outAlign.value();
+			if (!a.crs().isEmpty()) {
+				std::string wkt = a.crs().getSingleLineWKT();
+				out << "out-crs=" << wkt << "\n";
+			}
+			out << "xres=" << a.xres() << "\n";
+			out << "yres=" << a.yres() << "\n";
+			out << "xorigin=" << a.xOrigin() << "\n";
+			out << "yorigin=" << a.yOrigin() << "\n";
+		}
+
+		out << std::setprecision(std::numeric_limits<coord_t>::digits10 + 1);
+
+		out << "user-units=" << outUnits.name << "\n";
+		if (canopyCutoff.has_value()) {
+			out << "canopy=" << canopyCutoff.value() << "\n";
+		}
+		if (minht.has_value()) {
+			out << "minht=" << minht.value() << "\n";
+		}
+		if (maxht.has_value()) {
+			out << "maxht=" << maxht.value() << "\n";
+		}
+
+		if (whichReturns == WhichReturns::first) {
+			out << "first=\n";
+		}
+		else if (whichReturns == WhichReturns::only) {
+			out << "only=\n";
+		}
+		if (classes.has_value()) {
+			auto& c = classes.value();
+			out << "class=";
+			if (!c.whiteList) {
+				out << "~";
+			}
+			size_t count = 0;
+			for (auto& v : c.classes) {
+				out << (int)v;
+				if (count < c.classes.size() - 1) {
+					out << ",";
+				}
+				++count;
+			}
+			out << "\n";
+		}
+		if (useWithheld) {
+			out << "use-withheld\n";
+		}
+		if (maxScanAngle.has_value()) {
+			out << "max-scan-angle=" << maxScanAngle.value() << "\n";
+		}
+		out << "\n";
+	}
 }

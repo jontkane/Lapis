@@ -15,13 +15,16 @@ namespace lapis {
 	{
 		gp = obj.globalProcessingObjects.get();
 		lp = obj.lasProcessingObjects.get();
+
+		//this is the last chance we get to use the original options object, and thus we have to write them to the harddrive as ini files right away
+		writeParams(opt);
 	}
 
 	void LapisController::processFullArea()
 	{
 		size_t soFarLas = 0;
 		auto pointMetricThreadFunc = [&] {pointMetricThread(soFarLas); };
-		fs::path pointMetricDir = gp->outfolder / "PointMetrics";
+		fs::path pointMetricDir = getPointMetricDir();
 		fs::create_directories(pointMetricDir);
 
 		std::vector<std::thread> threads;
@@ -204,6 +207,66 @@ namespace lapis {
 		fs::path csmtempdir = baseout / "CanopySurfaceModel";
 		fs::create_directories(csmtempdir);
 		return csmtempdir;
+	}
+
+	fs::path LapisController::getPointMetricDir() const
+	{
+		return gp->outfolder / "PointMetrics";
+	}
+
+	fs::path LapisController::getParameterDir() const
+	{
+		return gp->outfolder / "RunParameters";
+	}
+
+	void LapisController::writeParams(const FullOptions& opt) const
+	{
+		fs::path paramDir = getParameterDir();
+		fs::create_directories(paramDir);
+
+		std::ofstream fullParams{ paramDir / "FullParameters.ini" };
+		if (!fullParams) {
+			gp->log.logError("Could not open " + (paramDir / "FullParameters.ini").string() + " for writing");
+		}
+		else {
+			opt.dataOptions.write(fullParams);
+			opt.processingOptions.write(fullParams);
+			opt.computerOptions.write(fullParams);
+			
+		}
+
+		std::ofstream runAndComp{ paramDir / "ProcessingAndComputerParameters.ini" };
+		if (!runAndComp) {
+			gp->log.logError("Could not open " + (paramDir / "ProcessingAndComputerParameters.ini").string() + " for writing");
+		}
+		else {
+			opt.processingOptions.write(runAndComp);
+			opt.computerOptions.write(runAndComp);
+		}
+
+		std::ofstream data{ paramDir / "DataParameters.ini" };
+		if (!data) {
+			gp->log.logError("Could not open " + (paramDir / "DataParameters.ini").string() + " for writing");
+		}
+		else {
+			opt.dataOptions.write(data);
+		}
+
+		std::ofstream metric{ paramDir / "ProcessingParameters.ini" };
+		if (!data) {
+			gp->log.logError("Could not open " + (paramDir / "ProcessingParameters.ini").string() + " for writing");
+		}
+		else {
+			opt.processingOptions.write(metric);
+		}
+
+		std::ofstream computer{ paramDir / "ComputerParameters.ini" };
+		if (!data) {
+			gp->log.logError("Could not open " + (paramDir / "ComputerParameters.ini").string() + " for writing");
+		}
+		else {
+			opt.computerOptions.write(computer);
+		}
 	}
 
 	void LapisController::mergeCSMThread(const Alignment& layout, cell_t& soFar)

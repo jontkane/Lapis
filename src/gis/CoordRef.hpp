@@ -19,11 +19,16 @@ namespace lapis {
 		CoordRef(const std::string& s, Unit zUnits);
 		CoordRef(const char* s);
 		CoordRef(const char* s, Unit zUnits);
+		CoordRef(const ProjPJWrapper& pj);
 
 		//Constructor from a lasheader, to avoid double-reading from the file
 		CoordRef(const LasIO& las);
 
-		const std::string getWKT() const;
+		const std::string getPrettyWKT() const;
+
+		const std::string getCompleteWKT() const;
+		
+		const std::string getSingleLineWKT() const;
 
 		//returns whether or not this projection is defined
 		bool isEmpty() const;

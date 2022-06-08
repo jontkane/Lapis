@@ -63,27 +63,27 @@ namespace lapis {
 	{
 		auto& filters = lasProcessingObjects->filters;
 
-		if (opt.metricOptions.whichReturns == MetricOptions::WhichReturns::only) {
+		if (opt.processingOptions.whichReturns == ProcessingOptions::WhichReturns::only) {
 			filters.push_back(std::make_shared<LasFilterOnlyReturns>());
 		}
-		else if (opt.metricOptions.whichReturns == MetricOptions::WhichReturns::first) {
+		else if (opt.processingOptions.whichReturns == ProcessingOptions::WhichReturns::first) {
 			filters.push_back(std::make_shared<LasFilterFirstReturns>());
 		}
 
-		if (opt.metricOptions.classes.has_value()) {
-			if (opt.metricOptions.classes.value().whiteList) {
-				filters.push_back(std::make_shared<LasFilterClassWhitelist>(opt.metricOptions.classes.value().classes));
+		if (opt.processingOptions.classes.has_value()) {
+			if (opt.processingOptions.classes.value().whiteList) {
+				filters.push_back(std::make_shared<LasFilterClassWhitelist>(opt.processingOptions.classes.value().classes));
 			}
 			else {
-				filters.push_back(std::make_shared<LasFilterClassBlacklist>(opt.metricOptions.classes.value().classes));
+				filters.push_back(std::make_shared<LasFilterClassBlacklist>(opt.processingOptions.classes.value().classes));
 			}
 		}
-		if (!opt.metricOptions.useWithheld) {
+		if (!opt.processingOptions.useWithheld) {
 			filters.push_back(std::make_shared<LasFilterWithheld>());
 		}
 
-		if (opt.metricOptions.maxScanAngle.has_value()) {
-			filters.push_back(std::make_shared<LasFilterMaxScanAngle>(opt.metricOptions.maxScanAngle.value()));
+		if (opt.processingOptions.maxScanAngle.has_value()) {
+			filters.push_back(std::make_shared<LasFilterMaxScanAngle>(opt.processingOptions.maxScanAngle.value()));
 		}
 		globalProcessingObjects->log.logDiagnostic(std::to_string(filters.size()) + " filters applied");
 	}
@@ -108,79 +108,30 @@ namespace lapis {
 	}
 
 	void LapisObjects::createOutAlignment(const FullOptions& opt) {
-		//this one is a bit of a doozy because of all the branching logic
-		//if the user specifies an alignment from a file, that choice is respected
-		//if they choose to crop by that file, then that's it: the alignment is trimmed to where laz files exist and nothing else
-		//if they don't choose to crop, then the alignment from the file is instead extended to where the laz files are
-		
-		//if they don't specify by file, then they may specify a cellsize or a crs (both optional)
-		//if they don't specify a crs, then the crs from one of the las files is used. No guarantee which is used if they disagree
-		//if they don't specify a cellsize, it's set to 30 meters
-		//if they do specify a cellsize, it's interpretted to be in the user units
-
-		//the csm alignment will always be in the same crs as the metric alignment, with cellsize defaulting to 1 meter
-
-		//in all cases, the vertical units will be set to the user-defined units
 
 		Alignment& metricAlign = globalProcessingObjects->metricAlign;
 
 		bool alignFinalized = false;
 		CoordRef outCRS;
-		coord_t cellsize = 0;
-		if (std::holds_alternative<alignmentFromFile>(opt.dataOptions.outAlign)) {
-			try {
-				const alignmentFromFile& aff = std::get<alignmentFromFile>(opt.dataOptions.outAlign);
-				metricAlign = Alignment(aff.filename);
-			}
-			catch (InvalidRasterFileException e) {
-				globalProcessingObjects->log.logError(e.what());
-				throw e;
-			}
-			catch (InvalidAlignmentException e) {
-				globalProcessingObjects->log.logError(e.what());
-				throw e;
-			}
-			catch (InvalidExtentException e) {
-				globalProcessingObjects->log.logError(e.what());
-				throw e;
-			}
-
+		if (opt.processingOptions.outAlign.has_value()) {
 			alignFinalized = true;
-			outCRS = metricAlign.crs();
-			if (globalProcessingObjects->cleanwkt) {
-				outCRS = outCRS.getCleanEPSG();
-			}
+			outCRS = opt.processingOptions.outAlign.value().crs();
 		}
-		else {
-			const ManualAlignment& ma = std::get<ManualAlignment>(opt.dataOptions.outAlign);
-			if (!ma.crs.isEmpty()) {
-				outCRS = ma.crs;
-				if (globalProcessingObjects->cleanwkt) {
-					outCRS = outCRS.getCleanEPSG();
-				}
-
-			}
-			else {
-				for (size_t i = 0; i < globalProcessingObjects->sortedLasFiles.size(); ++i) {
-					//if the user won't specify the CRS, just use the laz CRS
-					if (!globalProcessingObjects->sortedLasFiles[i].ext.crs().isEmpty()) {
-						outCRS = globalProcessingObjects->sortedLasFiles[i].ext.crs();
-						if (globalProcessingObjects->cleanwkt) {
-							outCRS = outCRS.getCleanEPSG();
-						}
-						break;
+		if (outCRS.isEmpty()) {
+			for (size_t i = 0; i < globalProcessingObjects->sortedLasFiles.size(); ++i) {
+				//if the user won't specify the CRS, just use the laz CRS
+				if (!globalProcessingObjects->sortedLasFiles[i].ext.crs().isEmpty()) {
+					outCRS = globalProcessingObjects->sortedLasFiles[i].ext.crs();
+					if (globalProcessingObjects->cleanwkt) {
+						outCRS = outCRS.getCleanEPSG();
 					}
+					break;
 				}
-			}
-
-			cellsize = convertUnits(ma.res.value_or(0), opt.dataOptions.outUnits, outCRS.getXYUnits());
-			if (cellsize <= 0) {
-				cellsize = convertUnits(30, linearUnitDefs::meter, outCRS.getXYUnits());
 			}
 		}
 
-		if (!opt.dataOptions.outUnits.isUnknown()) {
-			outCRS.setZUnits(opt.dataOptions.outUnits);
+		if (!opt.processingOptions.outUnits.isUnknown()) {
+			outCRS.setZUnits(opt.processingOptions.outUnits);
 		}
 
 		if (!outCRS.isProjected()) {
@@ -209,36 +160,26 @@ namespace lapis {
 		fullExtent.defineCRS(outCRS); //getting the units right and maybe cleaning up some wkt nonsense
 		globalProcessingObjects->metricAlign.defineCRS(outCRS); //either harmless or cleans up the wkt
 		if (!alignFinalized) {
+			coord_t cellsize = convertUnits(30, linearUnitDefs::meter, outCRS.getXYUnits());
 			metricAlign = Alignment(fullExtent, 0, 0, cellsize, cellsize);
 		}
 		else {
-			const alignmentFromFile& aff = std::get<alignmentFromFile>(opt.dataOptions.outAlign);
-			if (aff.useType == alignmentFromFile::alignType::crop) {
-				try {
-					metricAlign = crop(metricAlign, fullExtent, SnapType::out);
-				}
-				catch (InvalidExtentException e) {
-					globalProcessingObjects->log.logError("Snap raster does not ovarlap with las files and user specified to crop by snap raster");
-					throw std::runtime_error("Snap raster does not ovarlap with las files and user specified to crop by snap raster");
-				}
-			}
-			else {
-				metricAlign = extend(metricAlign, fullExtent, SnapType::out);
-				metricAlign = crop(metricAlign, fullExtent, SnapType::out);
-			}
+			metricAlign = opt.processingOptions.outAlign.value();
 		}
+		metricAlign = extend(metricAlign, fullExtent);
+		metricAlign = crop(metricAlign, fullExtent);
 
 		coord_t csmcellsize = 0;
 
-		csmcellsize = convertUnits(opt.dataOptions.csmRes.value_or(0), opt.dataOptions.outUnits, outCRS.getXYUnits());
+		csmcellsize = convertUnits(opt.dataOptions.csmRes.value_or(0), opt.processingOptions.outUnits, outCRS.getXYUnits());
 		if (csmcellsize <= 0) {
 			csmcellsize = convertUnits(1, linearUnitDefs::meter, outCRS.getXYUnits());
 		}
 		globalProcessingObjects->csmAlign = Alignment(fullExtent, metricAlign.xOrigin(), metricAlign.yOrigin(), csmcellsize, csmcellsize);
 
-		if (!opt.dataOptions.outUnits.isUnknown()) {
-			globalProcessingObjects->metricAlign.setZUnits(opt.dataOptions.outUnits);
-			globalProcessingObjects->csmAlign.setZUnits(opt.dataOptions.outUnits);
+		if (!opt.processingOptions.outUnits.isUnknown()) {
+			globalProcessingObjects->metricAlign.setZUnits(opt.processingOptions.outUnits);
+			globalProcessingObjects->csmAlign.setZUnits(opt.processingOptions.outUnits);
 		}
 		globalProcessingObjects->csmAlign.defineCRS(outCRS);
 		
@@ -292,15 +233,15 @@ namespace lapis {
 		lasProcessingObjects->demCRSOverride = opt.dataOptions.demCRS;
 		lasProcessingObjects->demUnitOverride = opt.dataOptions.demUnits;
 
-		globalProcessingObjects->nThread = opt.processingOptions.nThread.value_or(defaultNThread());
-		globalProcessingObjects->binSize = opt.processingOptions.binSize;
+		globalProcessingObjects->nThread = opt.computerOptions.nThread.value_or(defaultNThread());
+		globalProcessingObjects->binSize = opt.computerOptions.performance ? 0.1 : 0.01;
 
-		globalProcessingObjects->canopyCutoff = opt.metricOptions.canopyCutoff.
+		globalProcessingObjects->canopyCutoff = opt.processingOptions.canopyCutoff.
 			value_or(convertUnits(2, linearUnitDefs::meter, globalProcessingObjects->metricAlign.crs().getZUnits()));
 
-		globalProcessingObjects->minht = opt.metricOptions.minht.
+		globalProcessingObjects->minht = opt.processingOptions.minht.
 			value_or(convertUnits(-2, linearUnitDefs::meter, globalProcessingObjects->metricAlign.crs().getZUnits()));
-		globalProcessingObjects->maxht = opt.metricOptions.maxht.
+		globalProcessingObjects->maxht = opt.processingOptions.maxht.
 			value_or(convertUnits(100, linearUnitDefs::meter, globalProcessingObjects->metricAlign.crs().getZUnits()));
 
 		globalProcessingObjects->outfolder = opt.dataOptions.outfolder;

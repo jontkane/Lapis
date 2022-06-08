@@ -52,8 +52,11 @@ namespace lapis {
 		void processCell(cell_t cell) const;
 
 		fs::path getCSMTempDir() const;
-
 		fs::path getCSMPermanentDir() const;
+		fs::path getPointMetricDir() const;
+		fs::path getParameterDir() const;
+
+		void writeParams(const FullOptions& opt) const;
 
 		//This is the function that performs the work of merging the temporary CSM files into their final tiles
 		//layout is an alignment whose cells represent the extents of the final tiles.

@@ -18,12 +18,10 @@ int main(int argc, char* argv[])
 	lc.processFullArea();
 
 	log.logProgress("Done!");
-
-
 	
 	//semi-ordered to-do list:
 
-	//add parameter output
+	//add tests for CSM merging
 
 	//write a gui
 
@@ -40,7 +38,8 @@ int main(int argc, char* argv[])
 	//		projecting to output CRS
 	//		sorting to PointMetricCalculators
 
-	//consider odd parameters--turn off csm creation? turn off wkt cleanup?
+	//consider odd parameters--turn off csm creation? turn off wkt cleanup? write in img?
+	//change the parameterization for alignment to be xres/yres/xorigin/yorigin to make it portable
 
 	//check if the occasional multi-cm disagreement between fusion and lapis is because I'm calculating the bilinear interp *wrong* (as opposed to *different*)
 
