@@ -24,6 +24,8 @@ namespace lapis {
 	bool extentSorter(const Extent& lhs, const Extent& rhs);
 
 	std::string insertZeroes(int value, int maxvalue);
+
+
 }
 
 #endif

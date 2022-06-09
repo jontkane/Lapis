@@ -48,7 +48,7 @@ namespace lapis {
 
 		gp->log.logProgress("Merging CSMs");
 
-		cell_t targetNCell = gp->maxCSMBytes / sizeof(csm_data);
+		cell_t targetNCell = gp->maxCSMBytes / sizeof(csm_t);
 		rowcol_t targetNRowCol = (rowcol_t)std::sqrt(targetNCell);
 		coord_t tileRes = targetNRowCol * gp->csmAlign.xres();
 		Alignment layout{ gp->csmAlign,0,0,tileRes,tileRes };
@@ -103,9 +103,9 @@ namespace lapis {
 
 			auto startTime = chr::high_resolution_clock::now();
 
-			std::optional<Raster<csm_data>> thiscsm;
+			std::optional<Raster<csm_t>> thiscsm;
 			if (true) { //the ability to skip calculating the CSM might go here eventually
-				thiscsm = Raster<csm_data>(crop(gp->csmAlign, lasExt.ext, SnapType::out));
+				thiscsm = Raster<csm_t>(crop(gp->csmAlign, lasExt.ext, SnapType::out));
 			}
 
 			
@@ -148,7 +148,7 @@ namespace lapis {
 		
 	}
 
-	void LapisController::assignPointsToCSM(const LidarPointVector& points, std::optional<Raster<csm_data>>& csm) const
+	void LapisController::assignPointsToCSM(const LidarPointVector& points, std::optional<Raster<csm_t>>& csm) const
 	{
 		if (!csm) {
 			return;
@@ -161,10 +161,10 @@ namespace lapis {
 			cell_t cell = csmv.cellFromXYUnsafe(p.x, p.y);
 			if (!csmv[cell].has_value()) {
 				csmv[cell].has_value() = true;
-				csmv[cell].value() = (csm_data)p.z;
+				csmv[cell].value() = (csm_t)p.z;
 			}
 			else {
-				csmv[cell].value() = std::max(csmv[cell].value(), (csm_data)p.z);
+				csmv[cell].value() = std::max(csmv[cell].value(), (csm_t)p.z);
 			}
 
 		}
@@ -290,7 +290,7 @@ namespace lapis {
 
 			//when tree ID is added, we may need to introduce buffering of the CSM tiles to get an overlap zone
 			//in the unbuffered case, lower-left snapping ensures that each output cell appears in exactly one tile
-			Raster<csm_data> fullTile(crop(gp->csmAlign, thistile, SnapType::ll));
+			Raster<csm_t> fullTile(crop(gp->csmAlign, thistile, SnapType::ll));
 
 			bool hasAnyValue = false;
 
@@ -312,7 +312,7 @@ namespace lapis {
 					continue;
 				}
 				thisext = crop(thisext, fullTile);
-				Raster<csm_data> thisr{ (tempcsmdir / (std::to_string(i) + ".tif")).string(),thisext, SnapType::near };
+				Raster<csm_t> thisr{ (tempcsmdir / (std::to_string(i) + ".tif")).string(),thisext, SnapType::near };
 
 				//for the same reason as the above comment
 				thisr.defineCRS(fullTile.crs());

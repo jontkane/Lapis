@@ -59,6 +59,8 @@ set(LAPIS_APP_SOURCES
 		src/pointmetriccalculator.hpp
 		src/lapisobjects.hpp
 		src/lapisobjects.cpp
+		src/csmalgos.hpp
+		src/csmalgos.cpp
 		)
 
 set(LAPIS_TEST_SOURCES
@@ -74,6 +76,7 @@ set(LAPIS_TEST_SOURCES
 		src/test/rastertest.cpp
 		src/test/lapisobjectstest.cpp
 		src/test/pointmetriccalculatortest.cpp
+		src/test/csmalgostest.cpp
 		)
 
 

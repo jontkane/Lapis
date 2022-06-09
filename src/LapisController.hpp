@@ -8,6 +8,7 @@
 #include"Options.hpp"
 #include"LapisUtils.hpp"
 #include"LapisObjects.hpp"
+#include"csmalgos.hpp"
 
 namespace std {
 	namespace filesystem {
@@ -18,8 +19,6 @@ namespace std {
 namespace lapis {
 
 	namespace fs = std::filesystem;
-
-	using csm_data = coord_t;
 	
 	class LapisController {
 	public:
@@ -41,7 +40,7 @@ namespace lapis {
 		//returns the number of points that pass the filters and get used in later processing
 		void assignPointsToCalculators(const LidarPointVector& points) const;
 
-		void assignPointsToCSM(const LidarPointVector& points, std::optional<Raster<csm_data>>& csm) const;
+		void assignPointsToCSM(const LidarPointVector& points, std::optional<Raster<csm_t>>& csm) const;
 
 		//processes the points that have already been found and assigns the output to rasters
 		//returns the number of points freed from memory
