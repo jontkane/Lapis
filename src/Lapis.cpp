@@ -20,9 +20,7 @@ int main(int argc, char* argv[])
 	
 	
 	//semi-ordered to-do list:
-	//write the tile layout as a polygon
 	//add hooks for mods
-	//configure smooth window
 
 	//add tests for CSM merging
 

@@ -68,6 +68,8 @@ namespace lapis {
 			threads[i].join();
 		}
 
+		gp->log.logProgress("Final Cleanup");
+
 		soFarCSM = 0;
 		auto taoIdFixFunc = [&] {fixTAOIds(idMap, layout, soFarCSM); };
 		threads.clear();
@@ -78,8 +80,10 @@ namespace lapis {
 			threads[i].join();
 		}
 
+		writeLayout(layout);
 
-		//deleting the temp files goes here once I don't need them for testing
+		fs::remove_all(getCSMTempDir());
+		fs::remove_all(getTempTAODir());
 	}
 
 	template<class T>
@@ -275,6 +279,12 @@ namespace lapis {
 		return taodir;
 	}
 
+	fs::path LapisController::getLayoutDir() const {
+		fs::path layoutdir = gp->outfolder / "TileLayout";
+		fs::create_directories(layoutdir);
+		return layoutdir;
+	}
+
 	void LapisController::writeParams(const FullOptions& opt) const
 	{
 		fs::path paramDir = getParameterDir();
@@ -411,8 +421,7 @@ namespace lapis {
 
 			populateMap(segments, highPoints,idMap, bufferDist, thisidx);
 
-			std::string tileName = "_Col" + insertZeroes(layout.colFromCell(thisidx) + 1, layout.ncol()) +
-				"_Row" + insertZeroes(layout.rowFromCell(thisidx) + 1, layout.nrow());
+			std::string tileName = nameFromLayout(layout, thisidx);
 			if (hasAnyValue) {
 				writeHighPoints(highPoints, segments, fullTile, tileName);
 				if (minrow > 0 || mincol > 0 || maxrow < fullTile.nrow() - 1 || maxcol < fullTile.ncol() - 1) {
@@ -421,9 +430,9 @@ namespace lapis {
 					fullTile = crop(fullTile, cropExt, SnapType::out);
 					segments = crop(segments, cropExt, SnapType::out);
 				}
-				std::string outname = "CanopySurfaceModel" + tileName + ".tif";
+				std::string outname = "CanopySurfaceModel_" + tileName + ".tif";
 				fullTile.writeRaster((permcsmdir / outname).string());
-				segments.writeRaster((getTempTAODir() / ("Segments" + tileName + ".tif")).string());
+				segments.writeRaster((getTempTAODir() / ("Segments_" + tileName + ".tif")).string());
 			}
 		}
 	}
@@ -487,18 +496,10 @@ namespace lapis {
 	void LapisController::writeHighPoints(const std::vector<cell_t>& highPoints, const Raster<taoid_t>& segments,
 		const Raster<csm_t>& csm, const std::string& name) const
 	{
-		std::string filename = (getTAODir() / ("TAOs" + name + ".shp")).string();
-		const char* driverName = "ESRI Shapefile";
-		GDALDriver* driver;
 		GDALRegisterWrapper::allRegister();
-		driver = GetGDALDriverManager()->GetDriverByName(driverName);
-
-		GDALDataset* outshp;
-		outshp = driver->Create(filename.c_str(), 0, 0, 0, GDT_Unknown, nullptr);
-		if (outshp == nullptr) {
-			gp->log.logError("Unable to write " + filename);
-			return;
-		}
+		std::string filename = (getTAODir() / ("TAOs_" + name + ".shp")).string();
+		
+		GDALDatasetWrapper outshp("ESRI Shapefile", filename.c_str(), 0, 0, GDT_Unknown);
 
 		OGRSpatialReference crs;
 		crs.importFromWkt(csm.crs().getCompleteWKT().c_str());
@@ -535,8 +536,7 @@ namespace lapis {
 			if (!csm.contains(x, y)) {
 				continue;
 			}
-			OGRFeature* feature;
-			feature = OGRFeature::CreateFeature(layer->GetLayerDefn());
+			OGRFeatureWrapper feature(layer);
 			feature->SetField("ID", (int64_t)segments[cell].value());
 			feature->SetField("X", x);
 			feature->SetField("Y", y);
@@ -548,11 +548,8 @@ namespace lapis {
 			point.setY(y);
 			feature->SetGeometry(&point);
 
-			layer->CreateFeature(feature);
-
-			OGRFeature::DestroyFeature(feature);
+			layer->CreateFeature(feature.ptr);
 		}
-		GDALClose(outshp);
 	}
 
 	void LapisController::fixTAOIds(const TaoIdMap& idMap, const Alignment& layout, cell_t& soFar) const
@@ -595,6 +592,79 @@ namespace lapis {
 				v.value() = idMap.coordsToFinalName.at(localNameMap.at(v.value()));
 			}
 			segments.writeRaster((getTAODir() / ("Segments" + tileName + ".tif")).string());
+		}
+	}
+
+	std::string LapisController::nameFromLayout(const Alignment& layout, cell_t cell) const {
+		return "Col" + insertZeroes(layout.colFromCell(cell) + 1, layout.ncol()) +
+			"_Row" + insertZeroes(layout.rowFromCell(cell) + 1, layout.nrow());
+	}
+
+	void LapisController::writeLayout(const Alignment& layout) const {
+		fs::path filename = getLayoutDir() / "TileLayout.shp";
+
+		GDALRegisterWrapper::allRegister();
+
+		GDALDatasetWrapper outshp("ESRI Shapefile", filename.string().c_str(), 0, 0, GDT_Unknown);
+
+		OGRSpatialReference crs;
+		crs.importFromWkt(layout.crs().getCompleteWKT().c_str());
+
+		OGRLayer* layer;
+		layer = outshp->CreateLayer("point_out", &crs, wkbPolygon, nullptr);
+
+		OGRFieldDefn nameField("Name", OFTString);
+		nameField.SetWidth(13);
+		layer->CreateField(&nameField);
+
+		OGRFieldDefn idField("ID", OFTInteger);
+		layer->CreateField(&idField);
+
+		OGRFieldDefn colField("Column", OFTInteger);
+		layer->CreateField(&colField);
+
+		OGRFieldDefn rowField("Row", OFTInteger);
+		layer->CreateField(&rowField);
+
+		for (cell_t cell = 0; cell < layout.ncell(); ++cell) {
+			std::string name = nameFromLayout(layout, cell);
+			if (!fs::exists(getCSMPermanentDir() / ("CanopySurfaceModel_" + name + ".tif"))) {
+				continue;
+			}
+			OGRFeatureWrapper feature(layer);
+			feature->SetField("Name", nameFromLayout(layout, cell).c_str());
+			feature->SetField("ID", cell);
+			feature->SetField("Column", layout.colFromCell(cell)+1);
+			feature->SetField("Row", layout.rowFromCell(cell)+1);
+			
+#pragma pack(push)
+#pragma pack(1)
+			struct WkbRectangle {
+				uint8_t endianness = 1;
+				uint32_t type = 3;
+				uint32_t numRings = 1;
+				uint32_t numPoints = 5; //because the first point is repeated
+				struct Point {
+					double x, y;
+				};
+				Point points[5];
+			};
+#pragma pack(pop)
+
+			WkbRectangle tile;
+			coord_t xCenter = layout.xFromCell(cell);
+			coord_t yCenter = layout.yFromCell(cell);
+			tile.points[0].x = tile.points[3].x = tile.points[4].x = xCenter - layout.xres() / 2;
+			tile.points[1].x = tile.points[2].x = xCenter + layout.xres() / 2;
+			tile.points[0].y = tile.points[1].y = tile.points[4].y = yCenter + layout.yres() / 2;
+			tile.points[2].y = tile.points[3].y = yCenter - layout.yres() / 2;
+
+			OGRGeometry* geom;
+			size_t consumed = 0;
+			OGRGeometryFactory::createFromWkb((const void*)&tile, &crs, &geom, sizeof(WkbRectangle), wkbVariantPostGIS1, consumed);
+
+			feature->SetGeometry(geom);
+			layer->CreateFeature(feature.ptr);
 		}
 	}
 }

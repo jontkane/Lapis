@@ -82,6 +82,8 @@ namespace lapis {
 
 		bool docsm = true;
 		bool cleanwkt = true;
+
+		int smoothWindow = 3;
 	};
 
 	//this class stores all the parameters of the run in a form usable by the actual logic of the app

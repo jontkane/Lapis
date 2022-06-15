@@ -63,11 +63,12 @@ namespace lapis {
 
 			po::options_description hiddenDataOpts;
 			hiddenDataOpts.add_options()
-				("las-units", po::value(&lasunit),"")
-				("dem-units", po::value(&demunit),"")
-				("las-crs", po::value(&lascrs),"")
-				("dem-crs", po::value(&demcrs),"")
+				("las-units", po::value(&lasunit), "")
+				("dem-units", po::value(&demunit), "")
+				("las-crs", po::value(&lascrs), "")
+				("dem-crs", po::value(&demcrs), "")
 				("footprint", po::value(&opt.processingOptions.footprintDiameter))
+				("smooth", po::value(&opt.processingOptions.smoothWindow))
 				;
 
 			po::options_description processOpts;
@@ -388,10 +389,13 @@ namespace lapis {
 			out << "\n";
 		}
 		if (useWithheld) {
-			out << "use-withheld\n";
+			out << "use-withheld=\n";
 		}
 		if (maxScanAngle.has_value()) {
 			out << "max-scan-angle=" << maxScanAngle.value() << "\n";
+		}
+		if (smoothWindow.has_value()) {
+			out << "smooth=" << smoothWindow.value() << "\n";
 		}
 		out << "\n";
 	}

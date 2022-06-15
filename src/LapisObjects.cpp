@@ -258,6 +258,8 @@ namespace lapis {
 				linearUnitDefs::meter,
 				globalProcessingObjects->metricAlign.crs().getXYUnits());
 		}
+
+		globalProcessingObjects->smoothWindow = opt.processingOptions.smoothWindow.value_or(3);
 	}
 
 	void LapisObjects::makeNLaz()

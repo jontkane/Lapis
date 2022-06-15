@@ -88,6 +88,22 @@ namespace lapis {
 		GDALPrjWrapper& operator=(const GDALPrjWrapper& wgd) = delete;
 	};
 
+	class OGRFeatureWrapper {
+	public:
+		OGRFeatureWrapper() : ptr(nullptr) {}
+		OGRFeatureWrapper(OGRLayer* layer) : ptr(OGRFeature::CreateFeature(layer->GetLayerDefn())) {}
+		~OGRFeatureWrapper() {
+			if (ptr != nullptr) {
+				OGRFeature::DestroyFeature(ptr);
+			}
+		}
+		OGRFeature* operator->() {
+			return ptr;
+		}
+
+		OGRFeature* ptr;
+	};
+
 	//pass this to CPLSetErrorHandler to make GDAL shut up
 #pragma warning(push)
 #pragma warning(disable : 4100)

@@ -92,9 +92,11 @@ namespace lapis {
 		//the diameter of the lidar pulse footprint. Used in the CSM smoothing algorithm
 		boost::optional<coord_t> footprintDiameter;
 
-
 		//the cellsize of the output CSM
 		boost::optional<coord_t> csmRes;
+
+		//The window size to use for smoothing the CSM
+		boost::optional<int> smoothWindow;
 
 		void write(std::ostream& out) const;
 	};

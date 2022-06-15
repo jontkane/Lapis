@@ -58,6 +58,8 @@ namespace lapis {
 
 		fs::path getTempTAODir() const;
 
+		fs::path getLayoutDir() const;
+
 		void writeParams(const FullOptions& opt) const;
 
 		//This is the function that performs the work of merging the temporary CSM files into their final tiles
@@ -74,6 +76,10 @@ namespace lapis {
 			const Raster<csm_t>& csm, const std::string& name) const;
 
 		void fixTAOIds(const TaoIdMap& idMap, const Alignment& layout, cell_t& sofar) const;
+
+		std::string nameFromLayout(const Alignment& layout, cell_t cell) const;
+
+		void writeLayout(const Alignment& layout) const;
 
 
 		LapisObjects obj;
