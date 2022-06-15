@@ -45,6 +45,8 @@ namespace lapis {
 				gp->log.logError("Error Writing " + filename);
 			}
 		}
+		obj.cleanUpAfterPointMetrics();
+		lp = nullptr;
 
 		gp->log.logProgress("Merging CSMs");
 
@@ -54,10 +56,10 @@ namespace lapis {
 		Alignment layout{ gp->csmAlign,0,0,tileRes,tileRes };
 
 		cell_t soFarCSM = 0;
-		auto csmMergeThreadFunc = [&] {mergeCSMThread(layout, soFarCSM); };
+		TaoIdMap idMap;
+		auto csmMergeThreadFunc = [&] {csmProcessingThread(layout, soFarCSM, idMap); };
 
-		obj.cleanUpAfterPointMetrics();
-		lp = nullptr;
+		
 		threads.clear();
 		for (int i = 0; i < gp->nThread; ++i) {
 			threads.push_back(std::thread(csmMergeThreadFunc));
@@ -65,6 +67,17 @@ namespace lapis {
 		for (int i = 0; i < gp->nThread; ++i) {
 			threads[i].join();
 		}
+
+		soFarCSM = 0;
+		auto taoIdFixFunc = [&] {fixTAOIds(idMap, layout, soFarCSM); };
+		threads.clear();
+		for (int i = 0; i < gp->nThread; ++i) {
+			threads.push_back(std::thread(taoIdFixFunc));
+		}
+		for (int i = 0; i < gp->nThread; ++i) {
+			threads[i].join();
+		}
+
 
 		//deleting the temp files goes here once I don't need them for testing
 	}
@@ -153,20 +166,48 @@ namespace lapis {
 		if (!csm) {
 			return;
 		}
+
+		const coord_t circleradius = lp->footprintRadius;
+		const coord_t diagonal = circleradius/std::sqrt(2);
+		const coord_t epsilon = -0.000001;
+		struct XYEpsilon {
+			coord_t x, y, epsilon;
+		};
+		std::vector<XYEpsilon> circle;
+		if (circleradius == 0) {
+			circle = { {0.,0.} };
+		}
+		else {
+			circle = { {0,0,0},
+				{circleradius,0,epsilon},
+				{-circleradius,0,epsilon},
+				{0,circleradius,epsilon},
+				{0,-circleradius,epsilon},
+				{diagonal,diagonal,2 * epsilon},
+				{diagonal,-diagonal,2 * epsilon},
+				{-diagonal,diagonal,2 * epsilon},
+				{-diagonal,-diagonal,2 * epsilon} };
+		}
+
+
 		auto& csmv = csm.value();
 		for (auto& p : points) {
-			if (!csmv.strictContains(p.x, p.y)) {
-				continue;
+			for (auto& direction : circle) {
+				coord_t x = p.x + direction.x;
+				coord_t y = p.y + direction.y;
+				coord_t z = p.z + direction.epsilon;
+				if (!csmv.strictContains(x, y)) {
+					continue;
+				}
+				cell_t cell = csmv.cellFromXYUnsafe(x, y);
+				if (!csmv[cell].has_value()) {
+					csmv[cell].has_value() = true;
+					csmv[cell].value() = (csm_t)z;
+				}
+				else {
+					csmv[cell].value() = std::max(csmv[cell].value(), (csm_t)z);
+				}
 			}
-			cell_t cell = csmv.cellFromXYUnsafe(p.x, p.y);
-			if (!csmv[cell].has_value()) {
-				csmv[cell].has_value() = true;
-				csmv[cell].value() = (csm_t)p.z;
-			}
-			else {
-				csmv[cell].value() = std::max(csmv[cell].value(), (csm_t)p.z);
-			}
-
 		}
 	}
 
@@ -195,28 +236,43 @@ namespace lapis {
 
 	fs::path LapisController::getCSMTempDir() const
 	{
-		fs::path baseout = gp->outfolder;
-		fs::path csmtempdir = baseout / "CanopySurfaceModel" / "Temp";
+		fs::path csmtempdir = gp->outfolder / "CanopySurfaceModel" / "Temp";
 		fs::create_directories(csmtempdir);
 		return csmtempdir;
 	}
 
 	fs::path LapisController::getCSMPermanentDir() const
 	{
-		fs::path baseout = gp->outfolder;
-		fs::path csmtempdir = baseout / "CanopySurfaceModel";
-		fs::create_directories(csmtempdir);
-		return csmtempdir;
+		fs::path csmpermdir = gp->outfolder / "CanopySurfaceModel";
+		fs::create_directories(csmpermdir);
+		return csmpermdir;
 	}
 
 	fs::path LapisController::getPointMetricDir() const
 	{
-		return gp->outfolder / "PointMetrics";
+		fs::path pmdir = gp->outfolder / "PointMetrics";
+		fs::create_directories(pmdir);
+		return pmdir;
 	}
 
 	fs::path LapisController::getParameterDir() const
 	{
-		return gp->outfolder / "RunParameters";
+		fs::path inidir = gp->outfolder / "RunParameters";
+		fs::create_directories(inidir);
+		return inidir;
+	}
+
+	fs::path LapisController::getTAODir() const
+	{
+		fs::path taodir = gp->outfolder / "TreeApproximateObjects";
+		fs::create_directories(taodir);
+		return taodir;
+	}
+
+	fs::path LapisController::getTempTAODir() const {
+		fs::path taodir = gp->outfolder / "TreeApproximateObjects" / "Temp";
+		fs::create_directories(taodir);
+		return taodir;
 	}
 
 	void LapisController::writeParams(const FullOptions& opt) const
@@ -269,7 +325,7 @@ namespace lapis {
 		}
 	}
 
-	void LapisController::mergeCSMThread(const Alignment& layout, cell_t& soFar)
+	void LapisController::csmProcessingThread(const Alignment& layout, cell_t& soFar, TaoIdMap& idMap) const
 	{
 		cell_t thisidx = 0;
 		Extent thistile;
@@ -286,11 +342,14 @@ namespace lapis {
 				++soFar;
 				
 			}
-			gp->log.logProgress("Merging CSM tile " + std::to_string(thisidx+1) + " of approx. " + std::to_string(layout.ncell()));
+			gp->log.logProgress("Processing CSM tile " + std::to_string(thisidx+1) + " of " + std::to_string(layout.ncell()));
+
+			coord_t bufferDist = convertUnits(30, linearUnitDefs::meter, layout.crs().getXYUnits());
+			Extent bufferExt = Extent(thistile.xmin() - bufferDist, thistile.xmax() + bufferDist, thistile.ymin() - bufferDist, thistile.ymax() + bufferDist);
 
 			//when tree ID is added, we may need to introduce buffering of the CSM tiles to get an overlap zone
 			//in the unbuffered case, lower-left snapping ensures that each output cell appears in exactly one tile
-			Raster<csm_t> fullTile(crop(gp->csmAlign, thistile, SnapType::ll));
+			Raster<csm_t> fullTile(crop(gp->csmAlign, bufferExt, SnapType::ll));
 
 			bool hasAnyValue = false;
 
@@ -342,17 +401,29 @@ namespace lapis {
 				}
 			}
 
-			//filling and smoothing go here
-			//Treeseg and CSM metrics go here
+			int smoothWindow = 3;
+			int neighborsNeeded = 6;
+			fullTile = smoothAndFill(fullTile, smoothWindow, neighborsNeeded, {});
 
+			std::vector<cell_t> highPoints = identifyHighPoints(fullTile, gp->canopyCutoff);
+			
+			Raster<taoid_t> segments = watershedSegment(fullTile, highPoints, *gp, thisidx, layout.ncell());
+
+			populateMap(segments, highPoints,idMap, bufferDist, thisidx);
+
+			std::string tileName = "_Col" + insertZeroes(layout.colFromCell(thisidx) + 1, layout.ncol()) +
+				"_Row" + insertZeroes(layout.rowFromCell(thisidx) + 1, layout.nrow());
 			if (hasAnyValue) {
+				writeHighPoints(highPoints, segments, fullTile, tileName);
 				if (minrow > 0 || mincol > 0 || maxrow < fullTile.nrow() - 1 || maxcol < fullTile.ncol() - 1) {
 					Extent cropExt{ fullTile.xFromCol(mincol),fullTile.xFromCol(maxcol),fullTile.yFromRow(maxrow),fullTile.yFromRow(minrow) };
+					cropExt = crop(cropExt, thistile);
 					fullTile = crop(fullTile, cropExt, SnapType::out);
+					segments = crop(segments, cropExt, SnapType::out);
 				}
-				std::string outname = "CanopySurfaceModel_Col" + insertZeroes(layout.colFromCell(thisidx)+1,layout.ncol()) + 
-					"_Row" + insertZeroes(layout.rowFromCell(thisidx)+1,layout.nrow()) + ".tif";
+				std::string outname = "CanopySurfaceModel" + tileName + ".tif";
 				fullTile.writeRaster((permcsmdir / outname).string());
+				segments.writeRaster((getTempTAODir() / ("Segments" + tileName + ".tif")).string());
 			}
 		}
 	}
@@ -386,5 +457,144 @@ namespace lapis {
 		points.transform(lp->calculators.crs());
 
 		return points;
+	}
+
+	void LapisController::populateMap(const Raster<taoid_t> segments, const std::vector<cell_t>& highPoints, TaoIdMap& map, coord_t bufferDist, cell_t tileidx) const
+	{
+		Extent unchanging = Extent(segments.xmin() + 2 * bufferDist, segments.xmax() - 2 * bufferDist, segments.ymin() + 2 * bufferDist, segments.ymax() - 2 * bufferDist);
+		Extent unbuffered = Extent(segments.xmin() + bufferDist, segments.xmax() - bufferDist, segments.ymin() + bufferDist, segments.ymax() - bufferDist);
+
+		{
+			std::scoped_lock<std::mutex> lock(gp->globalMut);
+			map.tileToLocalNames.emplace(tileidx, TaoIdMap::IDToCoord());
+		}
+		for (cell_t cell : highPoints) {
+			coord_t x = segments.xFromCellUnsafe(cell);
+			coord_t y = segments.yFromCellUnsafe(cell);
+			if (unchanging.contains(x, y)) { //not an ID that will need changing
+				continue;
+			}
+			if (unbuffered.contains(x, y)) { //this tao id is the final id
+				std::scoped_lock<std::mutex> lock(gp->globalMut);
+				map.coordsToFinalName.emplace(TaoIdMap::XY{ x,y }, segments[cell].value());
+			}
+			else {
+				map.tileToLocalNames[tileidx].emplace(segments[cell].value(), TaoIdMap::XY{ x,y });
+			}
+		}
+	}
+
+	void LapisController::writeHighPoints(const std::vector<cell_t>& highPoints, const Raster<taoid_t>& segments,
+		const Raster<csm_t>& csm, const std::string& name) const
+	{
+		std::string filename = (getTAODir() / ("TAOs" + name + ".shp")).string();
+		const char* driverName = "ESRI Shapefile";
+		GDALDriver* driver;
+		GDALRegisterWrapper::allRegister();
+		driver = GetGDALDriverManager()->GetDriverByName(driverName);
+
+		GDALDataset* outshp;
+		outshp = driver->Create(filename.c_str(), 0, 0, 0, GDT_Unknown, nullptr);
+		if (outshp == nullptr) {
+			gp->log.logError("Unable to write " + filename);
+			return;
+		}
+
+		OGRSpatialReference crs;
+		crs.importFromWkt(csm.crs().getCompleteWKT().c_str());
+		
+		OGRLayer* layer;
+		layer = outshp->CreateLayer("point_out", &crs, wkbPoint, nullptr);
+		
+
+		OGRFieldDefn idField("ID", OFTInteger64);
+		layer->CreateField(&idField);
+		OGRFieldDefn xField("X", OFTReal);
+		layer->CreateField(&xField);
+		OGRFieldDefn yField("Y", OFTReal);
+		layer->CreateField(&yField);
+		OGRFieldDefn heightField("Height", OFTReal);
+		layer->CreateField(&heightField);
+		OGRFieldDefn areaField("Area", OFTReal);
+		layer->CreateField(&areaField);
+
+		const coord_t cellArea = convertUnits(csm.xres(), csm.crs().getXYUnits(), csm.crs().getZUnits())
+			* convertUnits(csm.yres(), csm.crs().getXYUnits(), csm.crs().getZUnits());
+
+		std::unordered_map<taoid_t, coord_t> areas;
+		for (cell_t cell = 0; cell < segments.ncell(); ++cell) {
+			if (segments[cell].has_value()) {
+				areas.try_emplace(segments[cell].value(), 0);
+				areas[segments[cell].value()] += cellArea;
+			}
+		}
+		
+		for (cell_t cell : highPoints) {
+			coord_t x = segments.xFromCell(cell);
+			coord_t y = segments.yFromCell(cell);
+			if (!csm.contains(x, y)) {
+				continue;
+			}
+			OGRFeature* feature;
+			feature = OGRFeature::CreateFeature(layer->GetLayerDefn());
+			feature->SetField("ID", (int64_t)segments[cell].value());
+			feature->SetField("X", x);
+			feature->SetField("Y", y);
+			feature->SetField("Height", csm.atXYUnsafe(x, y).value());
+			feature->SetField("Area", areas[segments[cell].value()]);
+
+			OGRPoint point;
+			point.setX(x);
+			point.setY(y);
+			feature->SetGeometry(&point);
+
+			layer->CreateFeature(feature);
+
+			OGRFeature::DestroyFeature(feature);
+		}
+		GDALClose(outshp);
+	}
+
+	void LapisController::fixTAOIds(const TaoIdMap& idMap, const Alignment& layout, cell_t& soFar) const
+	{
+		while (true) {
+			cell_t thisidx;
+			{
+				std::lock_guard lock(gp->globalMut);
+				if (soFar >= layout.ncell()) {
+					break;
+				}
+				thisidx = soFar;
+				++soFar;
+			}
+
+			std::string tileName = "_Col" + insertZeroes(layout.colFromCell(thisidx) + 1, layout.ncol()) +
+				"_Row" + insertZeroes(layout.rowFromCell(thisidx) + 1, layout.nrow());
+
+			Raster<taoid_t> segments;
+			try {
+				segments = Raster<taoid_t>{ (getTempTAODir() / ("Segments" + tileName + ".tif")).string() };
+			}
+			catch (InvalidRasterFileException e) {
+				continue;
+			}
+
+
+			auto& localNameMap = idMap.tileToLocalNames.at(thisidx);
+			for (cell_t cell = 0; cell < segments.ncell(); ++cell) {
+				auto v = segments[cell];
+				if (!v.has_value()) {
+					continue;
+				}
+				if (!localNameMap.contains(v.value())) {
+					continue;
+				}
+				if (!idMap.coordsToFinalName.contains(localNameMap.at(v.value()))) { //edge of the acquisition
+					continue;
+				}
+				v.value() = idMap.coordsToFinalName.at(localNameMap.at(v.value()));
+			}
+			segments.writeRaster((getTAODir() / ("Segments" + tileName + ".tif")).string());
+		}
 	}
 }

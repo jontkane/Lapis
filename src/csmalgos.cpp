@@ -142,7 +142,29 @@ namespace lapis {
 			}
 			rowcol_t row = labels.rowFromCellUnsafe(c);
 			rowcol_t col = labels.colFromCellUnsafe(c);
-			for (rowcol_t rowNudge = std::max(0, row - 1); rowNudge <= std::min(csm.nrow() - 1, row + 1); ++rowNudge) {
+
+			struct rc { rowcol_t row, col; };
+			std::vector<rc> neighbors = { {row + 1,col},{row - 1,col},{row,col + 1},{row,col - 1},
+				{row + 1,col + 1},{row - 1,col - 1},{row + 1,col - 1},{row - 1,col + 1}
+			};
+			for (auto& thisRC : neighbors) {
+				rowcol_t rowNudge = thisRC.row;
+				rowcol_t colNudge = thisRC.col;
+				if (rowNudge < 0 || colNudge < 0 || rowNudge >= csm.nrow() || colNudge >= csm.ncol()) {
+					continue;
+				}
+				cell_t n = csm.cellFromRowColUnsafe(rowNudge, colNudge);
+				if (!labels[n].has_value() || labels[n] != CANDIDATE) {
+					continue;
+				}
+				labels[n].value() = labels[c].value();
+				//the original algorithm had an optimization here using a regular queue but that was only an optimization
+				//if the cells you started from were kind of arbitrary
+				//by handpicking high points, it's unneccesary, and comes with a bit of overhead as well
+				open.push(csm[n].value(), n);
+			}
+
+			/*for (rowcol_t rowNudge = std::max(0, row - 1); rowNudge <= std::min(csm.nrow() - 1, row + 1); ++rowNudge) {
 				for (rowcol_t colNudge = std::max(0, col - 1); colNudge <= std::min(csm.ncol() - 1, col + 1); ++colNudge) {
 					cell_t n = csm.cellFromRowColUnsafe(rowNudge, colNudge);
 					if (!labels[n].has_value() || labels[n] != CANDIDATE) {
@@ -154,7 +176,7 @@ namespace lapis {
 					//by handpicking high points, it's unneccesary, and comes with a bit of overhead as well
 					open.push(csm[n].value(), n);
 				}
-			}
+			}*/
 		}
 		return labels;
 	}
@@ -174,18 +196,22 @@ namespace lapis {
 				}
 				bool isHighPoint = true;
 
-				for (rowcol_t nudgeRow = std::max(0, row - 1); nudgeRow <= std::min(csm.nrow() - 1, row + 1); ++nudgeRow) {
-					for (rowcol_t nudgeCol = std::max(0, col - 1); nudgeCol <= std::min(csm.ncol() - 1, col + 1); ++nudgeCol) {
-						if (nudgeRow == row && nudgeCol == col) {
-							continue;
-						}
-						auto compare = csm.atRCUnsafe(row, col);
-						if (!compare.has_value()) {
-							continue;
-						}
-						if (compare.value() > center.value()) {
-							isHighPoint = false;
-						}
+				struct rc { rowcol_t row, col; };
+				std::vector<rc> neighbors = { {row + 1,col},{row - 1,col},{row,col + 1},{row,col - 1},
+					{row + 1,col + 1},{row - 1,col - 1},{row + 1,col - 1},{row - 1,col + 1}
+				};
+				for (auto& thisRC : neighbors) {
+					rowcol_t rowNudge = thisRC.row;
+					rowcol_t colNudge = thisRC.col;
+					if (rowNudge < 0 || colNudge < 0 || rowNudge >= csm.nrow() || colNudge >= csm.ncol()) {
+						continue;
+					}
+					auto compare = csm.atRCUnsafe(rowNudge, colNudge);
+					if (!compare.has_value()) {
+						continue;
+					}
+					if (compare.value() > center.value()) {
+						isHighPoint = false;
 					}
 				}
 

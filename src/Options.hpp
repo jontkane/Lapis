@@ -37,9 +37,6 @@ namespace lapis {
 		CoordRef lasCRS;
 		CoordRef demCRS;
 
-		//the cellsize of the output CSM
-		boost::optional<coord_t> csmRes;
-
 		void write(std::ostream& out) const;
 	};
 
@@ -91,6 +88,13 @@ namespace lapis {
 
 		//the output alignment, either as a manually specified resolution+crs, or as a filename+whether to align, crop, or mask
 		boost::optional<Alignment> outAlign;
+
+		//the diameter of the lidar pulse footprint. Used in the CSM smoothing algorithm
+		boost::optional<coord_t> footprintDiameter;
+
+
+		//the cellsize of the output CSM
+		boost::optional<coord_t> csmRes;
 
 		void write(std::ostream& out) const;
 	};

@@ -133,8 +133,8 @@ namespace lapis {
 		if (!opt.processingOptions.outUnits.isUnknown()) {
 			outCRS.setZUnits(opt.processingOptions.outUnits);
 		}
-
-		if (!outCRS.isProjected()) {
+		
+		if (!outCRS.isEmpty() && !outCRS.isProjected()) {
 			globalProcessingObjects->log.logError("Latitude/Longitude output not supported");
 			throw std::runtime_error("Latitude/Longitude output not supported");
 		}
@@ -171,7 +171,7 @@ namespace lapis {
 
 		coord_t csmcellsize = 0;
 
-		csmcellsize = convertUnits(opt.dataOptions.csmRes.value_or(0), opt.processingOptions.outUnits, outCRS.getXYUnits());
+		csmcellsize = convertUnits(opt.processingOptions.csmRes.value_or(0), opt.processingOptions.outUnits, outCRS.getXYUnits());
 		if (csmcellsize <= 0) {
 			csmcellsize = convertUnits(1, linearUnitDefs::meter, outCRS.getXYUnits());
 		}
@@ -247,6 +247,17 @@ namespace lapis {
 		globalProcessingObjects->outfolder = opt.dataOptions.outfolder;
 
 		PointMetricCalculator::setInfo(globalProcessingObjects->canopyCutoff, globalProcessingObjects->maxht, globalProcessingObjects->binSize);
+
+		if (opt.processingOptions.footprintDiameter.has_value()) {
+			lasProcessingObjects->footprintRadius = convertUnits(opt.processingOptions.footprintDiameter.value()/2,
+				globalProcessingObjects->metricAlign.crs().getZUnits(),
+				globalProcessingObjects->metricAlign.crs().getXYUnits());
+		}
+		else {
+			lasProcessingObjects->footprintRadius = convertUnits(0.2,
+				linearUnitDefs::meter,
+				globalProcessingObjects->metricAlign.crs().getXYUnits());
+		}
 	}
 
 	void LapisObjects::makeNLaz()
@@ -287,10 +298,11 @@ namespace lapis {
 				for (auto& subpath : fs::directory_iterator(specPath)) {
 					toCheck.push(subpath.path().string());
 				}
+				//because of the dumbass ESRI grid format, I have to try to open folders as rasters as well
+				(*openFunc)(specPath, fileList, log, crsOverride, zUnitOverride);
 			}
 
 			if (fs::is_regular_file(specPath)) {
-
 				//if it's a file, try to add it to the map
 				(*openFunc)(specPath, fileList, log, crsOverride, zUnitOverride);
 			}
@@ -353,11 +365,12 @@ namespace lapis {
 	void tryDtmFile(const std::filesystem::path& file, std::vector<DemFileAlignment>& data, Logger& log,
 		const CoordRef& crsOverride, const Unit& zUnitOverride)
 	{
-		if (file.extension() == ".aux" || file.extension() == ".ovr") { //pyramid files are openable by GDAL but not really rasters
+		if (file.extension() == ".aux" || file.extension() == ".ovr" || file.extension() == ".adf") { //pyramid files are openable by GDAL but not really rasters
 			return;
 		}
 		try {
 			data.push_back({ file.string(), file.string() });
+			std::cout << file.string() << "\n";
 			if (!crsOverride.isEmpty()) {
 				data[data.size() - 1].align.defineCRS(crsOverride);
 			}

@@ -35,7 +35,6 @@ namespace lapis {
 	}
 
 	Alignment::Alignment(const std::string& filename) {
-		GDALAllRegister();
 		GDALDatasetWrapper wgd = rasterGDALWrapper(filename);
 		if (wgd.isNull()) {
 			throw InvalidRasterFileException(filename);

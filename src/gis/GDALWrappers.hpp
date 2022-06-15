@@ -4,13 +4,30 @@
 
 #include"BaseDefs.hpp"
 #include"LasIO.hpp"
+#include"gis_pch.hpp"
 
 //this file includes a number of basic wrapper classes around GDAL classes that ensure that they get properly destructed
 //objects with complicated wrappers should be spun off into their own file--this is just for the simplest of wrappers that contain nothing but a constructor and destructor
 
 namespace lapis {
 
-	class GDALDatasetWrapper { //to ensure GDALClose always gets called on your GDALDataset
+	//A thread-safe wrapper around GDALAllRegister
+	class GDALRegisterWrapper {
+	public:
+		static void allRegister() {
+			std::scoped_lock<std::mutex> lock{ mut };
+			if (!registered) {
+				registered = true;
+				GDALAllRegister();
+			}
+		}
+	private:
+		inline static std::mutex mut;
+		inline static bool registered;
+	};
+
+	//this class is an RAII-friendly and thread-safe wrapper around GDALDataset.
+	class GDALDatasetWrapper { 
 	public:
 		GDALDatasetWrapper() = default;
 
@@ -18,15 +35,22 @@ namespace lapis {
 		GDALDatasetWrapper(const std::string& filename, unsigned int openFlags);
 		//creates according to GDALDrive::Create()
 		GDALDatasetWrapper(const std::string& driver, const std::string& file, int ncol, int nrow, GDALDataType gdt);
+		~GDALDatasetWrapper();
+
+		GDALDatasetWrapper(const GDALDatasetWrapper& other) = delete;
+		GDALDatasetWrapper(GDALDatasetWrapper&& other) noexcept;
+
 		GDALDataset* operator->() {
-			return gd.get();
+			return gd;
 		}
 		bool isNull() const {
 			return gd == nullptr;
-		} //equivalent to checking if the unwrapper pointer is nullptr
+		}
+
 
 	private:
-		std::shared_ptr<GDALDataset> gd;
+		GDALDataset* gd;
+		std::string _file;
 	};
 
 	GDALDatasetWrapper rasterGDALWrapper(const std::string& filename);

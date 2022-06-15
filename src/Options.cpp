@@ -47,7 +47,7 @@ namespace lapis {
 					"The desired cellsize of the output metric rasters\n"
 					"Defaults to 30 meters\n"
 					"Incompatible with the --alignment options")
-				("csm-cellsize",po::value(&opt.dataOptions.csmRes),
+				("csm-cellsize",po::value(&opt.processingOptions.csmRes),
 					"The desired cellsize of the output canopy surface model\n"
 					"Defaults to 1 meter")
 				("out-crs",po::value<std::string>(),
@@ -67,6 +67,7 @@ namespace lapis {
 				("dem-units", po::value(&demunit),"")
 				("las-crs", po::value(&lascrs),"")
 				("dem-crs", po::value(&demcrs),"")
+				("footprint", po::value(&opt.processingOptions.footprintDiameter))
 				;
 
 			po::options_description processOpts;
@@ -303,9 +304,6 @@ namespace lapis {
 			out << "dem=" << v << "\n";
 		}
 		out << "output=" << outfolder << "\n";
-		if (csmRes.has_value()) {
-			out << "csm-cellsize=" << csmRes.value() << "\n";
-		}
 		if (!lasUnits.isUnknown()) {
 			out << "las-units=" << lasUnits.name << "\n";
 		}
@@ -337,19 +335,24 @@ namespace lapis {
 	void ProcessingOptions::write(std::ostream& out) const
 	{
 		out << "#Processing Parameters\n";
+		out << std::setprecision(std::numeric_limits<coord_t>::digits10 + 1);
+
 		if (outAlign.has_value()) {
 			auto& a = outAlign.value();
 			if (!a.crs().isEmpty()) {
 				std::string wkt = a.crs().getSingleLineWKT();
 				out << "out-crs=" << wkt << "\n";
 			}
-			out << "xres=" << a.xres() << "\n";
-			out << "yres=" << a.yres() << "\n";
-			out << "xorigin=" << a.xOrigin() << "\n";
-			out << "yorigin=" << a.yOrigin() << "\n";
+			out << "xres=" << convertUnits(a.xres(),a.crs().getXYUnits(),outUnits) << "\n";
+			out << "yres=" << convertUnits(a.yres(), a.crs().getXYUnits(), outUnits) << "\n";
+			out << "xorigin=" << convertUnits(a.xOrigin(), a.crs().getXYUnits(), outUnits) << "\n";
+			out << "yorigin=" << convertUnits(a.yOrigin(), a.crs().getXYUnits(), outUnits) << "\n";
 		}
 
-		out << std::setprecision(std::numeric_limits<coord_t>::digits10 + 1);
+		if (csmRes.has_value()) {
+			out << "csm-cellsize=" << csmRes.value() << "\n";
+		}
+
 
 		out << "user-units=" << outUnits.name << "\n";
 		if (canopyCutoff.has_value()) {

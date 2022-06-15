@@ -158,13 +158,13 @@ namespace lapis {
 		coord_t yFromRowUnsafe(const rowcol_t row) const {
 			return _ymax - _yres * row - (_yres / 2);
 		}
-		cell_t cellFromXYUnsafe(const coord_t x, const coord_t y) {
+		cell_t cellFromXYUnsafe(const coord_t x, const coord_t y) const {
 			return cellFromRowColUnsafe(rowFromYUnsafe(y), colFromXUnsafe(x));
 		}
-		coord_t xFromCellUnsafe(const cell_t cell) {
+		coord_t xFromCellUnsafe(const cell_t cell) const {
 			return xFromColUnsafe(colFromCellUnsafe(cell));
 		}
-		coord_t yFromCellUnsafe(const cell_t cell) {
+		coord_t yFromCellUnsafe(const cell_t cell) const {
 			return yFromRowUnsafe(rowFromCellUnsafe(cell));
 		}
 
@@ -234,7 +234,7 @@ namespace lapis {
 	};
 
 	inline std::ostream& operator<<(std::ostream& os, const Alignment& a) {
-		os << "\n ALIGNMENT: xres: " << a.xres() << " yres: " << a.yres() << " ncol: " << a.ncol() << " nrow: " << a.nrow() << '\n';
+		os << "ALIGNMENT: xres: " << a.xres() << " yres: " << a.yres() << " ncol: " << a.ncol() << " nrow: " << a.nrow() << '\n';
 		os << (Extent)a;
 		return os;
 	}

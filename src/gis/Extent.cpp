@@ -38,7 +38,6 @@ namespace lapis {
 		}
 
 		if (!init) {
-			GDALAllRegister();
 			GDALDatasetWrapper wgd = rasterGDALWrapper(filename);
 			if (!wgd.isNull()) {
 				extentInitFromGDALRaster(wgd, getGeoTrans(wgd, filename));

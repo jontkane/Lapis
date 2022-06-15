@@ -54,16 +54,26 @@ namespace lapis {
 		fs::path getCSMPermanentDir() const;
 		fs::path getPointMetricDir() const;
 		fs::path getParameterDir() const;
+		fs::path getTAODir() const;
+
+		fs::path getTempTAODir() const;
 
 		void writeParams(const FullOptions& opt) const;
 
 		//This is the function that performs the work of merging the temporary CSM files into their final tiles
 		//layout is an alignment whose cells represent the extents of the final tiles.
-		void mergeCSMThread(const Alignment& layout, cell_t& soFar);
+		void csmProcessingThread(const Alignment& layout, cell_t& soFar, TaoIdMap& idMap) const;
 
 		//returns the points belonging to the nth las file in sortedlasextents
 		//may throw an InvalidLasFileException if something goes wrong
 		LidarPointVector getPoints(size_t n) const;
+
+		void populateMap(const Raster<taoid_t> segments, const std::vector<cell_t>& highPoints, TaoIdMap& map, coord_t bufferDist, cell_t tileidx) const;
+
+		void writeHighPoints(const std::vector<cell_t>& highPoints, const Raster<taoid_t>& segments,
+			const Raster<csm_t>& csm, const std::string& name) const;
+
+		void fixTAOIds(const TaoIdMap& idMap, const Alignment& layout, cell_t& sofar) const;
 
 
 		LapisObjects obj;

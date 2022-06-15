@@ -5,7 +5,6 @@ using namespace lapis;
 
 int main(int argc, char* argv[])
 {
-
 	Logger log;
 	auto parsed = parseOptions(argc, argv, log);
 	if (std::holds_alternative<std::exception>(parsed)) {
@@ -19,7 +18,11 @@ int main(int argc, char* argv[])
 
 	log.logProgress("Done!");
 	
+	
 	//semi-ordered to-do list:
+	//write the tile layout as a polygon
+	//add hooks for mods
+	//configure smooth window
 
 	//add tests for CSM merging
 
@@ -39,7 +42,6 @@ int main(int argc, char* argv[])
 	//		sorting to PointMetricCalculators
 
 	//consider odd parameters--turn off csm creation? turn off wkt cleanup? write in img?
-	//change the parameterization for alignment to be xres/yres/xorigin/yorigin to make it portable
 
 	//check if the occasional multi-cm disagreement between fusion and lapis is because I'm calculating the bilinear interp *wrong* (as opposed to *different*)
 

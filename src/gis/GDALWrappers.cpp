@@ -6,19 +6,26 @@ namespace lapis {
 	//creates according to GDALOpen()
 
 	GDALDatasetWrapper::GDALDatasetWrapper(const std::string& filename, unsigned int openFlags) {
-		GDALAllRegister();
-		gd = std::shared_ptr<GDALDataset>((GDALDataset*)GDALOpenEx(filename.c_str(), openFlags, nullptr, nullptr, nullptr),
-			[](auto x) {GDALClose(x); });
+		GDALRegisterWrapper::allRegister();
+		gd = (GDALDataset*)GDALOpenEx(filename.c_str(), openFlags, nullptr, nullptr, nullptr);
 	}
 
 	//creates according to GDALDrive::Create()
 
 	GDALDatasetWrapper::GDALDatasetWrapper(const std::string& driver, const std::string& file, int ncol, int nrow, GDALDataType gdt) {
-		GDALAllRegister();
+		GDALRegisterWrapper::allRegister();
 		GDALDriver* d = GetGDALDriverManager()->GetDriverByName(driver.c_str());
 		char** options = nullptr;
-		gd = std::shared_ptr<GDALDataset>(d->Create(file.c_str(), ncol, nrow, 1, gdt, options),
-			[](auto x) {GDALClose(x); });
+		gd = d->Create(file.c_str(), ncol, nrow, 1, gdt, options);
+	}
+
+	GDALDatasetWrapper::~GDALDatasetWrapper() {
+		GDALClose(gd);
+	}
+
+	GDALDatasetWrapper::GDALDatasetWrapper(GDALDatasetWrapper&& other) noexcept {
+		gd = other.gd;
+		other.gd = nullptr;
 	}
 
 	GDALDatasetWrapper rasterGDALWrapper(const std::string& filename) {

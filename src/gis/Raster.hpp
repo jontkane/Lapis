@@ -156,7 +156,7 @@ namespace lapis {
 
 		//Writes the Raster object to the harddrive. Missing values will be replaced by naValue. It's up to the user to make sure the driver and the file extension correspond.
 		//You can specify the datatype of the file, or leave it as GDT_Unknown to choose the one that corresponds to the template of the raster object.
-		void writeRaster(const std::string& file, const std::string driver = "GTiff", const T navalue = std::numeric_limits<T>::lowest(), GDALDataType dataType = GDT_Unknown);
+		void writeRaster(const std::string& file, const std::string driver = "GTiff", const T navalue = std::numeric_limits<T>::lowest());
 
 		//basic element-wise artihmetic
 		template<class S>
@@ -191,6 +191,9 @@ namespace lapis {
 			}
 			if (std::is_same<T, std::int32_t>::value) {
 				return GDT_Int32;
+			}
+			if (std::is_same<T, std::int64_t>::value) {
+				return GDT_Int64;
 			}
 			return GDT_Unknown;
 		}
@@ -415,7 +418,6 @@ namespace lapis {
 	template<class T>
 	Raster<T>::Raster(const std::string& filename, const int band) {
 
-		GDALAllRegister();
 		GDALDatasetWrapper wgd = rasterGDALWrapper(filename);
 		if (wgd.isNull()) {
 			throw InvalidRasterFileException(filename);
@@ -455,7 +457,6 @@ namespace lapis {
 		checkValidAlignment();
 
 		_data.resize(ncell());
-		GDALAllRegister();
 		GDALDatasetWrapper wgd = rasterGDALWrapper(filename);
 		if (wgd.isNull()) {
 			throw InvalidRasterFileException(filename);
@@ -471,11 +472,8 @@ namespace lapis {
 	}
 
 	template<class T>
-	void Raster<T>::writeRaster(const std::string& file, const std::string driver, const T navalue, GDALDataType dataType) {
-		if (dataType == GDT_Unknown) {
-			dataType = GDT();
-		}
-		GDALAllRegister();
+	void Raster<T>::writeRaster(const std::string& file, const std::string driver, const T navalue) {
+		auto dataType = GDT();
 		GDALDatasetWrapper wgd{ driver,file,ncol(),nrow(),dataType };
 		if (wgd.isNull()) {
 			throw InvalidRasterFileException();
@@ -489,7 +487,7 @@ namespace lapis {
 			}
 		}
 		auto band = wgd->GetRasterBand(1);
-		band->SetNoDataValue(navalue);
+		band->SetNoDataValue((double)navalue);
 		band->RasterIO(GF_Write, 0, 0, _ncol, _nrow, _data.value().data(), _ncol, _nrow, dataType, 0, 0);
 	}
 

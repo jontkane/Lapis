@@ -9,6 +9,8 @@
 
 namespace lapis {
 
+
+
 	//parameters that are only needed during the portion of the program where laz files are being read, and can be safely cleaned up after that
 	//laz reading is guaranteed to be the first 
 	struct LasProcessingObjects {
@@ -37,13 +39,16 @@ namespace lapis {
 
 		//if the user specifies that the crs or units of the dem files are wrong, store them here
 		CoordRef demCRSOverride; Unit demUnitOverride;
+
+		//The radius of the lidar pulse footprint, in the proper units.
+		coord_t footprintRadius;
 	};
 
 	//parameters that need to exist even after the laz reading is done
 	struct GlobalProcessingObjects {
 
 		//the (rough) max size a CSM tile should be
-		inline static constexpr size_t maxCSMBytes = 1024 * 1024 * 1024; //1gb
+		inline static constexpr size_t maxCSMBytes = 1024 * 1024 * 1024 / 2; //500mb
 
 
 		//The identified las files, in the order they are to be processed
