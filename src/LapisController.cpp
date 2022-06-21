@@ -18,6 +18,8 @@ namespace lapis {
 
 		//this is the last chance we get to use the original options object, and thus we have to write them to the harddrive as ini files right away
 		writeParams(opt);
+
+		pr = std::make_unique<LapisPrivate>(obj);
 	}
 
 	void LapisController::processFullArea()
@@ -82,6 +84,8 @@ namespace lapis {
 
 		writeLayout(layout);
 
+		pr->afterProcessing();
+
 		fs::remove_all(getCSMTempDir());
 		fs::remove_all(getTempTAODir());
 	}
@@ -130,6 +134,8 @@ namespace lapis {
 
 			assignPointsToCalculators(points);
 			assignPointsToCSM(points, thiscsm);
+
+			pr->oncePerLas(lasExt.ext, points);
 
 			if (thiscsm.has_value()) {
 				std::string filename = (getCSMTempDir() / (std::to_string(thisidx) + ".tif")).string();
@@ -434,6 +440,8 @@ namespace lapis {
 				fullTile.writeRaster((permcsmdir / outname).string());
 				segments.writeRaster((getTempTAODir() / ("Segments_" + tileName + ".tif")).string());
 			}
+
+			pr->oncePerCsmTile(fullTile);
 		}
 	}
 	

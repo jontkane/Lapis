@@ -61,6 +61,8 @@ set(LAPIS_APP_SOURCES
 		src/lapisobjects.cpp
 		src/csmalgos.hpp
 		src/csmalgos.cpp
+		src/LapisPrivate.hpp
+		src/LapisPrivate.cpp
 		)
 
 set(LAPIS_TEST_SOURCES
@@ -136,8 +138,4 @@ endif()
 
 add_compile_definitions(LAPISTESTFILES="${CMAKE_SOURCE_DIR}/src/test/testfiles/")
 
-enable_testing()
 target_link_libraries(Lapis_test PRIVATE ${GTEST_BOTH_LIBRARIES})
-
-include(GoogleTest)
-gtest_discover_tests(Lapis_test)

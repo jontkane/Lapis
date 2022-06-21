@@ -9,6 +9,7 @@
 #include"LapisUtils.hpp"
 #include"LapisObjects.hpp"
 #include"csmalgos.hpp"
+#include"LapisPrivate.hpp"
 
 namespace std {
 	namespace filesystem {
@@ -85,6 +86,7 @@ namespace lapis {
 		LapisObjects obj;
 		GlobalProcessingObjects* gp;
 		LasProcessingObjects* lp;
+		std::unique_ptr<LapisPrivate> pr;
 	};
 }
 

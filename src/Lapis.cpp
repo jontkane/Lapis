@@ -22,8 +22,6 @@ int main(int argc, char* argv[])
 	//semi-ordered to-do list:
 	//add hooks for mods
 
-	//add tests for CSM merging
-
 	//write a gui
 
 	//add html metadata, in a way that isn't a pain in the ass to extend
