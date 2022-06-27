@@ -3,14 +3,11 @@
 #define lp_pointmetriccalculator_h
 
 #include"app_pch.hpp"
-#include"gis/BaseDefs.hpp"
+#include"LapisTypedefs.hpp"
 #include"gis/Raster.hpp"
 #include"gis/LasReader.hpp"
 
 namespace lapis {
-
-	using metric_t = coord_t;
-
 
 	class PointMetricCalculator {
 	public:

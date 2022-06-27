@@ -195,6 +195,15 @@ namespace lapis {
 			if (std::is_same<T, std::int64_t>::value) {
 				return GDT_Int64;
 			}
+			if (std::is_same<T, std::uint16_t>::value) {
+				return GDT_UInt16;
+			}
+			if (std::is_same<T, std::uint32_t>::value) {
+				return GDT_UInt32;
+			}
+			if (std::is_same<T, std::uint64_t>::value) {
+				return GDT_UInt64;
+			}
 			return GDT_Unknown;
 		}
 	};
@@ -428,10 +437,12 @@ namespace lapis {
 		_data.resize(ncell());
 
 		GDALRasterBand* rBand = wgd->GetRasterBand(band);
-		T naValue = (T)(rBand->GetNoDataValue());
+		double naValue = rBand->GetNoDataValue();
 		rBand->RasterIO(GF_Read, 0, 0, _ncol, _nrow, _data.value().data(), _ncol, _nrow, GDT(), 0, 0);
+
 		for (cell_t cell = 0; cell < ncell(); ++cell) {
-			if (_data.value()[cell] != naValue && !(naValue < -2000000 && _data.value()[cell] < -2000000) && !std::isnan((double)_data.value()[cell])) {
+			double asDouble = _data.value()[cell];
+			if (asDouble != naValue && !(naValue < -2000000 && asDouble < -2000000) && !std::isnan(asDouble)) {
 				_data.has_value()[cell] = true;
 			}
 		}
@@ -465,7 +476,8 @@ namespace lapis {
 		T naValue = (T)(rBand->GetNoDataValue());
 		rBand->RasterIO(GF_Read, rc.mincol, rc.minrow, _ncol, _nrow, _data.value().data(), _ncol, _nrow, GDT(), 0, 0);
 		for (cell_t cell = 0; cell < ncell(); ++cell) {
-			if (_data.value()[cell] != naValue && !(naValue < -2000000 && _data.value()[cell] < -2000000) && !std::isnan((double)_data.value()[cell])) {
+			double asDouble = _data.value()[cell];
+			if (asDouble != naValue && !(naValue < -2000000 && asDouble < -2000000) && !std::isnan(asDouble)) {
 				_data.has_value()[cell] = true;
 			}
 		}

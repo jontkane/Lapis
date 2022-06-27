@@ -39,20 +39,7 @@ namespace lapis {
 					"This option can be specified multiple times\n"
 					"Most raster formats are supported, but arcGIS .gdb geodatabases are not")
 				("output,O", po::value(&opt.dataOptions.outfolder),
-					"The output folder to store results in")
-				("alignment,A",po::value<std::string>(),
-					"A raster file you want the output metrics to align with\n"
-					"Incompatible with --cellsize and --out-crs options")
-				("cellsize",po::value<coord_t>(),
-					"The desired cellsize of the output metric rasters\n"
-					"Defaults to 30 meters\n"
-					"Incompatible with the --alignment options")
-				("csm-cellsize",po::value(&opt.processingOptions.csmRes),
-					"The desired cellsize of the output canopy surface model\n"
-					"Defaults to 1 meter")
-				("out-crs",po::value<std::string>(),
-					"The desired CRS for the output layers\n"
-					"Incompatible with the --alignment options")				
+					"The output folder to store results in")			
 				;
 
 
@@ -84,6 +71,19 @@ namespace lapis {
 
 			po::options_description metricOpts;
 			metricOpts.add_options()
+				("alignment,A", po::value<std::string>(),
+					"A raster file you want the output metrics to align with\n"
+					"Incompatible with --cellsize and --out-crs options")
+				("cellsize", po::value<coord_t>(),
+					"The desired cellsize of the output metric rasters\n"
+					"Defaults to 30 meters\n"
+					"Incompatible with the --alignment options")
+				("csm-cellsize", po::value(&opt.processingOptions.csmRes),
+					"The desired cellsize of the output canopy surface model\n"
+					"Defaults to 1 meter")
+				("out-crs", po::value<std::string>(),
+					"The desired CRS for the output layers\n"
+					"Incompatible with the --alignment options")
 				("user-units", po::value(&userunit),
 					"The units you want to specify minht, maxht, and canopy in. Defaults to meters.\n"
 					"\tValues: m (for meters), f (for international feet), usft (for us survey feet)")
@@ -98,6 +98,8 @@ namespace lapis {
 				("class", po::value<std::string>(),
 					"A comma-separated list of LAS point classifications to use for this run.\n"
 					"Alternatively, preface the list with ~ to specify a blacklist.")
+				("fineint",
+					"Create a canopy mean intensity raster with the same resolution as the CSM")
 				;
 
 			po::options_description hiddenMetricOpts;
@@ -244,6 +246,8 @@ namespace lapis {
 			}
 
 			opt.computerOptions.performance = vmFull.count("performance");
+
+			opt.processingOptions.doFineIntensity = vmFull.count("fineint");
 
 
 			if (vmFull.count("only")) {
@@ -396,6 +400,9 @@ namespace lapis {
 		}
 		if (smoothWindow.has_value()) {
 			out << "smooth=" << smoothWindow.value() << "\n";
+		}
+		if (doFineIntensity) {
+			out << "fineint=\n";
 		}
 		out << "\n";
 	}

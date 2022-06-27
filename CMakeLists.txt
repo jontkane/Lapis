@@ -43,6 +43,7 @@ set(LAPIS_GIS_SOURCES
 		src/gis/Raster.hpp
 		src/gis/BaseDefs.hpp
 		src/gis/Unit.hpp
+		src/gis/RasterAlgos.hpp
 		)
 
 set(LAPIS_APP_SOURCES
@@ -63,6 +64,7 @@ set(LAPIS_APP_SOURCES
 		src/csmalgos.cpp
 		src/LapisPrivate.hpp
 		src/LapisPrivate.cpp
+		src/lapistypedefs.hpp
 		)
 
 set(LAPIS_TEST_SOURCES
@@ -79,6 +81,7 @@ set(LAPIS_TEST_SOURCES
 		src/test/lapisobjectstest.cpp
 		src/test/pointmetriccalculatortest.cpp
 		src/test/csmalgostest.cpp
+		src/test/RasterAlgosTest.cpp
 		)
 
 

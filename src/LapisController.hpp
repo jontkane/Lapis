@@ -43,6 +43,8 @@ namespace lapis {
 
 		void assignPointsToCSM(const LidarPointVector& points, std::optional<Raster<csm_t>>& csm) const;
 
+		void assignPointsToFineIntensity(const LidarPointVector& points, Raster<intensity_t>& numerator, Raster<intensity_t>& denominator) const;
+
 		//processes the points that have already been found and assigns the output to rasters
 		//returns the number of points freed from memory
 		void processPoints(const Extent& e) const;
@@ -61,11 +63,19 @@ namespace lapis {
 
 		fs::path getLayoutDir() const;
 
+		fs::path getFineIntDir() const;
+
+		fs::path getFineIntTempDir() const;
+
+		fs::path getCSMMetricDir() const;
+
 		void writeParams(const FullOptions& opt) const;
 
 		//This is the function that performs the work of merging the temporary CSM files into their final tiles
 		//layout is an alignment whose cells represent the extents of the final tiles.
 		void csmProcessingThread(const Alignment& layout, cell_t& soFar, TaoIdMap& idMap) const;
+
+		void calcCSMMetrics(const Raster<csm_t>& tile) const;
 
 		//returns the points belonging to the nth las file in sortedlasextents
 		//may throw an InvalidLasFileException if something goes wrong
@@ -81,6 +91,8 @@ namespace lapis {
 		std::string nameFromLayout(const Alignment& layout, cell_t cell) const;
 
 		void writeLayout(const Alignment& layout) const;
+
+		void writeCSMMetrics() const;
 
 
 		LapisObjects obj;

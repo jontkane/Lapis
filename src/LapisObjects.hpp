@@ -6,10 +6,10 @@
 #include"gis/Raster.hpp"
 #include"PointMetricCalculator.hpp"
 #include"LapisUtils.hpp"
+#include"gis/RasterAlgos.hpp"
+#include"LapisTypedefs.hpp"
 
 namespace lapis {
-
-
 
 	//parameters that are only needed during the portion of the program where laz files are being read, and can be safely cleaned up after that
 	//laz reading is guaranteed to be the first 
@@ -84,6 +84,15 @@ namespace lapis {
 		bool cleanwkt = true;
 
 		int smoothWindow = 3;
+
+		bool doFineIntensity;
+
+		struct CSMMetric {
+			ViewFunc<csm_t, metric_t> f;
+			std::string name;
+			Raster<metric_t> r;
+		};
+		std::vector<CSMMetric> csmMetrics;
 	};
 
 	//this class stores all the parameters of the run in a form usable by the actual logic of the app
@@ -107,6 +116,7 @@ namespace lapis {
 		void identifyDEMFiles(const FullOptions& opt);
 		void setFilters(const FullOptions& opt);
 		void setPointMetrics(const FullOptions& opt);
+		void setCSMMetrics(const FullOptions& opt);
 		//as a necessary consequence of the complicated chain of dependencies, this function also reprojects the las extents into the output extent
 		void createOutAlignment(const FullOptions& opt);
 		void sortLasFiles(const FullOptions& opt);

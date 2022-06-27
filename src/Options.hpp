@@ -98,6 +98,9 @@ namespace lapis {
 		//The window size to use for smoothing the CSM
 		boost::optional<int> smoothWindow;
 
+		//A flag to determine whether or not to create a mean intensity map with the same alignment as the CSM
+		bool doFineIntensity;
+
 		void write(std::ostream& out) const;
 	};
 

@@ -82,12 +82,15 @@ namespace lapis {
 			threads[i].join();
 		}
 
+		writeCSMMetrics();
+
 		writeLayout(layout);
 
 		pr->afterProcessing();
 
 		fs::remove_all(getCSMTempDir());
 		fs::remove_all(getTempTAODir());
+		fs::remove_all(getFineIntTempDir());
 	}
 
 	template<class T>
@@ -149,6 +152,14 @@ namespace lapis {
 			}
 			
 			processPoints(lasExt.ext);
+
+			if (gp->doFineIntensity) {
+				Raster<intensity_t> numerator{ crop(gp->csmAlign, lasExt.ext, SnapType::out) };
+				Raster<intensity_t> denominator{ crop(gp->csmAlign, lasExt.ext, SnapType::out) };
+				assignPointsToFineIntensity(points, numerator, denominator);
+				numerator.writeRaster((getFineIntTempDir() / (std::to_string(thisidx) + "_numerator.tif")).string());
+				denominator.writeRaster((getFineIntTempDir() / (std::to_string(thisidx) + "_denominator.tif")).string());
+			}
 
 			auto endTime = chr::high_resolution_clock::now();
 			auto duration = chr::duration_cast<chr::seconds>(endTime - startTime).count();
@@ -218,6 +229,23 @@ namespace lapis {
 					csmv[cell].value() = std::max(csmv[cell].value(), (csm_t)z);
 				}
 			}
+		}
+	}
+
+	void LapisController::assignPointsToFineIntensity(const LidarPointVector& points, Raster<intensity_t>& numerator, Raster<intensity_t>& denominator) const
+	{
+		for (auto& p : points) {
+			if (!numerator.contains(p.x, p.y)) {
+				continue;
+			}
+			if (p.z < gp->canopyCutoff) {
+				continue;
+			}
+			cell_t cell = numerator.cellFromXYUnsafe(p.x, p.y);
+			numerator[cell].value() += p.intensity;
+			numerator[cell].has_value() = true;
+			denominator[cell].value()++;
+			denominator[cell].has_value() = true;
 		}
 	}
 
@@ -291,6 +319,24 @@ namespace lapis {
 		return layoutdir;
 	}
 
+	fs::path LapisController::getFineIntDir() const {
+		fs::path dir = gp->outfolder / "FineIntensity";
+		fs::create_directories(dir);
+		return dir;
+	}
+
+	fs::path LapisController::getFineIntTempDir() const {
+		fs::path dir = gp->outfolder / "FineIntensity" / "Temp";
+		fs::create_directories(dir);
+		return dir;
+	}
+
+	fs::path LapisController::getCSMMetricDir() const {
+		fs::path dir = gp->outfolder / "CsmMetrics";
+		fs::create_directories(dir);
+		return dir;
+	}
+
 	void LapisController::writeParams(const FullOptions& opt) const
 	{
 		fs::path paramDir = getParameterDir();
@@ -361,11 +407,19 @@ namespace lapis {
 			gp->log.logProgress("Processing CSM tile " + std::to_string(thisidx+1) + " of " + std::to_string(layout.ncell()));
 
 			coord_t bufferDist = convertUnits(30, linearUnitDefs::meter, layout.crs().getXYUnits());
+			bufferDist = std::max(std::max(gp->metricAlign.xres(), gp->metricAlign.yres()), bufferDist);
 			Extent bufferExt = Extent(thistile.xmin() - bufferDist, thistile.xmax() + bufferDist, thistile.ymin() - bufferDist, thistile.ymax() + bufferDist);
 
 			//when tree ID is added, we may need to introduce buffering of the CSM tiles to get an overlap zone
 			//in the unbuffered case, lower-left snapping ensures that each output cell appears in exactly one tile
 			Raster<csm_t> fullTile(crop(gp->csmAlign, bufferExt, SnapType::ll));
+
+			std::optional<Raster<intensity_t>> canopyIntensityNumerator;
+			std::optional<Raster<intensity_t>> canopyIntensityDenominator;
+			if (gp->doFineIntensity) {
+				canopyIntensityNumerator = Raster<intensity_t>((Alignment)fullTile);
+				canopyIntensityDenominator = Raster<intensity_t>((Alignment)fullTile);
+			}
 
 			bool hasAnyValue = false;
 
@@ -415,6 +469,24 @@ namespace lapis {
 						}
 					}
 				}
+
+				if (gp->doFineIntensity) {
+					Raster<intensity_t> thisNumerator{ (getFineIntTempDir() / (std::to_string(i) + "_numerator.tif")).string(), thisext, SnapType::near };
+					Raster<intensity_t> thisDenominator{ (getFineIntTempDir() / (std::to_string(i) + "_denominator.tif")).string(), thisext, SnapType::near };
+					for (rowcol_t row = 0; row < thisNumerator.nrow(); ++row) {
+						for (rowcol_t col = 0; col < thisNumerator.ncol(); ++col) {
+							cell_t thisCell = thisNumerator.cellFromRowColUnsafe(row, col);
+							cell_t fullCell = canopyIntensityDenominator.value().cellFromRowColUnsafe(row + rcExt.minrow, col + rcExt.mincol);
+							if (thisNumerator[thisCell].has_value()) {
+								canopyIntensityNumerator.value()[fullCell].has_value() = true;
+								canopyIntensityNumerator.value()[fullCell].value() += thisNumerator[thisCell].value();
+
+								canopyIntensityDenominator.value()[fullCell].has_value() = true;
+								canopyIntensityDenominator.value()[fullCell].value() += thisDenominator[thisCell].value();
+							}
+						}
+					}
+				}
 			}
 
 			int smoothWindow = 3;
@@ -429,6 +501,8 @@ namespace lapis {
 
 			std::string tileName = nameFromLayout(layout, thisidx);
 			if (hasAnyValue) {
+				calcCSMMetrics(fullTile);
+
 				writeHighPoints(highPoints, segments, fullTile, tileName);
 				if (minrow > 0 || mincol > 0 || maxrow < fullTile.nrow() - 1 || maxcol < fullTile.ncol() - 1) {
 					Extent cropExt{ fullTile.xFromCol(mincol),fullTile.xFromCol(maxcol),fullTile.yFromRow(maxrow),fullTile.yFromRow(minrow) };
@@ -439,9 +513,22 @@ namespace lapis {
 				std::string outname = "CanopySurfaceModel_" + tileName + ".tif";
 				fullTile.writeRaster((permcsmdir / outname).string());
 				segments.writeRaster((getTempTAODir() / ("Segments_" + tileName + ".tif")).string());
+
+				if (gp->doFineIntensity) {
+					Raster<intensity_t> meanCanopyIntensity = canopyIntensityNumerator.value() / canopyIntensityDenominator.value();
+					meanCanopyIntensity = crop(meanCanopyIntensity, fullTile);
+					meanCanopyIntensity.writeRaster((getFineIntDir() / ("MeanCanopyIntensity_" + tileName + ".tif")).string());
+				}
 			}
 
 			pr->oncePerCsmTile(fullTile);
+		}
+	}
+
+	void LapisController::calcCSMMetrics(const Raster<csm_t>& tile) const {
+		for (auto& metric : gp->csmMetrics) {
+			Raster<metric_t> tileMetric = aggregate(tile, crop(gp->metricAlign, tile, SnapType::out), metric.f);
+			overlayInside(metric.r, tileMetric);
 		}
 	}
 	
@@ -527,6 +614,9 @@ namespace lapis {
 		OGRFieldDefn areaField("Area", OFTReal);
 		layer->CreateField(&areaField);
 
+		OGRFieldDefn radiusField("Radius", OFTReal);
+		layer->CreateField(&radiusField);
+
 		const coord_t cellArea = convertUnits(csm.xres(), csm.crs().getXYUnits(), csm.crs().getZUnits())
 			* convertUnits(csm.yres(), csm.crs().getXYUnits(), csm.crs().getZUnits());
 
@@ -550,6 +640,8 @@ namespace lapis {
 			feature->SetField("Y", y);
 			feature->SetField("Height", csm.atXYUnsafe(x, y).value());
 			feature->SetField("Area", areas[segments[cell].value()]);
+
+			feature->SetField("Radius", std::sqrt(areas[segments[cell].value()] / M_PI));
 
 			OGRPoint point;
 			point.setX(x);
@@ -673,6 +765,12 @@ namespace lapis {
 
 			feature->SetGeometry(geom);
 			layer->CreateFeature(feature.ptr);
+		}
+	}
+
+	void LapisController::writeCSMMetrics() const {
+		for (auto& metric : gp->csmMetrics) {
+			metric.r.writeRaster((getCSMMetricDir() / (metric.name + ".tif")).string());
 		}
 	}
 }

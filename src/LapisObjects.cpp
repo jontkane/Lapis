@@ -20,6 +20,7 @@ namespace lapis {
 		identifyDEMFiles(opt);
 		setFilters(opt);
 		setPointMetrics(opt);
+		setCSMMetrics(opt);
 
 		makeNLaz();
 
@@ -105,6 +106,15 @@ namespace lapis {
 		addMetric("95thPercentile_CanopyHeight", &PointMetricCalculator::p95Canopy);
 		addMetric("TotalReturnCount", &PointMetricCalculator::returnCount);
 		addMetric("CanopyCover", &PointMetricCalculator::canopyCover);
+	}
+
+	void LapisObjects::setCSMMetrics(const FullOptions& opt) {
+		auto& csmMetrics = globalProcessingObjects->csmMetrics;
+		auto& align = globalProcessingObjects->metricAlign;
+		csmMetrics.push_back({ &viewMax<csm_t>, "MaxCSM", align });
+		csmMetrics.push_back({ &viewMean<csm_t>, "MeanCSM", align });
+		csmMetrics.push_back({ &viewStdDev<csm_t>, "StdDevCSM", align });
+		csmMetrics.push_back({ &viewRumple<csm_t>, "RumpleCSM", align });
 	}
 
 	void LapisObjects::createOutAlignment(const FullOptions& opt) {
@@ -260,6 +270,8 @@ namespace lapis {
 		}
 
 		globalProcessingObjects->smoothWindow = opt.processingOptions.smoothWindow.value_or(3);
+
+		globalProcessingObjects->doFineIntensity = opt.processingOptions.doFineIntensity;
 	}
 
 	void LapisObjects::makeNLaz()

@@ -7,9 +7,6 @@
 
 namespace lapis {
 
-	using csm_t = coord_t;
-	using taoid_t = uint32_t; //int64 would be ideal but none of the common raster formats support it
-
 	struct TaoIdMap {
 		struct XY { coord_t x, y; };
 		struct XYHasher {
