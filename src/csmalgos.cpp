@@ -181,6 +181,22 @@ namespace lapis {
 		return labels;
 	}
 
+	Raster<csm_t> maxHeightBySegment(const Raster<taoid_t>& segments, const Raster<csm_t>& csm, std::vector<cell_t>& highPoints)
+	{
+		Raster<csm_t> maxHeight{ (Alignment)segments };
+		std::unordered_map<taoid_t, csm_t> heightByID;
+		for (cell_t c : highPoints) {
+			heightByID.emplace(segments[c].value(), csm[c].value());
+		}
+		for (cell_t cell = 0; cell < segments.ncell(); ++cell) {
+			if (segments[cell].has_value()) {
+				maxHeight[cell].has_value() = true;
+				maxHeight[cell].value() = heightByID[segments[cell].value()];
+			}
+		}
+		return maxHeight;
+	}
+
 	std::vector<cell_t> identifyHighPoints(const Raster<csm_t>& csm, csm_t canopyCutoff) {
 		
 		std::vector<cell_t> out;

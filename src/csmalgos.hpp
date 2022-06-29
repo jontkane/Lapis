@@ -46,6 +46,8 @@ namespace lapis {
 	Raster<taoid_t> watershedSegment(const Raster<csm_t>& csm, const std::vector<cell_t>& highPoints,
 		const GlobalProcessingObjects& gp, cell_t thisTile, cell_t nTiles);
 
+	Raster<csm_t> maxHeightBySegment(const Raster<taoid_t>& segments, const Raster<csm_t>& csm, std::vector<cell_t>& highPoints);
+
 }
 
 #endif

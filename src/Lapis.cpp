@@ -14,9 +14,17 @@ int main(int argc, char* argv[])
 	FullOptions& opt = std::get<FullOptions>(parsed);
 
 	LapisController lc{ opt };
-	lc.processFullArea();
-
-	log.logProgress("Done!");
+	try {
+		lc.processFullArea();
+		log.logProgress("Done!");
+	}
+	catch (std::exception e) {
+		log.logError(e.what());
+		log.logProgress("Run Aborted");
+	}
+	catch (...) {
+		log.logError("Unknown Error\nRun Aborted");
+	}
 	
 	
 	//semi-ordered to-do list:

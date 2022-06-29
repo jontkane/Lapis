@@ -8,14 +8,11 @@ namespace lapis {
 		_max = max;
 		_binsize = binsize;
 		_canopy = canopyCutoff;
+		SparseHistogram::setNHists((size_t)std::ceil((_max - _canopy) / _binsize));
 	}
 
 	void PointMetricCalculator::addPoint(const LasPoint& lp)
 	{
-		if (!_hist.size()) {
-			int nBins = (int)std::ceil((_max - _canopy) / _binsize);
-			_hist.resize(nBins, 0);
-		}
 		const coord_t& z = lp.z;
 		++_count;
 		if (z < _canopy) {
@@ -26,16 +23,12 @@ namespace lapis {
 		++_canopyCount;
 		int bin = (int)((z - _canopy) / _binsize);
 
-		if (bin >= _hist.size()) { //this will happen if z==_max and (_max-_min)/_binsize is an integer
-			bin = (int)(_hist.size() - 1);
-		}
-		++_hist[bin];
+		_hist.incrementBin(bin);
 	}
 
 	void PointMetricCalculator::cleanUp()
 	{
-		_hist.clear();
-		_hist.shrink_to_fit();
+		_hist.cleanUp();
 
 		//zeroing these doesn't matter for normal runs but makes testing easier
 		_canopySum = 0;
@@ -69,7 +62,7 @@ namespace lapis {
 			coord_t tmp = _canopy + _binsize * i + (_binsize / 2);
 			tmp -= mean;
 			tmp *= tmp;
-			tmp *= _hist[i];
+			tmp *= _hist.countInBin(i);
 			sd += tmp;
 		}
 		sd /= _canopyCount;
@@ -124,7 +117,7 @@ namespace lapis {
 		size_t binIdx = -1;
 		while (true) {
 			binIdx++;
-			int fudgedBin = _hist[binIdx];
+			int fudgedBin = _hist.countInBin(binIdx);
 			//the very first element doesn't "count" when calculating quantiles
 			if (previousvalue < _canopy && fudgedBin > 0) {
 				previousvalue = _estimatePointValue(binIdx, 1);
@@ -135,7 +128,7 @@ namespace lapis {
 				break;
 			}
 			if (fudgedBin>0) {
-				previousvalue = _estimatePointValue(binIdx, _hist[binIdx]);
+				previousvalue = _estimatePointValue(binIdx, _hist.countInBin(binIdx));
 			}
 			
 		}
@@ -158,8 +151,59 @@ namespace lapis {
 	{
 		//estimating that the sequence formed by the bin min, the observations, and the bin max is uniform
 		metric_t binmin = _canopy + _binsize * binNumber;
-		metric_t step = _binsize / (_hist[binNumber] + 1);
+		metric_t step = _binsize / (_hist.countInBin(binNumber) + 1);
 		return binmin + step * ordinal;
+	}
+
+	void SparseHistogram::setNHists(size_t nHists)
+	{
+		_nHists = nHists;
+	}
+
+	int SparseHistogram::countInBin(size_t bin)
+	{
+		if (!_data.size()) {
+			return 0;
+		}
+
+		auto& thisHist = _data[bin / binsPerHist];
+		if (thisHist) {
+			size_t binInHist = bin % binsPerHist;
+			return (*thisHist)[binInHist];
+		}
+		return 0;
+	}
+
+	void SparseHistogram::incrementBin(size_t bin)
+	{
+		if (!_data.size()) {
+			_data.resize(_nHists);
+		}
+
+		if (bin >= _nHists * binsPerHist) {
+			bin = _nHists * binsPerHist - 1;
+		}
+
+		auto& thisHist = _data[bin / binsPerHist];
+		size_t binInHist = bin % binsPerHist;
+		if (!thisHist) {
+			thisHist = std::make_unique<std::array<int, binsPerHist>>();
+			for (auto& v : *thisHist) {
+				v = 0;
+			}
+		}
+		(*thisHist)[binInHist]++;
+	}
+
+	size_t SparseHistogram::size()
+	{
+		return binsPerHist * _nHists;
+	}
+
+	void SparseHistogram::cleanUp()
+	{
+		_data.clear();
+		_data.shrink_to_fit();
 	}
 
 }

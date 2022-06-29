@@ -9,6 +9,26 @@
 
 namespace lapis {
 
+	class SparseHistogram {
+	public:
+		static void setNHists(size_t nHists);
+
+		SparseHistogram() = default;
+
+		int countInBin(size_t bin);
+
+		void incrementBin(size_t bin);
+
+		size_t size();
+
+		void cleanUp();
+
+	private:
+		inline static constexpr size_t binsPerHist = 100;
+		std::vector<std::unique_ptr<std::array<int,binsPerHist>>> _data;
+		inline static size_t _nHists;
+	};
+
 	class PointMetricCalculator {
 	public:
 		PointMetricCalculator() = default;
@@ -38,7 +58,7 @@ namespace lapis {
 
 	private:
 		inline static coord_t _max, _binsize, _canopy;
-		std::vector<int> _hist;
+		SparseHistogram _hist;
 		coord_t _canopySum = 0.;
 		int _count = 0;
 		int _canopyCount = 0;

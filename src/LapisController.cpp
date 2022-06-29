@@ -441,7 +441,19 @@ namespace lapis {
 					continue;
 				}
 				thisext = crop(thisext, fullTile);
-				Raster<csm_t> thisr{ (tempcsmdir / (std::to_string(i) + ".tif")).string(),thisext, SnapType::near };
+				Raster<csm_t> thisr;
+				try {
+					thisr = Raster<csm_t>{ (tempcsmdir / (std::to_string(i) + ".tif")).string(),thisext, SnapType::out };
+				}
+				//these errors shouldn't be happening anymore, but if they do, it's because of a dumb floating point rounding error causing a spurious overlap
+				//and safe to ignore
+				catch (InvalidAlignmentException e) {
+					continue;
+				}
+				catch (InvalidExtentException e) {
+					continue;
+				}
+				
 
 				//for the same reason as the above comment
 				thisr.defineCRS(fullTile.crs());
@@ -454,8 +466,14 @@ namespace lapis {
 
 				for (rowcol_t row = 0; row < thisr.nrow(); ++row) {
 					for (rowcol_t col = 0; col < thisr.ncol(); ++col) {
+						rowcol_t tilerow = row + rcExt.minrow;
+						rowcol_t tilecol = col + rcExt.mincol;
+						//I think this should only happen due to float imprecision
+						if (tilerow < 0 || tilerow >= fullTile.nrow() || tilecol < 0 || tilecol >= fullTile.ncol()) {
+							continue;
+						}
 						const auto vthis = thisr.atRCUnsafe(row, col);
-						auto vout = fullTile.atRCUnsafe(row + rcExt.minrow, col + rcExt.mincol);
+						auto vout = fullTile.atRCUnsafe(tilerow, tilecol);
 
 						if (vthis.has_value()) {
 							if (!vout.has_value()) {
@@ -504,8 +522,12 @@ namespace lapis {
 				calcCSMMetrics(fullTile);
 
 				writeHighPoints(highPoints, segments, fullTile, tileName);
+
+				Raster<csm_t> maxHeight = maxHeightBySegment(segments, fullTile, highPoints);
+
+				Extent cropExt = fullTile;
 				if (minrow > 0 || mincol > 0 || maxrow < fullTile.nrow() - 1 || maxcol < fullTile.ncol() - 1) {
-					Extent cropExt{ fullTile.xFromCol(mincol),fullTile.xFromCol(maxcol),fullTile.yFromRow(maxrow),fullTile.yFromRow(minrow) };
+					cropExt = Extent{ fullTile.xFromCol(mincol),fullTile.xFromCol(maxcol),fullTile.yFromRow(maxrow),fullTile.yFromRow(minrow) };
 					cropExt = crop(cropExt, thistile);
 					fullTile = crop(fullTile, cropExt, SnapType::out);
 					segments = crop(segments, cropExt, SnapType::out);
@@ -513,10 +535,15 @@ namespace lapis {
 				std::string outname = "CanopySurfaceModel_" + tileName + ".tif";
 				fullTile.writeRaster((permcsmdir / outname).string());
 				segments.writeRaster((getTempTAODir() / ("Segments_" + tileName + ".tif")).string());
+				maxHeight.writeRaster((getTAODir() / ("MaxHeight_" + tileName + ".tif")).string());
+
+				fullTile = Raster<csm_t>(); //freeing up the memory
+				segments = Raster<taoid_t>();
+				maxHeight = Raster<csm_t>();
 
 				if (gp->doFineIntensity) {
 					Raster<intensity_t> meanCanopyIntensity = canopyIntensityNumerator.value() / canopyIntensityDenominator.value();
-					meanCanopyIntensity = crop(meanCanopyIntensity, fullTile);
+					meanCanopyIntensity = crop(meanCanopyIntensity, cropExt);
 					meanCanopyIntensity.writeRaster((getFineIntDir() / ("MeanCanopyIntensity_" + tileName + ".tif")).string());
 				}
 			}

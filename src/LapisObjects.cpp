@@ -384,7 +384,6 @@ namespace lapis {
 		}
 		try {
 			data.push_back({ file.string(), file.string() });
-			std::cout << file.string() << "\n";
 			if (!crsOverride.isEmpty()) {
 				data[data.size() - 1].align.defineCRS(crsOverride);
 			}
