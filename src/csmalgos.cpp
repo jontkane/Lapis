@@ -15,6 +15,11 @@ namespace lapis {
 			preserveSet.insert(v);
 		}
 
+		struct Direction {
+			rowcol_t x, y;
+		};
+		std::vector<Direction> cardinals = { {0,1},{1,1},{1,0},{1,-1},{0,-1},{-1,-1},{-1,0},{-1,1} };
+
 		Raster<csm_t> out{ (Alignment)r };
 		for (rowcol_t row = 0; row < r.nrow(); ++row) {
 			for (rowcol_t col = 0; col < r.ncol(); ++col) {
@@ -36,12 +41,43 @@ namespace lapis {
 						}
 					}
 				}
-
-				if (r[cell].has_value() || denominator >= neighborsNeeded) {
+				if (denominator == 0) {
+					continue;
+				}
+				if (r[cell].has_value()) {
 					auto v = out[cell];
 					v.has_value() = true;
 					v.value() = numerator / denominator;
 				}
+				else {
+					//the algorithm here to distinguish legitimately absent data from holes is:
+					//in all 8 cardinal directions, there needs to be either data or the edge of the raster
+					//if this condition is met, the value is assigned to be the mean of all adjacent pixels that have data
+					int datacount = 0;
+					for (auto& d : cardinals) {
+						bool founddata = false;
+						for (int i : {1, 2}) {
+							rowcol_t thisrow = row + d.y * i;
+							rowcol_t thiscol = col + d.x * i;
+							if (thisrow < 0 || thisrow >= r.nrow() ||
+								thiscol < 0 || thiscol >= r.ncol() ||
+								r.atRCUnsafe(thisrow, thiscol).has_value()) {
+								founddata = true;
+								break;
+							}
+						}
+						if (founddata) {
+							datacount++;
+						}
+					}
+
+					if (datacount >= neighborsNeeded) {
+						auto v = out[cell];
+						v.has_value() = true;
+						v.value() = numerator / denominator;
+					}
+				}
+
 			}
 		}
 

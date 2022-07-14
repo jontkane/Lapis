@@ -3,32 +3,47 @@
 
 namespace lapis {
 
-	void PointMetricCalculator::setInfo(coord_t canopyCutoff, coord_t max, coord_t binsize)
+	void PointMetricCalculator::setInfo(coord_t canopyCutoff, coord_t max, coord_t binsize, const std::vector<coord_t>& strataBreaks)
 	{
 		_max = max;
 		_binsize = binsize;
 		_canopy = canopyCutoff;
 		SparseHistogram::setNHists((size_t)std::ceil((_max - _canopy) / _binsize));
+		_strataBreaks = strataBreaks;
 	}
 
 	void PointMetricCalculator::addPoint(const LasPoint& lp)
 	{
 		const coord_t& z = lp.z;
 		++_count;
-		if (z < _canopy) {
-			return;
+		if (z >= _canopy) {
+			_canopySum += z;
+			++_canopyCount;
+			int bin = (int)((z - _canopy) / _binsize);
+
+			_hist.incrementBin(bin);
 		}
 
-		_canopySum += z;
-		++_canopyCount;
-		int bin = (int)((z - _canopy) / _binsize);
+		//because we're using return here as a control flow, the stratum logic has to go last even if we add more features to this function
+		if (!_strataCounts.size()) {
+			_strataCounts = std::vector<int>(_strataBreaks.size() + 1, 0);
+		}
+		for (size_t i = 0; i < _strataBreaks.size(); ++i) {
+			if (lp.z < _strataBreaks[i]) {
+				_strataCounts[i]++;
+				return;
+			}
+		}
+		_strataCounts[_strataBreaks.size()]++;
 
-		_hist.incrementBin(bin);
 	}
 
 	void PointMetricCalculator::cleanUp()
 	{
 		_hist.cleanUp();
+
+		_strataCounts.clear();
+		_strataCounts.shrink_to_fit();
 
 		//zeroing these doesn't matter for normal runs but makes testing easier
 		_canopySum = 0;
@@ -143,6 +158,37 @@ namespace lapis {
 
 		r[cell].has_value() = true;
 		r[cell].value() = quantile;
+	}
+
+	void PointMetricCalculator::stratumCover(Raster<metric_t>& r, cell_t cell, size_t stratumIdx) {
+
+		if (!_strataCounts.size()) {
+			return;
+		}
+		metric_t numerator = 0; metric_t denominator = 0;
+		for (size_t i = 0; i <= stratumIdx; ++i) {
+			denominator += _strataCounts[i];
+		}
+		numerator = _strataCounts[stratumIdx];
+		if (denominator > 0) {
+			r[cell].has_value() = true;
+			r[cell].value() = numerator / denominator * 100.;
+		}
+	}
+
+	void PointMetricCalculator::stratumPercent(Raster<metric_t>& r, cell_t cell, size_t stratumIdx) {
+
+		if (!_strataCounts.size()) {
+			return;
+		}
+
+		metric_t numerator = _strataCounts[stratumIdx];
+		metric_t denominator = _count;
+		if (denominator > 0) {
+			r[cell].has_value() = true;
+			r[cell].value() = numerator / denominator * 100.;
+		}
+		
 	}
 
 	//naming the parameter ordinal to emphasize that this math is 1-indexed; this is desirable throughout this algorithm,

@@ -1,3 +1,4 @@
+#include "LapisController.hpp"
 #include"app_pch.hpp"
 #include"LapisController.hpp"
 
@@ -39,7 +40,7 @@ namespace lapis {
 
 		gp->log.logProgress("Writing point metric rasters");
 		for (auto& metric : lp->metricRasters) {
-			std::string filename = (pointMetricDir / (metric.metric.name + ".tif")).string();
+			std::string filename = (pointMetricDir / (metric.name + ".tif")).string();
 			try {
 				metric.rast.writeRaster(filename);
 			}
@@ -47,6 +48,19 @@ namespace lapis {
 				gp->log.logError("Error Writing " + filename);
 			}
 		}
+
+		for (auto& metric : lp->stratumRasters) {
+			for (size_t i = 0; i < metric.stratumNames.size(); ++i) {
+				std::string filename = (getStratumDir() / (metric.baseName + metric.stratumNames[i] + ".tif")).string();
+				try {
+					metric.rasters[i].writeRaster(filename);
+				}
+				catch (InvalidRasterFileException e) {
+					gp->log.logError("Error Writing " + filename);
+				}
+			}
+		}
+
 		obj.cleanUpAfterPointMetrics();
 		lp = nullptr;
 
@@ -265,9 +279,15 @@ namespace lapis {
 			return;
 		}
 		auto& pmc = lp->calculators[cell].value();
-		for (size_t i = 0; i < lp->metricRasters.size(); ++i) {
-			auto& f = lp->metricRasters[i].metric.fun;
-			(pmc.*f)(lp->metricRasters[i].rast, cell);
+		for (auto& v : lp->metricRasters) {
+			auto& f = v.fun;
+			(pmc.*f)(v.rast, cell);
+		}
+		for (auto& v : lp->stratumRasters) {
+			auto& f = v.fun;
+			for (size_t i = 0; i < v.rasters.size(); ++i) {
+				(pmc.*f)(v.rasters[i], cell, i);
+			}
 		}
 		pmc.cleanUp();
 	}
@@ -333,6 +353,12 @@ namespace lapis {
 
 	fs::path LapisController::getCSMMetricDir() const {
 		fs::path dir = gp->outfolder / "CsmMetrics";
+		fs::create_directories(dir);
+		return dir;
+	}
+
+	fs::path LapisController::getStratumDir() const {
+		fs::path dir = gp->outfolder / "StratumMetrics";
 		fs::create_directories(dir);
 		return dir;
 	}

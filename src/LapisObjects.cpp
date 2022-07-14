@@ -93,9 +93,10 @@ namespace lapis {
 	{
 		auto& pointMetrics = lasProcessingObjects->metricRasters;
 		auto& metricAlign = globalProcessingObjects->metricAlign;
+		auto& stratumMetrics = lasProcessingObjects->stratumRasters;
 
 		auto addMetric = [&](std::string&& name, MetricFunc f) {
-			pointMetrics.emplace_back(PointMetricDefn{ std::move(name),f }, metricAlign);
+			pointMetrics.emplace_back(std::move(name), f, metricAlign);
 		};
 
 		addMetric("Mean_CanopyHeight", &PointMetricCalculator::meanCanopy);
@@ -106,6 +107,27 @@ namespace lapis {
 		addMetric("95thPercentile_CanopyHeight", &PointMetricCalculator::p95Canopy);
 		addMetric("TotalReturnCount", &PointMetricCalculator::returnCount);
 		addMetric("CanopyCover", &PointMetricCalculator::canopyCover);
+
+
+		auto& strataBreaks = opt.processingOptions.strataBreaks;
+		if (strataBreaks.size()) {
+			auto to_string_with_precision = [](coord_t v)->std::string {
+				std::ostringstream out;
+				out.precision(2);
+				out << v;
+				return out.str();
+			};
+			std::vector<std::string> stratumNames;
+			stratumNames.push_back("LessThan" + to_string_with_precision(strataBreaks[0]));
+			for (int i = 1; i < strataBreaks.size(); ++i) {
+				stratumNames.push_back(to_string_with_precision(strataBreaks[i - 1]) + "To" + to_string_with_precision(strataBreaks[i]));
+			}
+			stratumNames.push_back("GreaterThan" + to_string_with_precision(strataBreaks[strataBreaks.size() - 1]));
+
+			stratumMetrics.emplace_back("StratumCover_", stratumNames, &PointMetricCalculator::stratumCover, metricAlign);
+			stratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &PointMetricCalculator::stratumPercent, metricAlign);
+		}
+		
 	}
 
 	void LapisObjects::setCSMMetrics(const FullOptions& opt) {
@@ -256,7 +278,8 @@ namespace lapis {
 
 		globalProcessingObjects->outfolder = opt.dataOptions.outfolder;
 
-		PointMetricCalculator::setInfo(globalProcessingObjects->canopyCutoff, globalProcessingObjects->maxht, globalProcessingObjects->binSize);
+		PointMetricCalculator::setInfo(globalProcessingObjects->canopyCutoff, globalProcessingObjects->maxht, globalProcessingObjects->binSize,
+			opt.processingOptions.strataBreaks);
 
 		if (opt.processingOptions.footprintDiameter.has_value()) {
 			lasProcessingObjects->footprintRadius = convertUnits(opt.processingOptions.footprintDiameter.value()/2,

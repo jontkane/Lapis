@@ -30,6 +30,7 @@ namespace lapis {
 
 		//the rasters that actually hold the point metric results, along with the filename and function call
 		std::vector<PointMetricRaster> metricRasters;
+		std::vector<StratumMetricRasters> stratumRasters;
 
 		//the filters to be applied to the las files
 		std::vector<std::shared_ptr<LasFilter>> filters;

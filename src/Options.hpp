@@ -83,9 +83,6 @@ namespace lapis {
 		//max absolute scan angle to use
 		boost::optional<int> maxScanAngle;
 
-		//the strata breaks to calculate cover on
-		boost::optional<std::vector<coord_t>> strata;
-
 		//the output alignment, either as a manually specified resolution+crs, or as a filename+whether to align, crop, or mask
 		boost::optional<Alignment> outAlign;
 
@@ -100,6 +97,9 @@ namespace lapis {
 
 		//A flag to determine whether or not to create a mean intensity map with the same alignment as the CSM
 		bool doFineIntensity;
+
+		//the strata breaks to calculate cover on
+		std::vector<coord_t> strataBreaks;
 
 		void write(std::ostream& out) const;
 	};

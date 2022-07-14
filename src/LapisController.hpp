@@ -69,6 +69,8 @@ namespace lapis {
 
 		fs::path getCSMMetricDir() const;
 
+		fs::path getStratumDir() const;
+
 		void writeParams(const FullOptions& opt) const;
 
 		//This is the function that performs the work of merging the temporary CSM files into their final tiles

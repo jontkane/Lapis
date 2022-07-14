@@ -36,7 +36,7 @@ namespace lapis {
 		//This should be called before any PointMetricCalculators are constructed, and shouldn't be called after any are constructed
 		//as you might guess from the names, max should be strictly greater than canopyCutoff, and binsize should be positive
 		//it's the callers responsibility to ensure that these are in the right units
-		static void setInfo(coord_t canopyCutoff, coord_t max, coord_t binsize);
+		static void setInfo(coord_t canopyCutoff, coord_t max, coord_t binsize, const std::vector<coord_t>& strataBreaks);
 
 		//Adds an observed lidar return to this object
 		//If this is the first point added, it will cause the histogram vector to be allocated
@@ -54,32 +54,47 @@ namespace lapis {
 		void returnCount(Raster<metric_t>& r, cell_t cell);
 		void canopyCover(Raster<metric_t>& r, cell_t cell);
 
+		void stratumCover(Raster<metric_t>& r, cell_t cell, size_t stratumIdx);
+		void stratumPercent(Raster<metric_t>& r, cell_t cell, size_t stratumIdx);
+
 		//TODO: put in functions to dump the data to the harddrive, or to read it off
 
 	private:
 		inline static coord_t _max, _binsize, _canopy;
+		inline static std::vector<coord_t> _strataBreaks;
 		SparseHistogram _hist;
 		coord_t _canopySum = 0.;
 		int _count = 0;
 		int _canopyCount = 0;
+		std::vector<int> _strataCounts;
 
 		void _quantileCanopy(Raster<metric_t>& r, cell_t cell, metric_t q);
+
+
 
 		metric_t _estimatePointValue(size_t binNumber, int ordinal);
 	};
 
 	using MetricFunc = void(PointMetricCalculator::*)(Raster<metric_t>& r, cell_t cell);
-	struct PointMetricDefn {
-		std::string name;
-		MetricFunc fun =  nullptr;
-	};
-	struct PointMetricRaster {
-		Raster<metric_t> rast;
-		PointMetricDefn metric;
+	using StratumFunc = void(PointMetricCalculator::*)(Raster<metric_t>& r, cell_t cell, size_t stratumIdx);
 
-		PointMetricRaster(const PointMetricDefn& m, const Alignment& a) {
-			metric = m;
-			rast = Raster<metric_t>(a);
+	struct PointMetricRaster {
+		std::string name;
+		MetricFunc fun;
+		Raster<metric_t> rast;
+	};
+
+	struct StratumMetricRasters {
+		std::string baseName;
+		std::vector<std::string> stratumNames;
+		StratumFunc fun;
+		std::vector<Raster<metric_t>> rasters;
+
+		StratumMetricRasters(const std::string& bn, const std::vector<std::string>& sn, StratumFunc f, const Alignment& a) {
+			baseName = bn;
+			stratumNames = sn;
+			fun = f;
+			rasters = std::vector<Raster<metric_t>>(sn.size(), a);
 		}
 	};
 }

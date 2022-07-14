@@ -93,6 +93,8 @@ namespace lapis {
 					"The threshold for low outliers. Points with heights below this value will be excluded.")
 				("maxht", po::value(&opt.processingOptions.maxht),
 					"The threshold for high outliers. Points with heights above this value will be excluded.")
+				("strata", po::value<std::string>(),
+					"A comma-separated list of strata breaks on which to calculate strata metrics.")
 				("first",
 					"Perform this run using only first returns.")
 				("class", po::value<std::string>(),
@@ -285,6 +287,21 @@ namespace lapis {
 					opt.processingOptions.classes.value().classes.insert(std::stoi(temp));
 				}
 			}
+
+			if (vmFull.count("strata")) {
+				std::stringstream tokenizer{ vmFull.at("strata").as<std::string>() };
+				std::string temp;
+				while (std::getline(tokenizer, temp, ',')) {
+					try {
+						opt.processingOptions.strataBreaks.push_back(std::stod(temp));
+					}
+					catch (std::invalid_argument e) {
+						throw std::runtime_error("Invalid formatting for strata list");
+					}
+				}
+				std::sort(opt.processingOptions.strataBreaks.begin(), opt.processingOptions.strataBreaks.end());
+			}
+
 
 			return opt;
 		}
