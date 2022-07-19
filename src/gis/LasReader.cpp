@@ -79,6 +79,28 @@ namespace lapis {
 		std::sort(_dtms.begin(), _dtms.end(), [](const auto& lhs, const auto& rhs)->bool {return lhs.xres() < rhs.xres(); });
 	}
 
+	Raster<coord_t> LasReader::unifiedDEM(const Alignment& a)
+	{
+		Alignment thisAlign = extend(a, *this, SnapType::out);
+		thisAlign = crop(a, *this, SnapType::out);
+		Raster<coord_t> out{ thisAlign };
+
+		for (cell_t cell = 0; cell < out.ncell(); ++cell) {
+			coord_t x = out.xFromCell(cell);
+			coord_t y = out.yFromCell(cell);
+			for (auto& r : _dtms) {
+				auto v = r.extract(x, y, ExtractMethod::bilinear);
+				if (v.has_value()) {
+					out[cell].has_value() = true;
+					out[cell].value() = v.value();
+					break;
+				}
+			}
+		}
+
+		return out;
+	}
+
 	size_t LasReader::_normalize(Raster<coord_t>& r, LidarPointVector& points, std::vector<bool>& alreadyNormalized)
 	{
 

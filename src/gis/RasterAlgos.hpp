@@ -27,6 +27,28 @@ namespace lapis {
 		return out;
 	}
 
+	template<class T, class RETURN>
+	inline Raster<RETURN> focal(const Raster<T>& r, int windowSize, ViewFunc<T, RETURN> f) {
+		if (windowSize < 0 || windowSize % 2 != 1) {
+			throw std::invalid_argument("");
+		}
+
+		Raster<RETURN> out{ r };
+		int lookDist = (windowSize - 1) / 2;
+
+		for (cell_t cell = 0; cell < r.ncell(); ++cell) {
+			Extent e = r.extentFromCell(cell);
+			e = Extent(e.xmin() - lookDist * r.xres(), e.xmax() + lookDist * r.xres(), e.ymin() - lookDist * r.yres(), e.ymax() + lookDist * r.yres());
+			Raster<T>* po = const_cast<Raster<T>*>(&r);
+			const CropView<T> cv{ po,e,SnapType::near };
+
+			auto v = f(cv);
+			out[cell].has_value() = v.has_value();
+			out[cell].value() = v.value();
+		}
+		return out;
+	}
+
 	template<class T>
 	xtl::xoptional<T> viewMax(const CropView<T>& in) {
 		bool hasvalue = false;
@@ -141,6 +163,97 @@ namespace lapis {
 		return sum / nTriangle;
 	}
 
+	template<class T>
+	xtl::xoptional<T> viewSum(const CropView<T>& in) {
+		T value = 0;
+		for (cell_t cell = 0; cell < in.ncell(); ++cell) {
+			if (in[cell].has_value()) {
+				value += in[cell].value();
+			}
+		}
+		return xtl::xoptional<T>(value);
+	}
+
+	template<class T>
+	xtl::xoptional<T> viewCount(const CropView<T>& in) {
+		T count = 0;
+		for (cell_t cell = 0; cell < in.ncell(); ++cell) {
+			if (in[cell].has_value()) {
+				count++;
+			}
+		}
+		return xtl::xoptional<T>(count);
+	}
+
+	//this function will not have the expected behavior unless the CropView is 3x3
+	template<class RETURN>
+	struct slopeComponents {
+		xtl::xoptional<RETURN> nsSlope, ewSlope;
+	};
+	template<class T, class RETURN>
+	inline slopeComponents<RETURN> getSlopeComponents(const CropView<T>& in) {
+		slopeComponents<RETURN> out;
+		if (in.ncell() < 9) {
+			out.nsSlope = xtl::missing<RETURN>();
+			out.ewSlope = xtl::missing<RETURN>();
+			return out;
+		}
+		for (cell_t cell = 0; cell < in.ncell(); ++cell) {
+			if (!in[cell].has_value()) {
+				out.nsSlope = xtl::missing<RETURN>();
+				out.ewSlope = xtl::missing<RETURN>();
+				return out;
+			}
+		}
+		out.nsSlope = (in[6].value() + 2 * in[7].value() + in[8].value() - in[0].value() - 2 * in[1].value() - in[2].value()) / (8. * in.yres());
+		out.ewSlope = (in[0].value() + 2 * in[3].value() + in[6].value() - in[2].value() - 2 * in[5].value() - in[8].value()) / (8. * in.xres());
+		return out;
+	}
+
+	template<class T, class RETURN>
+	inline xtl::xoptional<RETURN> viewSlope(const CropView<T>& in) {
+		slopeComponents<RETURN> comp = getSlopeComponents<T, RETURN>(in);
+		if (!comp.nsSlope.has_value()) {
+			return xtl::missing<RETURN>();
+		}
+		RETURN slopeProp = std::sqrt(comp.nsSlope.value() * comp.nsSlope.value() + comp.ewSlope.value() * comp.ewSlope.value());
+		return xtl::xoptional<RETURN>(std::atan(slopeProp));
+	}
+	template<class T, class RETURN>
+	inline xtl::xoptional<RETURN> viewAspect(const CropView<T>& in) {
+		slopeComponents<RETURN> comp = getSlopeComponents<T, RETURN>(in);
+		if (!comp.nsSlope.has_value()) {
+			return xtl::missing<RETURN>();
+		}
+		RETURN ns = comp.nsSlope.value();
+		RETURN ew = comp.ewSlope.value();
+		if (ns > 0) {
+			if (ew > 0) {
+				return std::atan(ew / ns);
+			}
+			else if (ew < 0) {
+				return 2 * M_PI + std::atan(ew / ns);
+			}
+			else {
+				return 0;
+			}
+		}
+		else if (ns < 0) {
+			return M_PI + std::atan(ew / ns);
+		}
+		else {
+			if (ew > 0) {
+				return M_PI / 2.;
+			}
+			else if (ew < 0) {
+				return 3. * M_PI / 2.;
+			}
+			else {
+				return xtl::missing<RETURN>();
+			}
+		}
+	}
+
 
 	//This function takes two rasters with the same origin and resolution. It modifies the first raster in the following ways:
 	//If one of its cells is nodata, and the corresponding cell in the new raster isn't, the value is replaced by the value in the new raster
@@ -171,6 +284,31 @@ namespace lapis {
 			}
 		}
 	}
+
+	template<class T>
+	inline void overlaySum(Raster<T>& base, const Raster<T>& over) {
+		CropView<T> view{ &base, over, SnapType::near };
+		if (view.ncell() != over.ncell()) {
+			throw AlignmentMismatchException();
+		}
+
+		for (rowcol_t row = 0; row < view.nrow(); ++row) {
+			for (rowcol_t col = 0; col < view.ncol(); ++col) {
+				auto baseV = view.atRCUnsafe(row, col);
+				auto overV = over.atRCUnsafe(row, col);
+
+				if (overV.has_value() && !baseV.has_value()) {
+					baseV.has_value() = true;
+					baseV.value() = overV.value();
+					continue;
+				}
+				if (overV.has_value() && baseV.has_value()) {
+					baseV.value() += overV.value();
+				}
+			}
+		}
+	}
+
 }
 
 #endif

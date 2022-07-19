@@ -56,6 +56,10 @@ namespace lapis {
 		//The DTMs will be used in a priority order with the finest resolutions first
 		void addDEM(const std::string& file, const CoordRef& crsOverride = CoordRef(), const Unit& unitOverride = linearUnitDefs::unkLinear);
 
+		//Returns a raster which is a resampling of the internal DEMs to the given alignment
+		//As with point normalization, finer-resolution DEMs are preferred
+		Raster<coord_t> unifiedDEM(const Alignment& a);
+
 	private:
 		std::vector<std::shared_ptr<LasFilter>> _filters;
 		std::vector<Raster<coord_t>> _dtms;

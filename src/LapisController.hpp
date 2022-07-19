@@ -71,6 +71,8 @@ namespace lapis {
 
 		fs::path getStratumDir() const;
 
+		fs::path getTopoDir() const;
+
 		void writeParams(const FullOptions& opt) const;
 
 		//This is the function that performs the work of merging the temporary CSM files into their final tiles
@@ -81,7 +83,8 @@ namespace lapis {
 
 		//returns the points belonging to the nth las file in sortedlasextents
 		//may throw an InvalidLasFileException if something goes wrong
-		LidarPointVector getPoints(size_t n) const;
+		//it also updates elevNumerator and elevDenominator
+		LidarPointVector getPointsAndDem(size_t n) const;
 
 		void populateMap(const Raster<taoid_t> segments, const std::vector<cell_t>& highPoints, TaoIdMap& map, coord_t bufferDist, cell_t tileidx) const;
 
@@ -95,6 +98,8 @@ namespace lapis {
 		void writeLayout(const Alignment& layout) const;
 
 		void writeCSMMetrics() const;
+
+		void calculateAndWriteTopo() const;
 
 
 		LapisObjects obj;

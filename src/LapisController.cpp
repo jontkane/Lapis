@@ -60,6 +60,8 @@ namespace lapis {
 				}
 			}
 		}
+		
+		calculateAndWriteTopo();
 
 		obj.cleanUpAfterPointMetrics();
 		lp = nullptr;
@@ -147,7 +149,7 @@ namespace lapis {
 			}
 
 			
-			LidarPointVector points = getPoints(thisidx);
+			LidarPointVector points = getPointsAndDem(thisidx);
 
 			assignPointsToCalculators(points);
 			assignPointsToCSM(points, thiscsm);
@@ -359,6 +361,13 @@ namespace lapis {
 
 	fs::path LapisController::getStratumDir() const {
 		fs::path dir = gp->outfolder / "StratumMetrics";
+		fs::create_directories(dir);
+		return dir;
+	}
+
+	fs::path LapisController::getTopoDir() const
+	{
+		fs::path dir = gp->outfolder / "TopoMetrics";
 		fs::create_directories(dir);
 		return dir;
 	}
@@ -585,7 +594,7 @@ namespace lapis {
 		}
 	}
 	
-	LidarPointVector LapisController::getPoints(size_t n) const
+	LidarPointVector LapisController::getPointsAndDem(size_t n) const
 	{
 		LasReader lr;
 		lr = LasReader(gp->sortedLasFiles[n].filename); //may throw
@@ -612,6 +621,13 @@ namespace lapis {
 
 		auto points = lr.getPoints(lr.nPoints());
 		points.transform(lp->calculators.crs());
+
+		Raster<coord_t> fineDem = lr.unifiedDEM(gp->csmAlign);
+		Raster<coord_t> coarseSum = aggregate<coord_t, coord_t>(fineDem, gp->metricAlign, &viewSum<coord_t>);
+		Raster<coord_t> coarseCount = aggregate<coord_t, coord_t>(fineDem, gp->metricAlign, &viewCount<coord_t>);
+		std::scoped_lock<std::mutex> lock{ gp->globalMut };
+		overlaySum(lp->elevNumerator, coarseSum);
+		overlaySum(lp->elevDenominator, coarseCount);
 
 		return points;
 	}
@@ -824,6 +840,17 @@ namespace lapis {
 	void LapisController::writeCSMMetrics() const {
 		for (auto& metric : gp->csmMetrics) {
 			metric.r.writeRaster((getCSMMetricDir() / (metric.name + ".tif")).string());
+		}
+	}
+	void LapisController::calculateAndWriteTopo() const
+	{
+
+		Raster<coord_t> elev = lp->elevNumerator / lp->elevDenominator;
+		elev.writeRaster((getTopoDir() / "Elevation.tif").string());
+		
+		for (auto& metric : lp->topoMetrics) {
+			Raster<metric_t> r = focal(elev, 3, metric.metric);
+			r.writeRaster((getTopoDir() / (metric.name + ".tif")).string());
 		}
 	}
 }

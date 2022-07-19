@@ -20,6 +20,7 @@ namespace lapis {
 		identifyDEMFiles(opt);
 		setFilters(opt);
 		setPointMetrics(opt);
+		setTopoMetrics(opt);
 		setCSMMetrics(opt);
 
 		makeNLaz();
@@ -128,6 +129,11 @@ namespace lapis {
 			stratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &PointMetricCalculator::stratumPercent, metricAlign);
 		}
 		
+	}
+
+	void LapisObjects::setTopoMetrics(const FullOptions& opt) {
+		lasProcessingObjects->topoMetrics.push_back({ viewSlope<coord_t,metric_t>,"Slope" });
+		lasProcessingObjects->topoMetrics.push_back({ viewAspect<coord_t,metric_t>,"Aspect" });
 	}
 
 	void LapisObjects::setCSMMetrics(const FullOptions& opt) {
@@ -258,6 +264,9 @@ namespace lapis {
 
 	void LapisObjects::finalParams(const FullOptions& opt)
 	{
+		lasProcessingObjects->elevDenominator = Raster<coord_t>(globalProcessingObjects->metricAlign);
+		lasProcessingObjects->elevNumerator = Raster<coord_t>(globalProcessingObjects->metricAlign);
+
 		lasProcessingObjects->calculators = Raster<PointMetricCalculator>(globalProcessingObjects->metricAlign);
 		lasProcessingObjects->cellMuts = std::vector<std::mutex>(LasProcessingObjects::mutexN);
 		lasProcessingObjects->lasCRSOverride = opt.dataOptions.lasCRS;

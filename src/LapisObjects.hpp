@@ -43,6 +43,15 @@ namespace lapis {
 
 		//The radius of the lidar pulse footprint, in the proper units.
 		coord_t footprintRadius;
+
+		Raster<coord_t> elevNumerator;
+		Raster<coord_t> elevDenominator;
+
+		struct TopoMetric {
+			ViewFunc<coord_t, metric_t> metric;
+			std::string name;
+		};
+		std::vector<TopoMetric> topoMetrics;
 	};
 
 	//parameters that need to exist even after the laz reading is done
@@ -117,6 +126,7 @@ namespace lapis {
 		void identifyDEMFiles(const FullOptions& opt);
 		void setFilters(const FullOptions& opt);
 		void setPointMetrics(const FullOptions& opt);
+		void setTopoMetrics(const FullOptions& opt);
 		void setCSMMetrics(const FullOptions& opt);
 		//as a necessary consequence of the complicated chain of dependencies, this function also reprojects the las extents into the output extent
 		void createOutAlignment(const FullOptions& opt);
