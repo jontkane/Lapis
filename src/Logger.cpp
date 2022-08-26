@@ -4,6 +4,12 @@
 namespace lapis {
 	Logger::Logger() : output(&std::cout), level(diagnostic), mut() {}
 
+	Logger& Logger::getLogger()
+	{
+		static Logger l;
+		return l;
+	}
+
 	void Logger::logWithLevel(const std::string& out, Level l) const {
 		std::lock_guard lock{mut};
 		if (level >= l) {

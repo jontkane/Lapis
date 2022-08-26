@@ -100,7 +100,7 @@ namespace lapis {
 		FullOptions opt;
 		auto& lazSpec = opt.dataOptions.lasFileSpecifiers;
 		LapisObjectsDerived param;
-		auto& foundLaz = param.globalProcessingObjects->sortedLasFiles;
+		auto& foundLaz = param.gp->sortedLasFiles;
 
 		lazSpec = { testfolder.string() };
 		param.identifyLasFiles_test(opt);
@@ -144,7 +144,7 @@ namespace lapis {
 		FullOptions opt;
 		auto& demSpec = opt.dataOptions.demFileSpecifiers;
 		LapisObjectsDerived param;
-		auto& foundDem = param.globalProcessingObjects->demFiles;
+		auto& foundDem = param.gp->demFiles;
 
 		demSpec = { testfolder.string() };
 		param.identifyDEMFiles_test(opt);
@@ -184,7 +184,7 @@ namespace lapis {
 	TEST(LapisObjectsTest, setFilters) {
 		FullOptions opt;
 		LapisObjectsDerived param;
-		auto& filters = param.lasProcessingObjects->filters;
+		auto& filters = param.lp->filters;
 		
 		opt.processingOptions.useWithheld = false;
 
@@ -323,10 +323,10 @@ namespace lapis {
 
 	TEST(LapisObjectsTest, makeNLaz) {
 		LapisObjectsDerived params;
-		Alignment& a = params.globalProcessingObjects->metricAlign;
+		Alignment& a = params.gp->metricAlign;
 		a = Alignment{ Extent(0,100,200,300),2,2 };
 
-		params.globalProcessingObjects->sortedLasFiles = {
+		params.gp->sortedLasFiles = {
 			{"a.laz",Extent(-50,20,150,220)},
 			{"b.laz",Extent(0,40,180,320)}
 		};
@@ -334,7 +334,7 @@ namespace lapis {
 		std::vector<int> expected = { 1,0,2,0 };
 
 		for (int i = 0; i < a.ncell(); ++i) {
-			EXPECT_EQ(expected[i], params.lasProcessingObjects->nLaz[i].value());
+			EXPECT_EQ(expected[i], params.lp->nLaz[i].value());
 		}
 	}
 }

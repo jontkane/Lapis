@@ -6,15 +6,17 @@
 
 namespace lapis {
 	
-	namespace po = boost::program_options;
 
-	std::variant<FullOptions,std::exception> parseOptions(int argc, char* argv[], Logger& log)
+	ParseResults parseOptions(int argc, char* argv[])
 	{
-		try {
-			FullOptions opt;
+		namespace po = boost::program_options;
 
-			po::options_description coreOpts;
-			coreOpts.add_options()
+		auto& log = Logger::getLogger();
+		try {
+			auto& opt = Options::getOptionsObject();
+
+			po::options_description cmdOnlyOpts;
+			cmdOnlyOpts.add_options()
 				("help", "Print this message and exit")
 				("ini-file", po::value<std::vector<std::string>>(), "The .ini file containing parameters for this run\n"
 					"You may specify this multiple times; values from earlier files will be preferred")
@@ -22,117 +24,49 @@ namespace lapis {
 			po::positional_options_description pos;
 			pos.add("ini-file", -1);
 
+			po::options_description visibleOpts;
+			po::options_description hiddenOpts;
 
-			po::options_description dataOpts;
-			dataOpts.add_options()
-				("las,L", po::value(&opt.dataOptions.lasFileSpecifiers),
-					"Specify input point cloud (las/laz) files in one of three ways:\n"
-					"\tAs a file name pointing to a point cloud file\n"
-					"As a folder name, which will haves it and its subfolders searched for .las or .laz files\n"
-					"As a folder name with a wildcard specifier, e.g. C:\\data\\*.laz\n"
-					"This option can be specified multiple times")
-				("dem,D", po::value(&opt.dataOptions.demFileSpecifiers),
-					"Specify input raster elevation models in one of three ways:\n"
-					"\tAs a file name pointing to a raster file\n"
-					"As a folder name, which will haves it and its subfolders searched for raster files\n"
-					"As a folder name with a wildcard specifier, e.g. C:\\data\\*.tif\n"
-					"This option can be specified multiple times\n"
-					"Most raster formats are supported, but arcGIS .gdb geodatabases are not")
-				("output,O", po::value(&opt.dataOptions.outfolder),
-					"The output folder to store results in")			
-				;
-
-
-			boost::optional<std::string> lascrs;
-			boost::optional<std::string> demcrs;
-			boost::optional<std::string> lasunit;
-			boost::optional<std::string> demunit;
-
-			po::options_description hiddenDataOpts;
-			hiddenDataOpts.add_options()
-				("las-units", po::value(&lasunit), "")
-				("dem-units", po::value(&demunit), "")
-				("las-crs", po::value(&lascrs), "")
-				("dem-crs", po::value(&demcrs), "")
-				("footprint", po::value(&opt.processingOptions.footprintDiameter))
-				("smooth", po::value(&opt.processingOptions.smoothWindow))
-				;
-
-			po::options_description processOpts;
-			processOpts.add_options()
-				("thread", po::value(&opt.computerOptions.nThread),
-					"The number of threads to run Lapis on. Defaults to the number of cores on the computer")
-				("performance", 
-					"Run in performance mode, with a vertical resolution of 10cm instead of 1cm.")
-				;
-
-
-			boost::optional<std::string> userunit;
-
-			po::options_description metricOpts;
-			metricOpts.add_options()
-				("alignment,A", po::value<std::string>(),
-					"A raster file you want the output metrics to align with\n"
-					"Incompatible with --cellsize and --out-crs options")
-				("cellsize", po::value<coord_t>(),
-					"The desired cellsize of the output metric rasters\n"
-					"Defaults to 30 meters\n"
-					"Incompatible with the --alignment options")
-				("csm-cellsize", po::value(&opt.processingOptions.csmRes),
-					"The desired cellsize of the output canopy surface model\n"
-					"Defaults to 1 meter")
-				("out-crs", po::value<std::string>(),
-					"The desired CRS for the output layers\n"
-					"Incompatible with the --alignment options")
-				("user-units", po::value(&userunit),
-					"The units you want to specify minht, maxht, and canopy in. Defaults to meters.\n"
-					"\tValues: m (for meters), f (for international feet), usft (for us survey feet)")
-				("canopy", po::value(&opt.processingOptions.canopyCutoff),
-					"The height threshold for a point to be considered canopy.")
-				("minht", po::value(&opt.processingOptions.minht),
-					"The threshold for low outliers. Points with heights below this value will be excluded.")
-				("maxht", po::value(&opt.processingOptions.maxht),
-					"The threshold for high outliers. Points with heights above this value will be excluded.")
-				("strata", po::value<std::string>(),
-					"A comma-separated list of strata breaks on which to calculate strata metrics.")
-				("first",
-					"Perform this run using only first returns.")
-				("class", po::value<std::string>(),
-					"A comma-separated list of LAS point classifications to use for this run.\n"
-					"Alternatively, preface the list with ~ to specify a blacklist.")
-				("fineint",
-					"Create a canopy mean intensity raster with the same resolution as the CSM")
-				;
-
-			po::options_description hiddenMetricOpts;
-			hiddenMetricOpts.add_options()
-				("use-withheld","")
-				("max-scan-angle",po::value(&opt.processingOptions.maxScanAngle),"")
-				("only","")
-				("xres",po::value<coord_t>())
-				("yres",po::value<coord_t>())
-				("xorigin",po::value<coord_t>())
-				("yorigin",po::value<coord_t>())
-				;
-
+			auto& params = opt.getParamInfo();
+			for (auto& kv : params) {
+				Options::FullParam& p = kv.second;
+				const std::string& key = kv.first;
+				std::string paramNames = key;
+				if (p.cmdAlt.size()) {
+					paramNames += "," + p.cmdAlt;
+				}
+				po::options_description* boostOpt = nullptr;
+				if (p.hidden) {
+					boostOpt = &hiddenOpts;
+				}
+				else {
+					boostOpt = &visibleOpts;
+				}
+				if (std::holds_alternative<std::string>(p.value)) {
+					std::string* ptr = &(std::get<std::string>(p.value));
+					boostOpt->add_options()(paramNames.c_str(), po::value(ptr), p.cmdDoc.c_str());
+				}
+				else if (std::holds_alternative<std::vector<std::string>>(p.value)) {
+					std::vector<std::string>* ptr = &(std::get<std::vector<std::string>>(p.value));
+					boostOpt->add_options()(paramNames.c_str(), po::value(ptr), p.cmdDoc.c_str());
+				}
+				else {
+					bool* ptr = &(std::get<bool>(p.value));
+					boostOpt->add_options()(paramNames.c_str(), po::value(ptr), p.cmdDoc.c_str());
+				}
+			}
 
 			po::options_description cmdOptions;
 			cmdOptions
-				.add(coreOpts)
-				.add(dataOpts)
-				.add(hiddenDataOpts)
-				.add(processOpts)
-				.add(metricOpts)
-				.add(hiddenMetricOpts)
+				.add(cmdOnlyOpts)
+				.add(visibleOpts)
+				.add(hiddenOpts)
 				;
 
 			po::options_description iniOptions;
 			iniOptions
-				.add(dataOpts)
-				.add(hiddenDataOpts)
-				.add(processOpts)
-				.add(metricOpts)
-				.add(hiddenMetricOpts)
+				.add(visibleOpts)
+				.add(hiddenOpts)
 				;
 
 
@@ -153,274 +87,473 @@ namespace lapis {
 
 			if (vmFull.count("help") || argc < 2) {
 				std::cout <<
-					coreOpts <<
-					dataOpts <<
-					metricOpts <<
+					cmdOnlyOpts <<
+					visibleOpts <<
 					"\n";
-				return std::runtime_error("not an error");
+				return ParseResults::helpPrinted;
 			}
 
-			if (vmFull.count("alignment") && (vmFull.count("out-crs") || vmFull.count("cellsize"))) {
-				throw std::runtime_error("Don't specify output alignment via both a file and cellsize/crs");
-			}
-
-			auto readCRS = [&](CoordRef& crs, std::string s) {
-				try {
-					crs = CoordRef(s);
-				}
-				catch (UnableToDeduceCRSException e) {
-					log.logError("Could not read as crs:\n" + s);
-					throw e;
-				}
-			};
-
-			try {
-				readCRS(opt.dataOptions.lasCRS, lascrs.value_or(""));
-				readCRS(opt.dataOptions.demCRS, demcrs.value_or(""));
-			}
-			catch (UnableToDeduceCRSException e) {
-				return e;
-			}
-			opt.dataOptions.lasUnits = Unit(lasunit.value_or(""));
-			opt.dataOptions.demUnits = Unit(demunit.value_or(""));
-			opt.processingOptions.outUnits = Unit(userunit.value_or("m"));
-
-			if (vmFull.count("alignment")) {
-				try {
-					opt.processingOptions.outAlign = Alignment(vmFull["alignment"].as<std::string>());
-				}
-				catch (InvalidRasterFileException e) {
-					log.logError("Could not open as raster: " + vmFull["alignment"].as<std::string>());
-					return e;
-				}
-			}
-			else {
-				CoordRef crs;
-				try {
-					crs = vmFull.count("out-crs") ? CoordRef(vmFull["out-crs"].as<std::string>()) : CoordRef("");
-					crs.setZUnits(opt.processingOptions.outUnits);
-				}
-				catch (UnableToDeduceCRSException e) {
-					log.logError("Unable to read out-crs. Is it correctly formatted?");
-					return e;
-				}
-
-				coord_t xres = NAN; coord_t yres = NAN; coord_t xorigin = NAN; coord_t yorigin = NAN;
-				if (vmFull.count("cellsize")) {
-					xres = vmFull["cellsize"].as<coord_t>();
-					yres = vmFull["cellsize"].as<coord_t>();
-				}
-				else {
-					if (vmFull.count("xres") && vmFull.count("yres")) {
-						xres = vmFull["xres"].as<coord_t>();
-						yres = vmFull["yres"].as<coord_t>();
-					}
-					else if (vmFull.count("xres")) {
-						xres = vmFull["xres"].as<coord_t>();
-						yres = vmFull["xres"].as<coord_t>();
-					}
-					else if (vmFull.count("yres")) {
-						xres = vmFull["yres"].as<coord_t>();
-						yres = vmFull["yres"].as<coord_t>();
-					}
-					//no default value here. xres and yres being NAN is a sign the user didn't specify enough info
-				}
-				if (vmFull.count("xorigin") && vmFull.count("yOrigin")) {
-					xorigin = vmFull["xorigin"].as<coord_t>();
-					yorigin = vmFull["yorigin"].as<coord_t>();
-				}
-				else if (vmFull.count("xorigin")) {
-					xorigin = vmFull["xorigin"].as<coord_t>();
-					yorigin = vmFull["xorigin"].as<coord_t>();
-				}
-				else if (vmFull.count("yorigin")) {
-					xorigin = vmFull["yorigin"].as<coord_t>();
-					yorigin = vmFull["yorigin"].as<coord_t>();
-				}
-				else {
-					xorigin = 0;
-					yorigin = 0;
-				}
-				if (!std::isnan(xres)) {
-					opt.processingOptions.outAlign = Alignment(Extent(0, 100, 0, 100, crs), xorigin, yorigin, xres, yres);
-				}
-				
-			}
-
-			opt.computerOptions.performance = vmFull.count("performance");
-
-			opt.processingOptions.doFineIntensity = vmFull.count("fineint");
-
-
-			if (vmFull.count("only")) {
-				opt.processingOptions.whichReturns = ProcessingOptions::WhichReturns::only;
-			}
-			else if (vmFull.count("first")) {
-				opt.processingOptions.whichReturns = ProcessingOptions::WhichReturns::first;
-			}
-			else {
-				opt.processingOptions.whichReturns = ProcessingOptions::WhichReturns::all;
-			}
-
-			opt.processingOptions.useWithheld = vmFull.count("use-withheld");
-
-			std::regex whitelistregex{ "[0-9]+(,[0-9]+)*" };
-			std::regex blacklistregex{ "~[0-9]+(,[0-9]+)*" };
-			if (vmFull.count("class")) {
-				std::string classlist = vmFull.at("class").as<std::string>();
-				ProcessingOptions::classificationSet useclasses;
-				if (std::regex_match(classlist, whitelistregex)) {
-					useclasses.whiteList = true;
-				}
-				else if (std::regex_match(classlist, blacklistregex)) {
-					useclasses.whiteList = false;
-					classlist = classlist.substr(1, classlist.size());
-				}
-				else {
-					throw std::runtime_error("Invalid formatting for classification list: " + classlist);
-				}
-
-				opt.processingOptions.classes = useclasses;
-				std::stringstream tokenizer{ classlist };
-				std::string temp;
-				while (std::getline(tokenizer, temp, ',')) {
-					opt.processingOptions.classes.value().classes.insert(std::stoi(temp));
-				}
-			}
-
-			if (vmFull.count("strata")) {
-				std::stringstream tokenizer{ vmFull.at("strata").as<std::string>() };
-				std::string temp;
-				while (std::getline(tokenizer, temp, ',')) {
-					try {
-						opt.processingOptions.strataBreaks.push_back(std::stod(temp));
-					}
-					catch (std::invalid_argument e) {
-						throw std::runtime_error("Invalid formatting for strata list");
-					}
-				}
-				std::sort(opt.processingOptions.strataBreaks.begin(), opt.processingOptions.strataBreaks.end());
-			}
-
-
-			return opt;
+			
+			return ParseResults::validOpts;
 		}
 		catch (boost::program_options::error_with_option_name e) {
 			log.logError(e.what());
-			return e;
+			return ParseResults::invalidOpts;
 		}
 		catch (std::exception e) {
 			log.logError(e.what());
-			return e;
+			return ParseResults::invalidOpts;
 		}
 	}
 
-	void DataOptions::write(std::ostream& out) const
+	void writeOptions(std::ostream& out, Options::ParamCategory cat)
 	{
+		const std::unordered_map<Options::ParamCategory, std::string> catNames =
+		{ {Options::ParamCategory::computer,"#Computer-Specific Parameters\n"},
+			{Options::ParamCategory::data,"#Data Parameters\n"},
+			{Options::ParamCategory::processing,"#Processing Parameters\n"} };
+
 		out << std::setprecision(std::numeric_limits<coord_t>::digits10 + 1);
-		out << "#Data Parameters\n";
-		for (auto& v : lasFileSpecifiers) {
-			out << "las=" << v << "\n";
-		}
-		for (auto& v : demFileSpecifiers) {
-			out << "dem=" << v << "\n";
-		}
-		out << "output=" << outfolder << "\n";
-		if (!lasUnits.isUnknown()) {
-			out << "las-units=" << lasUnits.name << "\n";
-		}
-		if (!lasCRS.isEmpty()) {
-			std::string wkt = lasCRS.getSingleLineWKT();
-			out << "las-crs=" << wkt << "\n";
-		}
-		if (!demUnits.isUnknown()) {
-			out << "dem-units=" << demUnits.name << "\n";
-		}
-		if (!demCRS.isEmpty()) {
-			std::string wkt = demCRS.getSingleLineWKT();
-			out << "dem-crs=" << wkt << "\n";
+		out << catNames.at(cat);
+		Options& opt = Options::getOptionsObject();
+		for (auto& kv : opt.getParamInfo()) {
+			if (kv.second.cat == cat) {
+				out << opt.getIniText(kv.first);
+			}
 		}
 		out << "\n";
 	}
-	void ComputerOptions::write(std::ostream& out) const
+
+	Options::Options()
 	{
-		out << "#Computer-specific Parameters\n";
-		if (nThread.has_value()) {
-			out << "thread=" << nThread.value() << "\n";
-		}
+		namespace pn = paramNames;
+		using pc = ParamCategory;
+		using dt = DataType;
 
-		if (performance) {
-			out << "performance=\n";
-		}
-		out << "\n";
+		params.emplace(pn::lasFiles, FullParam(dt::multi, pc::data,
+			"Specify input point cloud (las/laz) files in one of three ways:\n"
+			"\tAs a file name pointing to a point cloud file\n"
+			"As a folder name, which will haves it and its subfolders searched for .las or .laz files\n"
+			"As a folder name with a wildcard specifier, e.g. C:\\data\\*.laz\n"
+			"This option can be specified multiple times",
+			"",
+			"L",
+			false));
+
+		params.emplace(pn::demFiles, FullParam(dt::multi, pc::data,
+			"Specify input raster elevation models in one of three ways:\n"
+			"\tAs a file name pointing to a raster file\n"
+			"As a folder name, which will haves it and its subfolders searched for raster files\n"
+			"As a folder name with a wildcard specifier, e.g. C:\\data\\*.tif\n"
+			"This option can be specified multiple times\n"
+			"Most raster formats are supported, but arcGIS .gdb geodatabases are not",
+			"",
+			"D",
+			false));
+
+		params.emplace(pn::output, FullParam(dt::single, pc::data,
+			"The output folder to store results in",
+			"",
+			"O",
+			false));
+
+		params.emplace(pn::lasUnits, FullParam(dt::single, pc::data));
+		params.emplace(pn::demUnits, FullParam(dt::single, pc::data));
+		params.emplace(pn::lasCrs, FullParam(dt::single, pc::data));
+		params.emplace(pn::demCrs, FullParam(dt::single, pc::data));
+		params.emplace(pn::footprint, FullParam(dt::single, pc::data));
+		params.emplace(pn::smooth, FullParam(dt::single, pc::processing));
+
+		params.emplace(pn::alignment, FullParam(dt::single, pc::processing,
+			"A raster file you want the output metrics to align with\n"
+			"Incompatible with --cellsize and --out-crs options",
+			"",
+			"A",
+			false));
+
+		params.emplace(pn::cellsize, FullParam(dt::single, pc::processing,
+			"The desired cellsize of the output metric rasters\n"
+			"Defaults to 30 meters\n"
+			"Incompatible with the --alignment options",
+			"",
+			"",
+			false));
+
+		params.emplace(pn::csmCellsize, FullParam(dt::single, pc::processing,
+			"The desired cellsize of the output canopy surface model\n"
+			"Defaults to 1 meter",
+			"",
+			"",
+			false));
+
+		params.emplace(pn::outCrs, FullParam(dt::single, pc::processing,
+			"The desired CRS for the output layers\n"
+			"Incompatible with the --alignment options",
+			"",
+			"",
+			false));
+
+		params.emplace(pn::userUnits, FullParam(dt::single, pc::processing,
+			"The units you want to specify minht, maxht, and canopy in. Defaults to meters.\n"
+			"\tValues: m (for meters), f (for international feet), usft (for us survey feet)",
+			"",
+			"",
+			false));
+
+		params.emplace(pn::canopy, FullParam(dt::single, pc::processing,
+			"The height threshold for a point to be considered canopy.",
+			"",
+			"",
+			false));
+
+		params.emplace(pn::minht, FullParam(dt::single, pc::processing,
+			"The threshold for low outliers. Points with heights below this value will be excluded.",
+			"",
+			"",
+			false));
+
+		params.emplace(pn::maxht, FullParam(dt::single, pc::processing,
+			"The threshold for high outliers. Points with heights above this value will be excluded.",
+			"",
+			"",
+			false));
+
+		params.emplace(pn::strata, FullParam(dt::single, pc::processing,
+			"A comma-separated list of strata breaks on which to calculate strata metrics.",
+			"",
+			"",
+			false));
+
+		params.emplace(pn::first, FullParam(dt::binary, pc::processing,
+			"Perform this run using only first returns.",
+			"",
+			"",
+			false));
+
+		params.emplace(pn::fineint, FullParam(dt::binary, pc::processing,
+			"Create a canopy mean intensity raster with the same resolution as the CSM",
+			"",
+			"",
+			false));
+
+		params.emplace(pn::classFilter, FullParam(dt::single, pc::processing,
+			"A comma-separated list of LAS point classifications to use for this run.\n"
+			"Alternatively, preface the list with ~ to specify a blacklist.",
+			"",
+			"",
+			false));
+
+		params.emplace(pn::useWithheld, FullParam(dt::binary, pc::processing));
+		params.emplace(pn::maxScanAngle, FullParam(dt::single, pc::processing));
+		params.emplace(pn::onlyReturns, FullParam(dt::binary, pc::processing));
+		params.emplace(pn::xres, FullParam(dt::single, pc::processing));
+		params.emplace(pn::yres, FullParam(dt::single, pc::processing));
+		params.emplace(pn::xorigin, FullParam(dt::single, pc::processing));
+		params.emplace(pn::yorigin, FullParam(dt::single, pc::processing));
+
+		params.emplace(pn::thread, FullParam(dt::single, pc::computer,
+			"The number of threads to run Lapis on. Defaults to the number of cores on the computer",
+			"",
+			"",
+			false));
+
+		params.emplace(pn::performance, FullParam(dt::binary, pc::computer,
+			"Run in performance mode, with a vertical resolution of 10cm instead of 1cm.",
+			"",
+			"",
+			false));
 	}
-	void ProcessingOptions::write(std::ostream& out) const
+
+	const std::string& Options::getAsString(const std::string& key) const {
+		return std::get<std::string>(params.at(key).value);
+	}
+
+	const std::vector<std::string>& Options::getAsVector(const std::string& key) const {
+		return std::get<std::vector<std::string>>(params.at(key).value);
+	}
+
+	bool Options::getAsBool(const std::string& key) const {
+		return std::get<bool>(params.at(key).value);
+	}
+
+	double Options::getAsDouble(const std::string& key, double defaultValue) const {
+		double v = defaultValue;
+		auto& s = getAsString(key);
+		if (s.size()) {
+			try {
+				v = std::atof(s.c_str());
+			}
+			catch (std::invalid_argument e) {
+				Logger::getLogger().logError("Invalid formatting for " + key + " argument");
+				throw std::runtime_error("Invalid formatting for " + key + " argument");
+			}
+		}
+		return v;
+	}
+
+	//For parameters of type single, this replaces the old value.
+	//For parameters of type multi, it adds to the list.
+	//For parameters of type binary, it sets the flag to true
+
+	Options& Options::getOptionsObject()
 	{
-		out << "#Processing Parameters\n";
-		out << std::setprecision(std::numeric_limits<coord_t>::digits10 + 1);
-
-		if (outAlign.has_value()) {
-			auto& a = outAlign.value();
-			if (!a.crs().isEmpty()) {
-				std::string wkt = a.crs().getSingleLineWKT();
-				out << "out-crs=" << wkt << "\n";
-			}
-			out << "xres=" << convertUnits(a.xres(),a.crs().getXYUnits(),outUnits) << "\n";
-			out << "yres=" << convertUnits(a.yres(), a.crs().getXYUnits(), outUnits) << "\n";
-			out << "xorigin=" << convertUnits(a.xOrigin(), a.crs().getXYUnits(), outUnits) << "\n";
-			out << "yorigin=" << convertUnits(a.yOrigin(), a.crs().getXYUnits(), outUnits) << "\n";
-		}
-
-		if (csmRes.has_value()) {
-			out << "csm-cellsize=" << csmRes.value() << "\n";
-		}
-
-
-		out << "user-units=" << outUnits.name << "\n";
-		if (canopyCutoff.has_value()) {
-			out << "canopy=" << canopyCutoff.value() << "\n";
-		}
-		if (minht.has_value()) {
-			out << "minht=" << minht.value() << "\n";
-		}
-		if (maxht.has_value()) {
-			out << "maxht=" << maxht.value() << "\n";
-		}
-
-		if (whichReturns == WhichReturns::first) {
-			out << "first=\n";
-		}
-		else if (whichReturns == WhichReturns::only) {
-			out << "only=\n";
-		}
-		if (classes.has_value()) {
-			auto& c = classes.value();
-			out << "class=";
-			if (!c.whiteList) {
-				out << "~";
-			}
-			size_t count = 0;
-			for (auto& v : c.classes) {
-				out << (int)v;
-				if (count < c.classes.size() - 1) {
-					out << ",";
-				}
-				++count;
-			}
-			out << "\n";
-		}
-		if (useWithheld) {
-			out << "use-withheld=\n";
-		}
-		if (maxScanAngle.has_value()) {
-			out << "max-scan-angle=" << maxScanAngle.value() << "\n";
-		}
-		if (smoothWindow.has_value()) {
-			out << "smooth=" << smoothWindow.value() << "\n";
-		}
-		if (doFineIntensity) {
-			out << "fineint=\n";
-		}
-		out << "\n";
+		static Options opt;
+		return opt;
 	}
+
+	void Options::updateValue(const std::string& key, const std::string& value) {
+		auto& v = params.at(key).value;
+		if (std::holds_alternative<bool>(v)) {
+			std::get<bool>(v) = true;
+		}
+		else if (std::holds_alternative<std::string>(v)) {
+			std::get<std::string>(v) = value;
+		}
+		else {
+			std::get<std::vector<std::string>>(v).push_back(value);
+		}
+	}
+	std::string Options::getIniText(const std::string& key) {
+
+		//Because alignment is something that should be consistent across projects, but will often be specified as a file which can be deleted or moved, or on a different computer
+		//Some special casing is done here to ensure that the ini file always specifies the alignment in a universal way.
+
+		if (key == paramNames::alignment) {
+			return "";
+		}
+		else if (key == paramNames::outCrs) {
+			return key + "=" + getAlign().crs.getSingleLineWKT() + "\n";
+		}
+		else if (key == paramNames::cellsize) {
+			return "";
+		}
+		else if (key == paramNames::xres) {
+			return key + "=" + std::to_string(getAlign().xres) + "\n";
+		}
+		else if (key == paramNames::yres) {
+			return key + "=" + std::to_string(getAlign().yres) + "\n";
+		}
+		else if (key == paramNames::xorigin) {
+			return key + "=" + std::to_string(getAlign().xorigin) + "\n";
+		}
+		else if (key == paramNames::yorigin) {
+			return key + "=" + std::to_string(getAlign().yorigin) + "\n";
+		}
+
+		auto& v = params.at(key).value;
+		if (std::holds_alternative<bool>(v)) {
+			bool b = std::get<bool>(v);
+			if (b) {
+				return key + "=\n";
+			}
+			else {
+				return "#" + key + "=\n";
+			}
+		}
+		if (std::holds_alternative<std::string>(v)) {
+			auto& s = std::get<std::string>(v);
+			if (!s.size()) {
+				return "";
+			}
+			return key + "=" + std::get<std::string>(v) + "\n";
+		}
+
+		auto& vec = std::get<std::vector<std::string>>(v);
+		std::string out = "";
+		for (auto& entry : vec) {
+			out += key + "=" + entry + "\n";
+		}
+		return out;
+	}
+	const std::vector<std::string>& Options::getLas() const {
+		return getAsVector(paramNames::lasFiles);
+	}
+	const std::vector<std::string>& Options::getDem() const {
+		return getAsVector(paramNames::demFiles);
+	}
+	const std::string& Options::getOutput() const {
+		return getAsString(paramNames::output);
+	}
+	Unit Options::getLasUnits() const {
+		return Unit(getAsString(paramNames::lasUnits));
+	}
+	Unit Options::getDemUnits() const {
+		return Unit(getAsString(paramNames::demUnits));
+	}
+	CoordRef Options::getLasCrs() const {
+		return CoordRef(getAsString(paramNames::lasCrs));
+	}
+	CoordRef Options::getDemCrs() const {
+		return CoordRef(getAsString(paramNames::demCrs));
+	}
+	coord_t Options::getFootprintDiameter() const {
+		coord_t v = getAsDouble(paramNames::footprint, 0.4);
+		return convertUnits(v, getUserUnits(), getAlign().crs.getXYUnits());
+	}
+	int Options::getSmoothWindow() const {
+		return (int)getAsDouble(paramNames::smooth, 3);
+	}
+	const Options::AlignWithoutExtent& Options::getAlign() const {
+		if (outAlign) {
+			return *outAlign;
+		}
+		outAlign = std::make_unique<AlignWithoutExtent>();
+		auto& s = getAsString(paramNames::alignment);
+		if (s.size()) {
+			try {
+				Alignment fileAlign = Alignment(s);
+				outAlign->crs = fileAlign.crs();
+				outAlign->xres = fileAlign.xres();
+				outAlign->yres = fileAlign.yres();
+				outAlign->xorigin = fileAlign.xOrigin();
+				outAlign->yorigin = fileAlign.yOrigin();
+			}
+			catch (InvalidRasterFileException e) {
+				Logger::getLogger().logError(s + " is not a valid raster file.");
+				throw std::runtime_error(s + " is not a valid raster file.");
+			}
+		}
+
+		auto& s2 = getAsString(paramNames::outCrs);
+		try {
+			CoordRef crs(s2);
+			if (!crs.isEmpty()) {
+				outAlign->crs = crs;
+			}
+		}
+		catch (UnableToDeduceCRSException e) {
+			Logger::getLogger().logError("Unable to construct CRS from " + s2);
+		}
+		Unit userUnits = getUserUnits();
+		if (!userUnits.isUnknown()) {
+			outAlign->crs.setZUnits(userUnits);
+		}
+
+		coord_t cellsize = getAsDouble(paramNames::cellsize, 0);
+		if (cellsize > 0) {
+			outAlign->xres = -cellsize;
+			outAlign->yres = -cellsize;
+		}
+
+		coord_t xres = getAsDouble(paramNames::xres, 0);
+		if (xres > 0) {
+			outAlign->xres = -xres;
+		}
+		coord_t yres = getAsDouble(paramNames::yres, 0);
+		if (yres > 0) {
+			outAlign->yres = -yres;
+		}
+		coord_t xorigin = getAsDouble(paramNames::xorigin, 0);
+		if (xorigin > 0) {
+			outAlign->xorigin = -xorigin;
+		}
+		coord_t yorigin = getAsDouble(paramNames::yorigin, 0);
+		if (yorigin > 0) {
+			outAlign->yorigin = -yorigin;
+		}
+		return *outAlign;
+	}
+	coord_t Options::getCSMCellsize() const {
+		return getAsDouble(paramNames::csmCellsize, 0);
+	}
+	Unit Options::getUserUnits() const {
+		return Unit(getAsString(paramNames::userUnits));
+	}
+	coord_t Options::getCanopyCutoff() const {
+		return getAsDouble(paramNames::canopy, convertUnits(2, linearUnitDefs::meter, getUserUnits()));
+	}
+	coord_t Options::getMinHt() const {
+		return getAsDouble(paramNames::minht, convertUnits(-2, linearUnitDefs::meter, getUserUnits()));
+	}
+	coord_t Options::getMaxHt() const {
+		return getAsDouble(paramNames::maxht, convertUnits(100, linearUnitDefs::meter, getUserUnits()));
+	}
+	std::vector<coord_t> Options::getStrataBreaks() const {
+		std::vector<coord_t> out;
+		auto& s = getAsString(paramNames::strata);
+		if (!s.size()) {
+			return out;
+		}
+		std::stringstream tokenizer{ s };
+		std::string temp;
+		while (std::getline(tokenizer, temp, ',')) {
+			try {
+				out.push_back(std::stod(temp));
+			}
+			catch (std::invalid_argument e) {
+				throw std::runtime_error("Invalid formatting for strata list");
+			}
+		}
+		std::sort(out.begin(), out.end());
+		return out;
+	}
+	bool Options::getFirstFlag() const {
+		return getAsBool(paramNames::first);
+	}
+	bool Options::getFineIntFlag() const {
+		return getAsBool(paramNames::fineint);
+	}
+	Options::ClassFilter Options::getClassFilter() const {
+		std::regex whitelistregex{ "[0-9]+(,[0-9]+)*" };
+		std::regex blacklistregex{ "~[0-9]+(,[0-9]+)*" };
+
+		std::string s = getAsString(paramNames::classFilter);
+		ClassFilter useclasses;
+		if (!s.size()) {
+			return useclasses;
+		}
+
+		if (std::regex_match(s, whitelistregex)) {
+			useclasses.isWhiteList = true;
+		}
+		else if (std::regex_match(s, blacklistregex)) {
+			useclasses.isWhiteList = false;
+			s = s.substr(1, s.size());
+		}
+		else {
+			throw std::runtime_error("Invalid formatting for classification list: " + s);
+		}
+
+		std::stringstream tokenizer{ s };
+		std::string temp;
+		while (std::getline(tokenizer, temp, ',')) {
+			useclasses.list.insert(std::stoi(temp));
+		}
+
+		return useclasses;
+	}
+	bool Options::getUseWithheldFlag() const {
+		return getAsBool(paramNames::useWithheld);
+	}
+	double Options::getMaxScanAngle() const
+	{
+		return getAsDouble(paramNames::maxScanAngle, -1);
+	}
+	bool Options::getOnlyFlag() const {
+		return getAsBool(paramNames::onlyReturns);
+	}
+	int Options::getNThread() const {
+		return (int)getAsDouble(paramNames::thread, defaultNThread());
+	}
+	bool Options::getPerformanceFlag() const {
+		return getAsBool(paramNames::performance);
+	}
+	std::map<std::string, Options::FullParam>& Options::getParamInfo()
+	{
+		return params;
+	}
+	Options::FullParam::FullParam(Options::DataType type, ParamCategory cat, const std::string& cmdDoc, const std::string& guiDoc, const std::string& cmdAlt, bool hidden) :
+		cmdDoc(cmdDoc), guiDoc(guiDoc), cmdAlt(cmdAlt), hidden(hidden) {
+		if (type==DataType::multi) {
+			value = std::vector<std::string>();
+		}
+		else if (type==DataType::single) {
+			value = std::string();
+		}
+		else {
+			value = false;
+		}
+		this->cat = cat;
+	}
+	Options::FullParam::FullParam(Options::DataType type, ParamCategory cat) : FullParam(type, cat, "", "", "", true) {}
 }

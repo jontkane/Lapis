@@ -5,13 +5,10 @@ namespace lapis {
 
 	LapisObjects::LapisObjects()
 	{
-		lasProcessingObjects = std::make_unique<LasProcessingObjects>();
-		globalProcessingObjects = std::make_unique<GlobalProcessingObjects>();
-	}
-	LapisObjects::LapisObjects(const FullOptions& opt)
-	{
-		lasProcessingObjects = std::make_unique<LasProcessingObjects>();
-		globalProcessingObjects = std::make_unique<GlobalProcessingObjects>();
+		Options& opt = Options::getOptionsObject();
+
+		lp = std::make_unique<LasProcessingObjects>();
+		gp = std::make_unique<GlobalProcessingObjects>();
 
 		identifyLasFiles(opt);
 		createOutAlignment(opt);
@@ -29,72 +26,78 @@ namespace lapis {
 	}
 	void LapisObjects::cleanUpAfterPointMetrics()
 	{
-		lasProcessingObjects.reset(nullptr);
+		lp.reset(nullptr);
 	}
-	void LapisObjects::identifyLasFiles(const FullOptions& opt)
+	void LapisObjects::identifyLasFiles(const Options& opt)
 	{
-		std::vector<LasFileExtent> foundLaz = iterateOverFileSpecifiers<LasFileExtent>(opt.dataOptions.lasFileSpecifiers, &tryLasFile,
-			globalProcessingObjects->log, lasProcessingObjects->lasCRSOverride, lasProcessingObjects->lasUnitOverride);
+		Logger& log = Logger::getLogger();
+
+		std::vector<LasFileExtent> foundLaz = iterateOverFileSpecifiers<LasFileExtent>(opt.getLas(), &tryLasFile,
+			lp->lasCRSOverride, lp->lasUnitOverride);
 		std::unordered_set<std::string> unique;
 		for (auto& v : foundLaz) {
 			if (unique.count(v.filename)) {
 				continue;
 			}
 			unique.insert(v.filename);
-			globalProcessingObjects->sortedLasFiles.push_back(v);
+			gp->sortedLasFiles.push_back(v);
 		}
-		globalProcessingObjects->log.logProgress(std::to_string(globalProcessingObjects->sortedLasFiles.size()) + " point cloud files identified");
+		log.logProgress(std::to_string(gp->sortedLasFiles.size()) + " point cloud files identified");
 	}
 
-	void LapisObjects::identifyDEMFiles(const FullOptions& opt)
+	void LapisObjects::identifyDEMFiles(const Options& opt)
 	{
-		std::vector<DemFileAlignment> foundDem = iterateOverFileSpecifiers<DemFileAlignment>(opt.dataOptions.demFileSpecifiers, &tryDtmFile, globalProcessingObjects->log,
-			opt.dataOptions.demCRS, opt.dataOptions.demUnits);
+		Logger& log = Logger::getLogger();
+		std::vector<DemFileAlignment> foundDem = iterateOverFileSpecifiers<DemFileAlignment>(opt.getDem(), &tryDtmFile,
+			opt.getDemCrs(), opt.getDemUnits());
 		std::unordered_set<std::string> unique;
 		for (auto& v : foundDem) {
 			if (unique.count(v.filename)) {
 				continue;
 			}
 			unique.insert(v.filename);
-			globalProcessingObjects->demFiles.push_back(v);
+			gp->demFiles.push_back(v);
 		}
-		globalProcessingObjects->log.logProgress(std::to_string(globalProcessingObjects->demFiles.size()) + " DEM files identified");
+		log.logProgress(std::to_string(gp->demFiles.size()) + " DEM files identified");
 	}
 
-	void LapisObjects::setFilters(const FullOptions& opt)
+	void LapisObjects::setFilters(const Options& opt)
 	{
-		auto& filters = lasProcessingObjects->filters;
+		Logger& log = Logger::getLogger();
 
-		if (opt.processingOptions.whichReturns == ProcessingOptions::WhichReturns::only) {
+		auto& filters = lp->filters;
+
+		if (opt.getOnlyFlag()) {
 			filters.push_back(std::make_shared<LasFilterOnlyReturns>());
 		}
-		else if (opt.processingOptions.whichReturns == ProcessingOptions::WhichReturns::first) {
+		else if (opt.getFirstFlag()) {
 			filters.push_back(std::make_shared<LasFilterFirstReturns>());
 		}
 
-		if (opt.processingOptions.classes.has_value()) {
-			if (opt.processingOptions.classes.value().whiteList) {
-				filters.push_back(std::make_shared<LasFilterClassWhitelist>(opt.processingOptions.classes.value().classes));
+		Options::ClassFilter cf = opt.getClassFilter();
+		if (cf.list.size()) {
+			if (cf.isWhiteList) {
+				filters.push_back(std::make_shared<LasFilterClassWhitelist>(cf.list));
 			}
 			else {
-				filters.push_back(std::make_shared<LasFilterClassBlacklist>(opt.processingOptions.classes.value().classes));
+				filters.push_back(std::make_shared<LasFilterClassBlacklist>(cf.list));
 			}
 		}
-		if (!opt.processingOptions.useWithheld) {
+		if (!opt.getUseWithheldFlag()) {
 			filters.push_back(std::make_shared<LasFilterWithheld>());
 		}
 
-		if (opt.processingOptions.maxScanAngle.has_value()) {
-			filters.push_back(std::make_shared<LasFilterMaxScanAngle>(opt.processingOptions.maxScanAngle.value()));
+		if (opt.getMaxScanAngle() > 0) {
+			filters.push_back(std::make_shared<LasFilterMaxScanAngle>(opt.getMaxScanAngle()));
 		}
-		globalProcessingObjects->log.logDiagnostic(std::to_string(filters.size()) + " filters applied");
+		log.logDiagnostic(std::to_string(filters.size()) + " filters applied");
 	}
 
-	void LapisObjects::setPointMetrics(const FullOptions& opt)
+	void LapisObjects::setPointMetrics(const Options& opt)
 	{
-		auto& pointMetrics = lasProcessingObjects->metricRasters;
-		auto& metricAlign = globalProcessingObjects->metricAlign;
-		auto& stratumMetrics = lasProcessingObjects->stratumRasters;
+		auto& pointMetrics = lp->metricRasters;
+		auto& metricAlign = gp->metricAlign;
+		auto& stratumMetrics = lp->stratumRasters;
 
 		auto addMetric = [&](std::string&& name, MetricFunc f) {
 			pointMetrics.emplace_back(std::move(name), f, metricAlign);
@@ -110,7 +113,7 @@ namespace lapis {
 		addMetric("CanopyCover", &PointMetricCalculator::canopyCover);
 
 
-		auto& strataBreaks = opt.processingOptions.strataBreaks;
+		std::vector<coord_t> strataBreaks = opt.getStrataBreaks();
 		if (strataBreaks.size()) {
 			auto to_string_with_precision = [](coord_t v)->std::string {
 				std::ostringstream out;
@@ -131,36 +134,38 @@ namespace lapis {
 		
 	}
 
-	void LapisObjects::setTopoMetrics(const FullOptions& opt) {
-		lasProcessingObjects->topoMetrics.push_back({ viewSlope<coord_t,metric_t>,"Slope" });
-		lasProcessingObjects->topoMetrics.push_back({ viewAspect<coord_t,metric_t>,"Aspect" });
+	void LapisObjects::setTopoMetrics(const Options& opt) {
+		lp->topoMetrics.push_back({ viewSlope<coord_t,metric_t>,"Slope" });
+		lp->topoMetrics.push_back({ viewAspect<coord_t,metric_t>,"Aspect" });
 	}
 
-	void LapisObjects::setCSMMetrics(const FullOptions& opt) {
-		auto& csmMetrics = globalProcessingObjects->csmMetrics;
-		auto& align = globalProcessingObjects->metricAlign;
+	void LapisObjects::setCSMMetrics(const Options& opt) {
+		auto& csmMetrics = gp->csmMetrics;
+		auto& align = gp->metricAlign;
 		csmMetrics.push_back({ &viewMax<csm_t>, "MaxCSM", align });
 		csmMetrics.push_back({ &viewMean<csm_t>, "MeanCSM", align });
 		csmMetrics.push_back({ &viewStdDev<csm_t>, "StdDevCSM", align });
 		csmMetrics.push_back({ &viewRumple<csm_t>, "RumpleCSM", align });
 	}
 
-	void LapisObjects::createOutAlignment(const FullOptions& opt) {
+	void LapisObjects::createOutAlignment(const Options& opt) {
 
-		Alignment& metricAlign = globalProcessingObjects->metricAlign;
+		Logger& log = Logger::getLogger();
 
-		bool alignFinalized = false;
+		Alignment& metricAlign = gp->metricAlign;
+
+		Options::AlignWithoutExtent optAlign = opt.getAlign();
+
 		CoordRef outCRS;
-		if (opt.processingOptions.outAlign.has_value()) {
-			alignFinalized = true;
-			outCRS = opt.processingOptions.outAlign.value().crs();
+		if (!optAlign.crs.isEmpty()) {
+			outCRS = optAlign.crs;
 		}
 		if (outCRS.isEmpty()) {
-			for (size_t i = 0; i < globalProcessingObjects->sortedLasFiles.size(); ++i) {
+			for (size_t i = 0; i < gp->sortedLasFiles.size(); ++i) {
 				//if the user won't specify the CRS, just use the laz CRS
-				if (!globalProcessingObjects->sortedLasFiles[i].ext.crs().isEmpty()) {
-					outCRS = globalProcessingObjects->sortedLasFiles[i].ext.crs();
-					if (globalProcessingObjects->cleanwkt) {
+				if (!gp->sortedLasFiles[i].ext.crs().isEmpty()) {
+					outCRS = gp->sortedLasFiles[i].ext.crs();
+					if (gp->cleanwkt) {
 						outCRS = outCRS.getCleanEPSG();
 					}
 					break;
@@ -168,20 +173,16 @@ namespace lapis {
 			}
 		}
 
-		if (!opt.processingOptions.outUnits.isUnknown()) {
-			outCRS.setZUnits(opt.processingOptions.outUnits);
-		}
-		
 		if (!outCRS.isEmpty() && !outCRS.isProjected()) {
-			globalProcessingObjects->log.logError("Latitude/Longitude output not supported");
+			log.logError("Latitude/Longitude output not supported");
 			throw std::runtime_error("Latitude/Longitude output not supported");
 		}
 
 		Extent fullExtent;
 		bool initExtent = false;
 
-		for (size_t i = 0; i < globalProcessingObjects->sortedLasFiles.size(); ++i) {
-			Extent& e = globalProcessingObjects->sortedLasFiles[i].ext;
+		for (size_t i = 0; i < gp->sortedLasFiles.size(); ++i) {
+			Extent& e = gp->sortedLasFiles[i].ext;
 			if (!e.crs().isConsistentHoriz(outCRS)) {
 				QuadExtent q{ e, outCRS };
 				e = q.outerExtent();
@@ -196,35 +197,43 @@ namespace lapis {
 		}
 
 		fullExtent.defineCRS(outCRS); //getting the units right and maybe cleaning up some wkt nonsense
-		globalProcessingObjects->metricAlign.defineCRS(outCRS); //either harmless or cleans up the wkt
-		if (!alignFinalized) {
-			coord_t cellsize = convertUnits(30, linearUnitDefs::meter, outCRS.getXYUnits());
-			metricAlign = Alignment(fullExtent, 0, 0, cellsize, cellsize);
-		}
-		else {
-			metricAlign = opt.processingOptions.outAlign.value();
-		}
-		metricAlign = extend(metricAlign, fullExtent);
-		metricAlign = crop(metricAlign, fullExtent);
 
-		coord_t csmcellsize = 0;
+		auto getCorrectedValue = [&](coord_t value, coord_t defaultValue)->coord_t {
+			if (value > 0) {
+				return value;
+			}
+			if (value == 0) {
+				return convertUnits(defaultValue, linearUnitDefs::meter, outCRS.getXYUnits());
+			}
+			return convertUnits(-value, opt.getUserUnits(), outCRS.getXYUnits());
+		};
 
-		csmcellsize = convertUnits(opt.processingOptions.csmRes.value_or(0), opt.processingOptions.outUnits, outCRS.getXYUnits());
-		if (csmcellsize <= 0) {
+		metricAlign = Alignment(fullExtent,getCorrectedValue(optAlign.xorigin,0),
+			getCorrectedValue(optAlign.yorigin,0),
+			getCorrectedValue(optAlign.xres,30),
+			getCorrectedValue(optAlign.yres, 30));
+
+
+		coord_t csmcellsize = opt.getCSMCellsize();
+		if (csmcellsize == 0) {
 			csmcellsize = convertUnits(1, linearUnitDefs::meter, outCRS.getXYUnits());
 		}
-		globalProcessingObjects->csmAlign = Alignment(fullExtent, metricAlign.xOrigin(), metricAlign.yOrigin(), csmcellsize, csmcellsize);
-
-		if (!opt.processingOptions.outUnits.isUnknown()) {
-			globalProcessingObjects->metricAlign.setZUnits(opt.processingOptions.outUnits);
-			globalProcessingObjects->csmAlign.setZUnits(opt.processingOptions.outUnits);
+		else {
+			csmcellsize = convertUnits(csmcellsize, opt.getUserUnits(), outCRS.getXYUnits());
 		}
-		globalProcessingObjects->csmAlign.defineCRS(outCRS);
+
+		gp->csmAlign = Alignment(fullExtent, metricAlign.xOrigin(), metricAlign.yOrigin(), csmcellsize, csmcellsize);
+
+		if (!opt.getUserUnits().isUnknown()) {
+			gp->metricAlign.setZUnits(opt.getUserUnits());
+			gp->csmAlign.setZUnits(opt.getUserUnits());
+		}
+		gp->csmAlign.defineCRS(outCRS);
 		
 
-		globalProcessingObjects->log.logDiagnostic("Alignment calculated");
+		log.logDiagnostic("Alignment calculated");
 	}
-	void LapisObjects::sortLasFiles(const FullOptions& opt)
+	void LapisObjects::sortLasFiles(const Options& opt)
 	{
 		//this just sorts north->south in a sort of naive way that ought to present a relatively minimal surface area when the data is tiled
 		auto lasExtentSorter = [](const LasFileExtent& a, const LasFileExtent& b) {
@@ -259,58 +268,46 @@ namespace lapis {
 			return true;
 		};
 
-		std::sort(globalProcessingObjects->sortedLasFiles.begin(), globalProcessingObjects->sortedLasFiles.end(), lasExtentSorter);
+		std::sort(gp->sortedLasFiles.begin(), gp->sortedLasFiles.end(), lasExtentSorter);
 	}
 
-	void LapisObjects::finalParams(const FullOptions& opt)
+	void LapisObjects::finalParams(const Options& opt)
 	{
-		lasProcessingObjects->elevDenominator = Raster<coord_t>(globalProcessingObjects->metricAlign);
-		lasProcessingObjects->elevNumerator = Raster<coord_t>(globalProcessingObjects->metricAlign);
+		lp->elevDenominator = Raster<coord_t>(gp->metricAlign);
+		lp->elevNumerator = Raster<coord_t>(gp->metricAlign);
 
-		lasProcessingObjects->calculators = Raster<PointMetricCalculator>(globalProcessingObjects->metricAlign);
-		lasProcessingObjects->cellMuts = std::vector<std::mutex>(LasProcessingObjects::mutexN);
-		lasProcessingObjects->lasCRSOverride = opt.dataOptions.lasCRS;
-		lasProcessingObjects->lasUnitOverride = opt.dataOptions.lasUnits;
-		lasProcessingObjects->demCRSOverride = opt.dataOptions.demCRS;
-		lasProcessingObjects->demUnitOverride = opt.dataOptions.demUnits;
+		lp->calculators = Raster<PointMetricCalculator>(gp->metricAlign);
+		lp->cellMuts = std::vector<std::mutex>(LasProcessingObjects::mutexN);
+		lp->lasCRSOverride = opt.getLasCrs();
+		lp->lasUnitOverride = opt.getLasUnits();
+		lp->demCRSOverride = opt.getDemCrs();
+		lp->demUnitOverride = opt.getDemUnits();
 
-		globalProcessingObjects->nThread = opt.computerOptions.nThread.value_or(defaultNThread());
-		globalProcessingObjects->binSize = opt.computerOptions.performance ? 0.1 : 0.01;
+		gp->nThread = opt.getNThread();
+		gp->binSize = opt.getPerformanceFlag() ? 0.1 : 0.01;
 
-		globalProcessingObjects->canopyCutoff = opt.processingOptions.canopyCutoff.
-			value_or(convertUnits(2, linearUnitDefs::meter, globalProcessingObjects->metricAlign.crs().getZUnits()));
+		gp->canopyCutoff = opt.getCanopyCutoff();
 
-		globalProcessingObjects->minht = opt.processingOptions.minht.
-			value_or(convertUnits(-2, linearUnitDefs::meter, globalProcessingObjects->metricAlign.crs().getZUnits()));
-		globalProcessingObjects->maxht = opt.processingOptions.maxht.
-			value_or(convertUnits(100, linearUnitDefs::meter, globalProcessingObjects->metricAlign.crs().getZUnits()));
+		gp->minht = opt.getMinHt();
+		gp->maxht = opt.getMaxHt();
 
-		globalProcessingObjects->outfolder = opt.dataOptions.outfolder;
+		gp->outfolder = opt.getOutput();
 
-		PointMetricCalculator::setInfo(globalProcessingObjects->canopyCutoff, globalProcessingObjects->maxht, globalProcessingObjects->binSize,
-			opt.processingOptions.strataBreaks);
+		PointMetricCalculator::setInfo(gp->canopyCutoff, gp->maxht, gp->binSize,
+			opt.getStrataBreaks());
 
-		if (opt.processingOptions.footprintDiameter.has_value()) {
-			lasProcessingObjects->footprintRadius = convertUnits(opt.processingOptions.footprintDiameter.value()/2,
-				globalProcessingObjects->metricAlign.crs().getZUnits(),
-				globalProcessingObjects->metricAlign.crs().getXYUnits());
-		}
-		else {
-			lasProcessingObjects->footprintRadius = convertUnits(0.2,
-				linearUnitDefs::meter,
-				globalProcessingObjects->metricAlign.crs().getXYUnits());
-		}
+		lp->footprintRadius = opt.getFootprintDiameter() / 2;
 
-		globalProcessingObjects->smoothWindow = opt.processingOptions.smoothWindow.value_or(3);
+		gp->smoothWindow = opt.getSmoothWindow();
 
-		globalProcessingObjects->doFineIntensity = opt.processingOptions.doFineIntensity;
+		gp->doFineIntensity = opt.getFineIntFlag();
 	}
 
 	void LapisObjects::makeNLaz()
 	{
-		auto& nLaz = lasProcessingObjects->nLaz;
-		nLaz = Raster<int>{ globalProcessingObjects->metricAlign };
-		for (auto& file : globalProcessingObjects->sortedLasFiles) {
+		auto& nLaz = lp->nLaz;
+		nLaz = Raster<int>{ gp->metricAlign };
+		for (auto& file : gp->sortedLasFiles) {
 			std::vector<cell_t> cells = nLaz.cellsFromExtent(file.ext, SnapType::out);
 			for (cell_t cell : cells) {
 				nLaz[cell].value()++;
@@ -320,11 +317,13 @@ namespace lapis {
 	}
 
 	template<class T>
-	std::vector<T> LapisObjects::iterateOverFileSpecifiers(const std::vector<std::string>& specifiers, openFuncType<T> openFunc, Logger& log,
+	std::vector<T> LapisObjects::iterateOverFileSpecifiers(const std::vector<std::string>& specifiers, openFuncType<T> openFunc,
 		const CoordRef& crsOverride, const Unit& zUnitOverride)
 	{
 
 		namespace fs = std::filesystem;
+
+		Logger& log = Logger::getLogger();
 
 		std::vector<T> fileList;
 
@@ -376,10 +375,10 @@ namespace lapis {
 	}
 
 	template std::vector<LasFileExtent> LapisObjects::iterateOverFileSpecifiers<LasFileExtent>(const std::vector<std::string>& specifiers,
-		openFuncType<LasFileExtent> openFunc, Logger& log,
+		openFuncType<LasFileExtent> openFunc,
 		const CoordRef& crsOverride, const Unit& zUnitOverride);
 	template std::vector<DemFileAlignment> LapisObjects::iterateOverFileSpecifiers<DemFileAlignment>(const std::vector<std::string>& specifiers,
-		openFuncType<DemFileAlignment> openFunc, Logger& log,
+		openFuncType<DemFileAlignment> openFunc,
 		const CoordRef& crsOverride, const Unit& zUnitOverride);
 
 	void tryLasFile(const std::filesystem::path& file, std::vector<LasFileExtent>& data, Logger& log,
@@ -411,7 +410,8 @@ namespace lapis {
 	void tryDtmFile(const std::filesystem::path& file, std::vector<DemFileAlignment>& data, Logger& log,
 		const CoordRef& crsOverride, const Unit& zUnitOverride)
 	{
-		if (file.extension() == ".aux" || file.extension() == ".ovr" || file.extension() == ".adf") { //pyramid files are openable by GDAL but not really rasters
+		if (file.extension() == ".aux" || file.extension() == ".ovr" || file.extension() == ".adf"
+			|| file.extension() == ".xml") { //excluding commonly-found non-raster files to prevent slow calls to GDAL
 			return;
 		}
 		try {
@@ -432,11 +432,5 @@ namespace lapis {
 		catch (InvalidExtentException e) {
 			log.logError(e.what());
 		}
-	}
-
-	//returns a useful default for the number of concurrent threads to run
-	unsigned int LapisObjects::defaultNThread() {
-		unsigned int out = std::thread::hardware_concurrency();
-		return out > 1 ? out - 1 : 1;
 	}
 }

@@ -17,11 +17,7 @@ namespace lapis {
 			diagnostic
 		};
 
-		std::ostream* output;
-		Level level;
-		mutable std::mutex mut;
-
-		Logger();
+		static Logger& getLogger();
 
 		void logWithLevel(const std::string& out, Level l) const;
 
@@ -32,6 +28,13 @@ namespace lapis {
 		void logWarning(const std::string& out) const;
 
 		void logDiagnostic(const std::string& out) const;
+
+	private:
+		std::ostream* output;
+		Level level;
+		mutable std::mutex mut;
+
+		Logger();
 	};
 }
 

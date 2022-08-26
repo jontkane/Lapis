@@ -28,4 +28,11 @@ namespace lapis {
 		int thisDigitCount = std::max(1, (int)(std::log10(value) + 1));
 		return std::string(nDigits - thisDigitCount, '0') + std::to_string(value);
 	}
+
+
+	//returns a useful default for the number of concurrent threads to run
+	unsigned int defaultNThread() {
+		unsigned int out = std::thread::hardware_concurrency();
+		return out > 1 ? out - 1 : 1;
+	}
 }

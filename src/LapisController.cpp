@@ -9,22 +9,19 @@ namespace fs = std::filesystem;
 namespace lapis {
 	LapisController::LapisController() : obj()
 	{
-		gp = obj.globalProcessingObjects.get();
-		lp = obj.lasProcessingObjects.get();
-	}
-	LapisController::LapisController(const FullOptions& opt) : obj(opt)
-	{
-		gp = obj.globalProcessingObjects.get();
-		lp = obj.lasProcessingObjects.get();
-
-		//this is the last chance we get to use the original options object, and thus we have to write them to the harddrive as ini files right away
-		writeParams(opt);
+		gp = obj.gp.get();
+		lp = obj.lp.get();
 
 		pr = std::make_unique<LapisPrivate>(obj);
 	}
 
 	void LapisController::processFullArea()
 	{
+
+		Logger& log = Logger::getLogger();
+
+		writeParams();
+
 		size_t soFarLas = 0;
 		auto pointMetricThreadFunc = [&] {pointMetricThread(soFarLas); };
 		fs::path pointMetricDir = getPointMetricDir();
@@ -38,14 +35,14 @@ namespace lapis {
 			threads[i].join();
 		}
 
-		gp->log.logProgress("Writing point metric rasters");
+		log.logProgress("Writing point metric rasters");
 		for (auto& metric : lp->metricRasters) {
 			std::string filename = (pointMetricDir / (metric.name + ".tif")).string();
 			try {
 				metric.rast.writeRaster(filename);
 			}
 			catch (InvalidRasterFileException e) {
-				gp->log.logError("Error Writing " + filename);
+				log.logError("Error Writing " + filename);
 			}
 		}
 
@@ -56,7 +53,7 @@ namespace lapis {
 					metric.rasters[i].writeRaster(filename);
 				}
 				catch (InvalidRasterFileException e) {
-					gp->log.logError("Error Writing " + filename);
+					log.logError("Error Writing " + filename);
 				}
 			}
 		}
@@ -66,7 +63,7 @@ namespace lapis {
 		obj.cleanUpAfterPointMetrics();
 		lp = nullptr;
 
-		gp->log.logProgress("Merging CSMs");
+		log.logProgress("Merging CSMs");
 
 		cell_t targetNCell = gp->maxCSMBytes / sizeof(csm_t);
 		rowcol_t targetNRowCol = (rowcol_t)std::sqrt(targetNCell);
@@ -86,7 +83,7 @@ namespace lapis {
 			threads[i].join();
 		}
 
-		gp->log.logProgress("Final Cleanup");
+		log.logProgress("Final Cleanup");
 
 		soFarCSM = 0;
 		auto taoIdFixFunc = [&] {fixTAOIds(idMap, layout, soFarCSM); };
@@ -124,6 +121,7 @@ namespace lapis {
 
 	void LapisController::pointMetricThread(size_t& soFar) const
 	{
+		Logger& log = Logger::getLogger();
 		while (true) {
 
 			LasFileExtent lasExt;
@@ -137,7 +135,7 @@ namespace lapis {
 				thisidx = soFar;
 				++soFar;
 
-				gp->log.logProgress("las file " + std::to_string(thisidx+1) + " out of " + std::to_string(gp->sortedLasFiles.size()) + " started");
+				log.logProgress("las file " + std::to_string(thisidx+1) + " out of " + std::to_string(gp->sortedLasFiles.size()) + " started");
 			}
 			
 
@@ -162,7 +160,7 @@ namespace lapis {
 					thiscsm.value().writeRaster(filename);
 				}
 				catch (InvalidRasterFileException e) {
-					gp->log.logError("Error Writing " + filename);
+					log.logError("Error Writing " + filename);
 					throw InvalidRasterFileException(filename);
 				}
 			}
@@ -179,7 +177,7 @@ namespace lapis {
 
 			auto endTime = chr::high_resolution_clock::now();
 			auto duration = chr::duration_cast<chr::seconds>(endTime - startTime).count();
-			gp->log.logDiagnostic(lasExt.filename + " " + std::to_string(points.size()) + " points read and processed in " + std::to_string(duration) + " seconds");
+			log.logDiagnostic(lasExt.filename + " " + std::to_string(points.size()) + " points read and processed in " + std::to_string(duration) + " seconds");
 		}
 	}
 
@@ -372,58 +370,62 @@ namespace lapis {
 		return dir;
 	}
 
-	void LapisController::writeParams(const FullOptions& opt) const
+	void LapisController::writeParams() const
 	{
+		Logger& log = Logger::getLogger();
+
 		fs::path paramDir = getParameterDir();
 		fs::create_directories(paramDir);
 
 		std::ofstream fullParams{ paramDir / "FullParameters.ini" };
 		if (!fullParams) {
-			gp->log.logError("Could not open " + (paramDir / "FullParameters.ini").string() + " for writing");
+			log.logError("Could not open " + (paramDir / "FullParameters.ini").string() + " for writing");
 		}
 		else {
-			opt.dataOptions.write(fullParams);
-			opt.processingOptions.write(fullParams);
-			opt.computerOptions.write(fullParams);
+			writeOptions(fullParams, Options::ParamCategory::data);
+			writeOptions(fullParams, Options::ParamCategory::processing);
+			writeOptions(fullParams, Options::ParamCategory::computer);
 			
 		}
 
 		std::ofstream runAndComp{ paramDir / "ProcessingAndComputerParameters.ini" };
 		if (!runAndComp) {
-			gp->log.logError("Could not open " + (paramDir / "ProcessingAndComputerParameters.ini").string() + " for writing");
+			log.logError("Could not open " + (paramDir / "ProcessingAndComputerParameters.ini").string() + " for writing");
 		}
 		else {
-			opt.processingOptions.write(runAndComp);
-			opt.computerOptions.write(runAndComp);
+			writeOptions(runAndComp, Options::ParamCategory::processing);
+			writeOptions(runAndComp, Options::ParamCategory::computer);
 		}
 
 		std::ofstream data{ paramDir / "DataParameters.ini" };
 		if (!data) {
-			gp->log.logError("Could not open " + (paramDir / "DataParameters.ini").string() + " for writing");
+			log.logError("Could not open " + (paramDir / "DataParameters.ini").string() + " for writing");
 		}
 		else {
-			opt.dataOptions.write(data);
+			writeOptions(data, Options::ParamCategory::data);
 		}
 
 		std::ofstream metric{ paramDir / "ProcessingParameters.ini" };
 		if (!data) {
-			gp->log.logError("Could not open " + (paramDir / "ProcessingParameters.ini").string() + " for writing");
+			log.logError("Could not open " + (paramDir / "ProcessingParameters.ini").string() + " for writing");
 		}
 		else {
-			opt.processingOptions.write(metric);
+			writeOptions(metric, Options::ParamCategory::processing);
 		}
 
 		std::ofstream computer{ paramDir / "ComputerParameters.ini" };
 		if (!data) {
-			gp->log.logError("Could not open " + (paramDir / "ComputerParameters.ini").string() + " for writing");
+			log.logError("Could not open " + (paramDir / "ComputerParameters.ini").string() + " for writing");
 		}
 		else {
-			opt.computerOptions.write(computer);
+			writeOptions(data, Options::ParamCategory::computer);
 		}
 	}
 
 	void LapisController::csmProcessingThread(const Alignment& layout, cell_t& soFar, TaoIdMap& idMap) const
 	{
+		Logger& log = Logger::getLogger();
+		
 		cell_t thisidx = 0;
 		Extent thistile;
 		fs::path tempcsmdir = getCSMTempDir();
@@ -439,7 +441,7 @@ namespace lapis {
 				++soFar;
 				
 			}
-			gp->log.logProgress("Processing CSM tile " + std::to_string(thisidx+1) + " of " + std::to_string(layout.ncell()));
+			log.logProgress("Processing CSM tile " + std::to_string(thisidx+1) + " of " + std::to_string(layout.ncell()));
 
 			coord_t bufferDist = convertUnits(30, linearUnitDefs::meter, layout.crs().getXYUnits());
 			bufferDist = std::max(std::max(gp->metricAlign.xres(), gp->metricAlign.yres()), bufferDist);
@@ -596,6 +598,8 @@ namespace lapis {
 	
 	LidarPointVector LapisController::getPointsAndDem(size_t n) const
 	{
+		Logger& log = Logger::getLogger();
+
 		LasReader lr;
 		lr = LasReader(gp->sortedLasFiles[n].filename); //may throw
 		if (!lp->lasCRSOverride.isEmpty()) {
@@ -615,7 +619,7 @@ namespace lapis {
 				lr.addDEM(d.filename, lp->demCRSOverride, lp->demUnitOverride);
 			}
 			catch (InvalidRasterFileException e) {
-				gp->log.logError(e.what());
+				log.logError(e.what());
 			}
 		}
 

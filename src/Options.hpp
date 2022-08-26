@@ -7,6 +7,7 @@
 #include"gis/BaseDefs.hpp"
 #include"gis/CoordRef.hpp"
 #include"gis/Alignment.hpp"
+#include"LapisUtils.hpp"
 
 //these 26495 warnings come from the implementation of boost::optional
 //and completely don't matter because a default-constructed optional will have has_value false
@@ -14,104 +15,130 @@
 #pragma warning (disable : 26495)
 namespace lapis {
 
-	//These structs contain the parameters that define an individual lapis run
-	//Generally, they will be stored as provided by the user--turning them into something usable is the responsibility of other classes
+	namespace paramNames {
+		const std::string lasFiles = "las";
+		const std::string demFiles = "dem";
+		const std::string output = "output";
+		const std::string lasUnits = "las-units";
+		const std::string demUnits = "dem-units";
+		const std::string lasCrs = "las-crs";
+		const std::string demCrs = "dem-crs";
+		const std::string footprint = "footprint";
+		const std::string smooth = "smooth";
+		const std::string alignment = "alignment";
+		const std::string cellsize = "cellsize";
+		const std::string csmCellsize = "csm-cellsize";
+		const std::string outCrs = "out-crs";
+		const std::string userUnits = "user-units";
+		const std::string canopy = "canopy";
+		const std::string minht = "minht";
+		const std::string maxht = "maxht";
+		const std::string strata = "strata";
+		const std::string first = "first";
+		const std::string fineint = "fineint";
+		const std::string classFilter = "class";
+		const std::string useWithheld = "use-withheld";
+		const std::string maxScanAngle = "max-scan-angle";
+		const std::string onlyReturns = "only";
+		const std::string xres = "xres";
+		const std::string yres = "yres";
+		const std::string xorigin = "xorigin";
+		const std::string yorigin = "yorigin";
+		const std::string thread = "thread";
+		const std::string performance = "performance";
+	}
 
-	//this struct contains options like the location of the input and the alignment of the output
-	struct DataOptions {
-		//generally either folders or filenames; if more than 5 las files are specified by filename
-		//then their names will be written to a separate file, whose name will be stored here instead
-		std::vector<std::string> lasFileSpecifiers;
+	class Options {
+	public:
+		using RawParam = std::variant<std::string, std::vector<std::string>, bool>;
+		enum class DataType {
+			binary, single, multi
+		};
+		enum class ParamCategory {
+			data, computer, processing
+		};
+		struct FullParam {
+			RawParam value;
+			ParamCategory cat;
+			std::string cmdDoc;
+			std::string guiDoc;
+			std::string cmdAlt;
+			bool hidden;
 
-		//same as lasFileSpecifiers, but for the DTM rasters
-		std::vector<std::string> demFileSpecifiers;
+			FullParam(DataType type, ParamCategory cat, const std::string& cmdDoc, const std::string& guiDoc, const std::string& cmdAlt, bool hidden);
+			FullParam(DataType type, ParamCategory cat);
+		};
+		struct AlignWithoutExtent {
+			CoordRef crs;
 
-		//something here for how the user can specify the units of the las/dtm if they can't be inferred, or if the inferred units are wrong
-
-		//the location for the output
-		std::string outfolder;
-
-		//some sort of syntax for specifying the units and crs of the las and dem files
-		Unit lasUnits;
-		Unit demUnits;
-		CoordRef lasCRS;
-		CoordRef demCRS;
-
-		void write(std::ostream& out) const;
-	};
-
-	//this struct contains options like the amount of memory and threads to use
-	struct ComputerOptions {
-		//how many threads to run on
-		boost::optional<int> nThread;
-
-		bool performance;
-
-		void write(std::ostream& out) const;
-	};
-
-	//this struct contains options that change how the metrics are calculated, like canopy cutoffs
-	struct ProcessingOptions {
-
-		//the output units for metrics with units, and also for user-specified heights like canopy cutoff
-		Unit outUnits;
-
-		//the outlier cutoffs for minimum and maximum height
-		boost::optional<coord_t> minht, maxht;
-
-		//the canopy cutoff
-		boost::optional<coord_t> canopyCutoff;
-
-		enum class WhichReturns {
-			all, first, only
+			//The sign of these values indicates how they should be treated:
+			//A positive value came from a raster file, and are in the correct units
+			//A negative value came from the user, and should be converted before use
+			//A value of zero means unspecified, and a default value should be used
+			coord_t xres, yres, xorigin, yorigin;
+		};
+		struct ClassFilter {
+			bool isWhiteList;
+			std::unordered_set<uint8_t> list;
 		};
 
-		//should this run use all returns, first returns, or first and only returns?
-		boost::optional<WhichReturns> whichReturns;
+		static Options& getOptionsObject();
 
-		struct classificationSet {
-			bool whiteList; //is the below set a whitelist or a blacklist?
-			std::unordered_set<std::uint8_t> classes;
-		};
+		//For parameters of type single, this replaces the old value.
+		//For parameters of type multi, it adds to the list.
+		//For parameters of type binary, it sets the flag to true
+		void updateValue(const std::string& key, const std::string& value);
 
-		//which classifications should metrics be calculated on?
-		boost::optional<classificationSet> classes;
+		std::string getIniText(const std::string& key);
 
-		//should withheld points be excluded?
-		bool useWithheld;
+		const std::vector<std::string>& getLas() const;
+		const std::vector<std::string>& getDem() const;
+		const std::string& getOutput() const;
+		Unit getLasUnits() const;
+		Unit getDemUnits() const;
+		CoordRef getLasCrs() const;
+		CoordRef getDemCrs() const;
+		coord_t getFootprintDiameter() const;
+		int getSmoothWindow() const;
+		const AlignWithoutExtent& getAlign() const;
+		coord_t getCSMCellsize() const;
+		Unit getUserUnits() const;
+		coord_t getCanopyCutoff() const;
+		coord_t getMinHt() const;
+		coord_t getMaxHt() const;
+		std::vector<coord_t> getStrataBreaks() const;
+		bool getFirstFlag() const;
+		bool getFineIntFlag() const;
+		ClassFilter getClassFilter() const;
+		bool getUseWithheldFlag() const;
+		//value is negative if there isn't a scan angle filter
+		double getMaxScanAngle() const;
+		bool getOnlyFlag() const;
+		int getNThread() const;
+		bool getPerformanceFlag() const;
 
-		//max absolute scan angle to use
-		boost::optional<int> maxScanAngle;
+		std::map<std::string, FullParam>& getParamInfo();
 
-		//the output alignment, either as a manually specified resolution+crs, or as a filename+whether to align, crop, or mask
-		boost::optional<Alignment> outAlign;
+private:
+		Options();
 
-		//the diameter of the lidar pulse footprint. Used in the CSM smoothing algorithm
-		boost::optional<coord_t> footprintDiameter;
+		std::map<std::string, FullParam> params;
+		mutable std::unique_ptr<AlignWithoutExtent> outAlign;
 
-		//the cellsize of the output CSM
-		boost::optional<coord_t> csmRes;
-
-		//The window size to use for smoothing the CSM
-		boost::optional<int> smoothWindow;
-
-		//A flag to determine whether or not to create a mean intensity map with the same alignment as the CSM
-		bool doFineIntensity;
-
-		//the strata breaks to calculate cover on
-		std::vector<coord_t> strataBreaks;
-
-		void write(std::ostream& out) const;
+		const std::string& getAsString(const std::string& key) const;
+		const std::vector<std::string>& getAsVector(const std::string& key) const;
+		bool getAsBool(const std::string& key) const;
+		double getAsDouble(const std::string& key, double defaultValue) const;
 	};
 
-	struct FullOptions {
-		DataOptions dataOptions;
-		ComputerOptions computerOptions;
-		ProcessingOptions processingOptions;
+	enum class ParseResults {
+		invalidOpts, helpPrinted, validOpts
 	};
 
-	//takes command line input and parses it into a FullOptions object
-	std::variant<FullOptions, std::exception> parseOptions(int argc, char* argv[], Logger& log);
+	//takes command line input and parses it into the options
+	ParseResults parseOptions(int argc, char* argv[]);
+
+	void writeOptions(std::ostream& out, Options::ParamCategory cat);
 
 }
 #pragma warning (pop)

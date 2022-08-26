@@ -67,8 +67,6 @@ namespace lapis {
 		//The identified dem files, in no particular order
 		std::vector<DemFileAlignment> demFiles;
 
-		Logger log;
-
 		//the number of threads to run on
 		int nThread;
 
@@ -110,27 +108,26 @@ namespace lapis {
 	class LapisObjects {
 	public:
 		LapisObjects();
-		LapisObjects(const FullOptions& opt);
 
 		//there's a lot of memory that just isn't important after you finish with the point metrics and can be freed
 		void cleanUpAfterPointMetrics();
 
-		std::unique_ptr<LasProcessingObjects> lasProcessingObjects;
-		std::unique_ptr<GlobalProcessingObjects> globalProcessingObjects;
+		std::unique_ptr<LasProcessingObjects> lp;
+		std::unique_ptr<GlobalProcessingObjects> gp;
 
 		//these functions are protected instead of private to enable easier testing 
 	protected:
 
-		void finalParams(const FullOptions& opt);
-		void identifyLasFiles(const FullOptions& opt);
-		void identifyDEMFiles(const FullOptions& opt);
-		void setFilters(const FullOptions& opt);
-		void setPointMetrics(const FullOptions& opt);
-		void setTopoMetrics(const FullOptions& opt);
-		void setCSMMetrics(const FullOptions& opt);
+		void finalParams(const Options& opt);
+		void identifyLasFiles(const Options& opt);
+		void identifyDEMFiles(const Options& opt);
+		void setFilters(const Options& opt);
+		void setPointMetrics(const Options& opt);
+		void setTopoMetrics(const Options& opt);
+		void setCSMMetrics(const Options& opt);
 		//as a necessary consequence of the complicated chain of dependencies, this function also reprojects the las extents into the output extent
-		void createOutAlignment(const FullOptions& opt);
-		void sortLasFiles(const FullOptions& opt);
+		void createOutAlignment(const Options& opt);
+		void sortLasFiles(const Options& opt);
 		void makeNLaz();
 
 	private:
@@ -138,11 +135,9 @@ namespace lapis {
 		using openFuncType = void(const std::filesystem::path&, std::vector<T>&, Logger&,
 			const CoordRef&, const Unit&);
 		template<class T>
-		std::vector<T> iterateOverFileSpecifiers(const std::vector<std::string>& specifiers, openFuncType<T> openFunc, Logger& log,
+		std::vector<T> iterateOverFileSpecifiers(const std::vector<std::string>& specifiers, openFuncType<T> openFunc,
 			const CoordRef& crsOverride, const Unit& zUnitOverride);
 
-		//returns a useful default for the number of concurrent threads to run
-		unsigned int defaultNThread();
 	};
 
 	//attempts to open the given file as a las/laz file. If it succeeds, adds the given file to data

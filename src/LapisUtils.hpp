@@ -26,6 +26,10 @@ namespace lapis {
 	std::string insertZeroes(int value, int maxvalue);
 
 
+	//returns a useful default for the number of concurrent threads to run
+	unsigned int defaultNThread();
+
+
 }
 
 #endif

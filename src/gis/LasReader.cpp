@@ -62,8 +62,16 @@ namespace lapis {
 	void LasReader::addDEM(const std::string& file, const CoordRef& crsOverride, const Unit& unitOverride) {
 
 		Extent rastExt = Alignment(file); //this kind of goofy line forces the check that file is a raster file and not some other object
+		bool hasoverlap = false;
 		QuadExtent thisProjExt{ *this,rastExt.crs() };
-		if (!thisProjExt.overlaps(rastExt)) {
+		if (crs().isConsistentHoriz(rastExt.crs())) {
+			hasoverlap = overlaps(rastExt);
+		}
+		else {
+			hasoverlap = thisProjExt.overlaps(rastExt);
+		}
+		
+		if (!hasoverlap) {
 			return;
 		}
 
@@ -81,8 +89,9 @@ namespace lapis {
 
 	Raster<coord_t> LasReader::unifiedDEM(const Alignment& a)
 	{
-		Alignment thisAlign = extend(a, *this, SnapType::out);
-		thisAlign = crop(a, *this, SnapType::out);
+		Extent thisExt = QuadExtent(*this, a.crs()).outerExtent();
+		Alignment thisAlign = extend(a, thisExt, SnapType::out);
+		thisAlign = crop(a, thisExt, SnapType::out);
 		Raster<coord_t> out{ thisAlign };
 
 		for (cell_t cell = 0; cell < out.ncell(); ++cell) {

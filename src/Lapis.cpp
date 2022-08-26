@@ -5,15 +5,18 @@ using namespace lapis;
 
 int main(int argc, char* argv[])
 {
-	Logger log;
-	auto parsed = parseOptions(argc, argv, log);
-	if (std::holds_alternative<std::exception>(parsed)) {
+	ParseResults parsed = parseOptions(argc, argv);
+	if (parsed == ParseResults::invalidOpts) {
 		std::cout << "Error parsing command line\n";
 		exit(-1);
 	}
-	FullOptions& opt = std::get<FullOptions>(parsed);
+	else if (parsed == ParseResults::helpPrinted) {
+		exit(-1);
+	}
 
-	LapisController lc{ opt };
+	Logger& log = Logger::getLogger();
+
+	LapisController lc;
 	try {
 		lc.processFullArea();
 		log.logProgress("Done!");
@@ -28,8 +31,6 @@ int main(int argc, char* argv[])
 	
 	
 	//semi-ordered to-do list:
-	//add hooks for mods
-
 	//write a gui
 
 	//add html metadata, in a way that isn't a pain in the ass to extend

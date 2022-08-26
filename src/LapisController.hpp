@@ -25,7 +25,6 @@ namespace lapis {
 	public:
 
 		LapisController();
-		LapisController(const FullOptions& opt);
 
 		void processFullArea();
 
@@ -73,7 +72,7 @@ namespace lapis {
 
 		fs::path getTopoDir() const;
 
-		void writeParams(const FullOptions& opt) const;
+		void writeParams() const;
 
 		//This is the function that performs the work of merging the temporary CSM files into their final tiles
 		//layout is an alignment whose cells represent the extents of the final tiles.
