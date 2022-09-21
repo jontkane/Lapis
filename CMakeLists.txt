@@ -65,6 +65,8 @@ set(LAPIS_APP_SOURCES
 		src/LapisPrivate.hpp
 		src/LapisPrivate.cpp
 		src/lapistypedefs.hpp
+		src/lapisgui.hpp
+		src/lapisgui.cpp
 		)
 
 set(LAPIS_TEST_SOURCES
@@ -83,48 +85,79 @@ set(LAPIS_TEST_SOURCES
 		src/test/csmalgostest.cpp
 		src/test/RasterAlgosTest.cpp
 		)
+		
+set(LAPIS_IMGUI_SOURCES
+		src/imgui/imgui.h
+		src/imgui/imgui.cpp
+		src/imgui/imgui_draw.cpp
+		src/imgui/imgui_impl_glfw.h
+		src/imgui/imgui_impl_glfw.cpp
+		src/imgui/imgui_impl_opengl3.cpp
+		src/imgui/imgui_impl_opengl3.h
+		src/imgui/imgui_impl_opengl3_loader.h
+		src/imgui/imgui_internal.h
+		src/imgui/imgui_tables.cpp
+		src/imgui/imgui_widgets.cpp
+		src/imgui/imconfig.h
+		src/imgui/imstb_rectpack.h
+		src/imgui/imstb_textedit.h
+		src/imgui/imstb_truetype.h
+		)
 
 
 add_library(Lapis_gis STATIC ${LAPIS_GIS_SOURCES})
 add_library(Lapis_app STATIC ${LAPIS_APP_SOURCES})
+add_library(Lapis_imgui STATIC ${LAPIS_IMGUI_SOURCES})
 
 add_executable(Lapis src/lapis.cpp)
 target_link_libraries(Lapis PUBLIC Lapis_gis)
 target_link_libraries(Lapis PUBLIC Lapis_app)
+target_link_libraries(Lapis PUBLIC Lapis_imgui)
 
 add_executable(Lapis_test ${LAPIS_TEST_SOURCES})
 target_link_libraries(Lapis_test PUBLIC Lapis_gis)
 target_link_libraries(Lapis_test PUBLIC Lapis_app)
 
 find_package(Boost 1.74 COMPONENTS program_options REQUIRED)
-include_directories(PRIVATE ${Boost_INCLUDE_DIRS})
+include_directories(${Boost_INCLUDE_DIRS})
 target_link_libraries(Lapis PRIVATE ${Boost_LIBRARIES})
 target_link_libraries(Lapis_test PRIVATE ${Boost_LIBRARIES})
 
 find_package(GDAL 3.4 REQUIRED)
-include_directories(PRIVATE ${GDAL_INCLUDE_DIRS})
+include_directories(${GDAL_INCLUDE_DIRS})
 target_link_libraries(Lapis PRIVATE ${GDAL_LIBRARIES})
 target_link_libraries(Lapis_test PRIVATE ${GDAL_LIBRARIES})
 
 find_package(TIFF REQUIRED)
 
 find_package(GeoTIFF 1.7 REQUIRED)
-include_directories(PRIVATE ${GEOTIFF_INCLUDE_DIRS})
+include_directories(${GEOTIFF_INCLUDE_DIRS})
 target_link_libraries(Lapis PRIVATE ${GEOTIFF_LIBRARIES})
 target_link_libraries(Lapis_test PRIVATE ${GEOTIFF_LIBRARIES})
 
 find_package(PROJ 9.0 REQUIRED)
-include_directories(PRIVATE ${PROJ_INCLUDE_DIR})
+include_directories(${PROJ_INCLUDE_DIR})
 target_link_libraries(Lapis PRIVATE ${PROJ_LIBRARIES})
 target_link_libraries(Lapis_test PRIVATE ${PROJ_LIBRARIES})
 
 find_package(lazperf 3.0 REQUIRED)
-include_directories(PRIVATE LASPERF::lazperf)
+get_target_property(LAZPERF_INCLUDE_DIR LAZPERF::lazperf INTERFACE_INCLUDE_DIRECTORIES)
+include_directories(${LAZPERF_INCLUDE_DIR})
 target_link_libraries(Lapis PRIVATE LAZPERF::lazperf)
 target_link_libraries(Lapis_test PRIVATE LAZPERF::lazperf)
 
 find_package(xtl 0.7 REQUIRED)
-include_directories(PRIVATE ${XTL_INCLUDE_DIR})
+include_directories(${XTL_INCLUDE_DIR})
+
+find_package(glfw3 3.3 REQUIRED)
+target_link_libraries(Lapis PRIVATE glfw)
+
+find_package(OpenGL REQUIRED)
+target_link_libraries(Lapis PRIVATE OpenGL::GL)
+
+add_subdirectory(src/nativefiledialog-extended)
+include_directories(src/nativefiledialog-extended/src/include)
+target_link_libraries(Lapis PRIVATE nfd)
 
 find_package(gtest REQUIRED)
 
@@ -133,9 +166,12 @@ target_precompile_headers(Lapis_gis PRIVATE src/gis/gis_pch.hpp)
 
 if(MSVC)
   target_compile_options(Lapis PRIVATE /W3 /WX)
+  target_compile_options(Lapis_app PRIVATE /W3 /WX)
   target_compile_options(Lapis_gis PRIVATE /W3 /WX)
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
 else()
   target_compile_options(Lapis PRIVATE -Wall -Wextra -Werror)
+  target_compile_options(Lapis_app PRIVATE -Wall -Wextra -Werror)
   target_compile_options(Lapis_gis PRIVATE -Wall -Wextra -Werror)
 endif()
 

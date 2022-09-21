@@ -1,34 +1,39 @@
 #include"LapisController.hpp"
 #include"Options.hpp"
+#include"LapisGui.hpp"
 
 using namespace lapis;
 
 int main(int argc, char* argv[])
 {
-	ParseResults parsed = parseOptions(argc, argv);
-	if (parsed == ParseResults::invalidOpts) {
-		std::cout << "Error parsing command line\n";
-		exit(-1);
+	if (argc < 2) {
+		renderingBoilerplate();
 	}
-	else if (parsed == ParseResults::helpPrinted) {
-		exit(-1);
-	}
+	else {
+		ParseResults parsed = parseOptions(argc, argv);
+		if (parsed == ParseResults::invalidOpts) {
+			std::cout << "Error parsing command line\n";
+			exit(-1);
+		}
+		else if (parsed == ParseResults::helpPrinted) {
+			exit(-1);
+		}
 
-	Logger& log = Logger::getLogger();
+		Logger& log = Logger::getLogger();
 
-	LapisController lc;
-	try {
-		lc.processFullArea();
-		log.logProgress("Done!");
+		LapisController lc;
+		try {
+			lc.processFullArea();
+			log.logProgress("Done!");
+		}
+		catch (std::exception e) {
+			log.logError(e.what());
+			log.logProgress("Run Aborted");
+		}
+		catch (...) {
+			log.logError("Unknown Error\nRun Aborted");
+		}
 	}
-	catch (std::exception e) {
-		log.logError(e.what());
-		log.logProgress("Run Aborted");
-	}
-	catch (...) {
-		log.logError("Unknown Error\nRun Aborted");
-	}
-	
 	
 	//semi-ordered to-do list:
 	//write a gui

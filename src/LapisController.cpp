@@ -104,6 +104,9 @@ namespace lapis {
 		fs::remove_all(getCSMTempDir());
 		fs::remove_all(getTempTAODir());
 		fs::remove_all(getFineIntTempDir());
+		if (!gp->doFineIntensity) {
+			fs::remove_all(getFineIntDir());
+		}
 	}
 
 	template<class T>
@@ -568,6 +571,7 @@ namespace lapis {
 					cropExt = crop(cropExt, thistile);
 					fullTile = crop(fullTile, cropExt, SnapType::out);
 					segments = crop(segments, cropExt, SnapType::out);
+					maxHeight = crop(maxHeight, cropExt, SnapType::out);
 				}
 				std::string outname = "CanopySurfaceModel_" + tileName + ".tif";
 				fullTile.writeRaster((permcsmdir / outname).string());

@@ -159,9 +159,9 @@ namespace lapis {
 				}
 			}
 		}
-		taoid_t label = thisTile;
+		taoid_t label = (taoid_t)thisTile;
 		if (label == 0) {
-			label = nTiles;
+			label = (taoid_t)nTiles;
 		}
 
 		for (const cell_t& c : highPoints) {
@@ -174,7 +174,7 @@ namespace lapis {
 			c = open.popAndReturn();
 			if (labels[c].has_value() && labels[c].value() == QUEUED) {
 				labels[c].value() = label;
-				label += nTiles;
+				label += (taoid_t)nTiles;
 			}
 			rowcol_t row = labels.rowFromCellUnsafe(c);
 			rowcol_t col = labels.colFromCellUnsafe(c);

@@ -2,6 +2,7 @@
 #include"Options.hpp"
 #include"Logger.hpp"
 #include"gis/Alignment.hpp"
+#include"LapisGui.hpp"
 
 
 namespace lapis {
@@ -106,6 +107,142 @@ namespace lapis {
 		}
 	}
 
+	ParseResults parseGui(const LapisGuiObjects& lgo)
+	{
+		Options& opt = Options::getOptionsObject();
+		namespace pn = paramNames;
+		opt.reset();
+		for (auto& s : lgo.lasSpecs) {
+			opt.updateValue(pn::lasFiles, s);
+		}
+		for (auto& s : lgo.demSpecs) {
+			opt.updateValue(pn::demFiles, s);
+		}
+		opt.updateValue(pn::lasCrs, lgo.lasAdvancedData.crsString);
+		opt.updateValue(pn::demCrs, lgo.demAdvancedData.crsString);
+
+		opt.updateValue(pn::lasUnits, lgo.unitRadioOrder[lgo.lasAdvancedData.unitsRadio].name);
+		opt.updateValue(pn::demUnits, lgo.unitRadioOrder[lgo.demAdvancedData.unitsRadio].name);
+
+		opt.updateValue(pn::output, lgo.outputFolderBuffer.data());
+
+		opt.updateValue(pn::canopy, lgo.withUnits.canopyBuffer.data());
+
+		int nallowed = 0;
+		int nblocked = 0;
+		for (size_t i = 0; i < lgo.classesCheck.size(); ++i) {
+			if (lgo.classesCheck[i]) {
+				nallowed++;
+			}
+			else {
+				nblocked++;
+			}
+		}
+		std::string classList = "";
+		if (nblocked < nallowed) {
+			classList = "~";
+		}
+		bool comma = false;
+		for (size_t i = 0; i < lgo.classesCheck.size(); ++i) {
+			if (lgo.classesCheck[i] && nblocked < nallowed) {
+				if (comma) {
+					classList += ",";
+				}
+				else {
+					comma = true;
+				}
+				classList += std::to_string(i);
+			}
+			else if (!lgo.classesCheck[i] && nallowed >= nblocked) {
+				if (comma) {
+					classList += ",";
+				}
+				else {
+					comma = true;
+				}
+				classList += std::to_string(i);
+			}
+		}
+		opt.updateValue(pn::classFilter, classList);
+
+		opt.updateValue(pn::csmCellsize, lgo.withUnits.csmCellsizeBuffer.data());
+		if (lgo.fineint) {
+			opt.updateValue(pn::fineint, "");
+		}
+		if (lgo.firstReturnsCheck) {
+			opt.updateValue(pn::first, "");
+		}
+		opt.updateValue(pn::maxht, lgo.withUnits.maxHtBuffer.data());
+		opt.updateValue(pn::minht, lgo.withUnits.minHtBuffer.data());
+
+		opt.updateValue(pn::outCrs, lgo.outCRSString);
+		if (!lgo.filterWithheldCheck) {
+			opt.updateValue(pn::useWithheld, "");
+		}
+		opt.updateValue(pn::userUnits, lgo.unitRadioOrder[lgo.userUnitsRadio].name);
+		opt.updateValue(pn::xorigin, lgo.withUnits.xOriginBuffer.data());
+		opt.updateValue(pn::yorigin, lgo.withUnits.yOriginBuffer.data());
+		opt.updateValue(pn::xres, lgo.withUnits.xResBuffer.data());
+		opt.updateValue(pn::yres, lgo.withUnits.yResBuffer.data());
+		
+		if (lgo.performance) {
+			opt.updateValue(pn::performance, "");
+		}
+		opt.updateValue(pn::thread, lgo.nThreadBuffer.data());
+
+		opt.updateValue(pn::footprint, lgo.withUnits.footprintDiamBuffer.data());
+		opt.updateValue(pn::smooth, std::to_string(lgo.smoothRadio));
+
+		return ParseResults::validOpts;
+	}
+
+	ParseResults parseIni(const std::string& path)
+	{
+
+		namespace po = boost::program_options;
+		auto& opt = Options::getOptionsObject();
+		opt.reset();
+		auto& params = opt.getParamInfo();
+		auto& log = Logger::getLogger();
+		po::options_description od;
+		po::variables_map vm;
+		try {
+			
+			for (auto& kv : params) {
+				Options::FullParam& p = kv.second;
+				const std::string& key = kv.first;
+				std::string paramNames = key;
+				if (p.cmdAlt.size()) {
+					paramNames += "," + p.cmdAlt;
+				}
+				if (std::holds_alternative<std::string>(p.value)) {
+					std::string* ptr = &(std::get<std::string>(p.value));
+					od.add_options()(paramNames.c_str(), po::value(ptr), p.cmdDoc.c_str());
+				}
+				else if (std::holds_alternative<std::vector<std::string>>(p.value)) {
+					std::vector<std::string>* ptr = &(std::get<std::vector<std::string>>(p.value));
+					od.add_options()(paramNames.c_str(), po::value(ptr), p.cmdDoc.c_str());
+				}
+				else {
+					bool* ptr = &(std::get<bool>(p.value));
+					od.add_options()(paramNames.c_str(), po::value(ptr), p.cmdDoc.c_str());
+				}
+			}
+
+			po::store(po::parse_config_file(path.c_str(), od), vm);
+			po::notify(vm);
+		}
+		catch (boost::program_options::error_with_option_name e) {
+			log.logError(e.what());
+			return ParseResults::invalidOpts;
+		}
+		catch (std::exception e) {
+			log.logError(e.what());
+			return ParseResults::invalidOpts;
+		}
+		return ParseResults::validOpts;
+	}
+
 	void writeOptions(std::ostream& out, Options::ParamCategory cat)
 	{
 		const std::unordered_map<Options::ParamCategory, std::string> catNames =
@@ -136,7 +273,6 @@ namespace lapis {
 			"As a folder name, which will haves it and its subfolders searched for .las or .laz files\n"
 			"As a folder name with a wildcard specifier, e.g. C:\\data\\*.laz\n"
 			"This option can be specified multiple times",
-			"",
 			"L",
 			false));
 
@@ -147,13 +283,16 @@ namespace lapis {
 			"As a folder name with a wildcard specifier, e.g. C:\\data\\*.tif\n"
 			"This option can be specified multiple times\n"
 			"Most raster formats are supported, but arcGIS .gdb geodatabases are not",
-			"",
 			"D",
+			false));
+
+		params.emplace(pn::name, FullParam(dt::single, pc::data,
+			"The name of the acquisition. If specified, will be included in the filenames and metadata.",
+			"N",
 			false));
 
 		params.emplace(pn::output, FullParam(dt::single, pc::data,
 			"The output folder to store results in",
-			"",
 			"O",
 			false));
 
@@ -167,7 +306,6 @@ namespace lapis {
 		params.emplace(pn::alignment, FullParam(dt::single, pc::processing,
 			"A raster file you want the output metrics to align with\n"
 			"Incompatible with --cellsize and --out-crs options",
-			"",
 			"A",
 			false));
 
@@ -176,13 +314,11 @@ namespace lapis {
 			"Defaults to 30 meters\n"
 			"Incompatible with the --alignment options",
 			"",
-			"",
 			false));
 
 		params.emplace(pn::csmCellsize, FullParam(dt::single, pc::processing,
 			"The desired cellsize of the output canopy surface model\n"
 			"Defaults to 1 meter",
-			"",
 			"",
 			false));
 
@@ -190,56 +326,52 @@ namespace lapis {
 			"The desired CRS for the output layers\n"
 			"Incompatible with the --alignment options",
 			"",
-			"",
 			false));
 
 		params.emplace(pn::userUnits, FullParam(dt::single, pc::processing,
 			"The units you want to specify minht, maxht, and canopy in. Defaults to meters.\n"
 			"\tValues: m (for meters), f (for international feet), usft (for us survey feet)",
 			"",
-			"",
 			false));
 
 		params.emplace(pn::canopy, FullParam(dt::single, pc::processing,
 			"The height threshold for a point to be considered canopy.",
-			"",
 			"",
 			false));
 
 		params.emplace(pn::minht, FullParam(dt::single, pc::processing,
 			"The threshold for low outliers. Points with heights below this value will be excluded.",
 			"",
-			"",
 			false));
 
 		params.emplace(pn::maxht, FullParam(dt::single, pc::processing,
 			"The threshold for high outliers. Points with heights above this value will be excluded.",
-			"",
 			"",
 			false));
 
 		params.emplace(pn::strata, FullParam(dt::single, pc::processing,
 			"A comma-separated list of strata breaks on which to calculate strata metrics.",
 			"",
-			"",
 			false));
 
 		params.emplace(pn::first, FullParam(dt::binary, pc::processing,
 			"Perform this run using only first returns.",
 			"",
+			false));
+
+		params.emplace(pn::advancedPoint, FullParam(dt::binary, pc::processing,
+			"Calculate a larger suite of point metrics.",
 			"",
 			false));
 
 		params.emplace(pn::fineint, FullParam(dt::binary, pc::processing,
 			"Create a canopy mean intensity raster with the same resolution as the CSM",
 			"",
-			"",
 			false));
 
 		params.emplace(pn::classFilter, FullParam(dt::single, pc::processing,
 			"A comma-separated list of LAS point classifications to use for this run.\n"
 			"Alternatively, preface the list with ~ to specify a blacklist.",
-			"",
 			"",
 			false));
 
@@ -250,16 +382,15 @@ namespace lapis {
 		params.emplace(pn::yres, FullParam(dt::single, pc::processing));
 		params.emplace(pn::xorigin, FullParam(dt::single, pc::processing));
 		params.emplace(pn::yorigin, FullParam(dt::single, pc::processing));
+		params.emplace(pn::gdalprojDisplay, FullParam(dt::binary, pc::computer));
 
 		params.emplace(pn::thread, FullParam(dt::single, pc::computer,
 			"The number of threads to run Lapis on. Defaults to the number of cores on the computer",
-			"",
 			"",
 			false));
 
 		params.emplace(pn::performance, FullParam(dt::binary, pc::computer,
 			"Run in performance mode, with a vertical resolution of 10cm instead of 1cm.",
-			"",
 			"",
 			false));
 	}
@@ -328,16 +459,16 @@ namespace lapis {
 			return "";
 		}
 		else if (key == paramNames::xres) {
-			return key + "=" + std::to_string(getAlign().xres) + "\n";
+			return key + "=" + std::to_string(std::abs(getAlign().xres)) + "\n";
 		}
 		else if (key == paramNames::yres) {
-			return key + "=" + std::to_string(getAlign().yres) + "\n";
+			return key + "=" + std::to_string(std::abs(getAlign().yres)) + "\n";
 		}
 		else if (key == paramNames::xorigin) {
-			return key + "=" + std::to_string(getAlign().xorigin) + "\n";
+			return key + "=" + std::to_string(std::abs(getAlign().xorigin)) + "\n";
 		}
 		else if (key == paramNames::yorigin) {
-			return key + "=" + std::to_string(getAlign().yorigin) + "\n";
+			return key + "=" + std::to_string(std::abs(getAlign().yorigin)) + "\n";
 		}
 
 		auto& v = params.at(key).value;
@@ -525,9 +656,9 @@ namespace lapis {
 	bool Options::getUseWithheldFlag() const {
 		return getAsBool(paramNames::useWithheld);
 	}
-	double Options::getMaxScanAngle() const
+	int8_t Options::getMaxScanAngle() const
 	{
-		return getAsDouble(paramNames::maxScanAngle, -1);
+		return (int8_t)getAsDouble(paramNames::maxScanAngle, -1);
 	}
 	bool Options::getOnlyFlag() const {
 		return getAsBool(paramNames::onlyReturns);
@@ -538,12 +669,28 @@ namespace lapis {
 	bool Options::getPerformanceFlag() const {
 		return getAsBool(paramNames::performance);
 	}
+	const std::string& Options::getName() const
+	{
+		return getAsString(paramNames::name);
+	}
+	bool Options::getGdalProjWarningFlag() const
+	{
+		return getAsBool(paramNames::gdalprojDisplay);
+	}
+	bool Options::getAdvancedPointFlag() const
+	{
+		return getAsBool(paramNames::advancedPoint);
+	}
+	void Options::reset()
+	{
+		*this = Options();
+	}
 	std::map<std::string, Options::FullParam>& Options::getParamInfo()
 	{
 		return params;
 	}
-	Options::FullParam::FullParam(Options::DataType type, ParamCategory cat, const std::string& cmdDoc, const std::string& guiDoc, const std::string& cmdAlt, bool hidden) :
-		cmdDoc(cmdDoc), guiDoc(guiDoc), cmdAlt(cmdAlt), hidden(hidden) {
+	Options::FullParam::FullParam(Options::DataType type, ParamCategory cat, const std::string& cmdDoc, const std::string& cmdAlt, bool hidden) :
+		cmdDoc(cmdDoc), cmdAlt(cmdAlt), hidden(hidden) {
 		if (type==DataType::multi) {
 			value = std::vector<std::string>();
 		}
@@ -555,5 +702,5 @@ namespace lapis {
 		}
 		this->cat = cat;
 	}
-	Options::FullParam::FullParam(Options::DataType type, ParamCategory cat) : FullParam(type, cat, "", "", "", true) {}
+	Options::FullParam::FullParam(Options::DataType type, ParamCategory cat) : FullParam(type, cat, "", "", true) {}
 }

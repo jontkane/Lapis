@@ -9,11 +9,9 @@
 #include"gis/Alignment.hpp"
 #include"LapisUtils.hpp"
 
-//these 26495 warnings come from the implementation of boost::optional
-//and completely don't matter because a default-constructed optional will have has_value false
-#pragma warning (push)
-#pragma warning (disable : 26495)
 namespace lapis {
+
+	struct LapisGuiObjects;
 
 	namespace paramNames {
 		const std::string lasFiles = "las";
@@ -46,6 +44,9 @@ namespace lapis {
 		const std::string yorigin = "yorigin";
 		const std::string thread = "thread";
 		const std::string performance = "performance";
+		const std::string name = "name";
+		const std::string gdalprojDisplay = "gdalproj";
+		const std::string advancedPoint = "adv-metrics";
 	}
 
 	class Options {
@@ -61,11 +62,10 @@ namespace lapis {
 			RawParam value;
 			ParamCategory cat;
 			std::string cmdDoc;
-			std::string guiDoc;
 			std::string cmdAlt;
 			bool hidden;
 
-			FullParam(DataType type, ParamCategory cat, const std::string& cmdDoc, const std::string& guiDoc, const std::string& cmdAlt, bool hidden);
+			FullParam(DataType type, ParamCategory cat, const std::string& cmdDoc, const std::string& cmdAlt, bool hidden);
 			FullParam(DataType type, ParamCategory cat);
 		};
 		struct AlignWithoutExtent {
@@ -112,10 +112,15 @@ namespace lapis {
 		ClassFilter getClassFilter() const;
 		bool getUseWithheldFlag() const;
 		//value is negative if there isn't a scan angle filter
-		double getMaxScanAngle() const;
+		int8_t getMaxScanAngle() const;
 		bool getOnlyFlag() const;
 		int getNThread() const;
 		bool getPerformanceFlag() const;
+		const std::string& getName() const;
+		bool getGdalProjWarningFlag() const;
+		bool getAdvancedPointFlag() const;
+
+		void reset();
 
 		std::map<std::string, FullParam>& getParamInfo();
 
@@ -138,9 +143,11 @@ private:
 	//takes command line input and parses it into the options
 	ParseResults parseOptions(int argc, char* argv[]);
 
+	ParseResults parseGui(const LapisGuiObjects& lgo);
+	ParseResults parseIni(const std::string& path);
+
 	void writeOptions(std::ostream& out, Options::ParamCategory cat);
 
 }
-#pragma warning (pop)
 
 #endif

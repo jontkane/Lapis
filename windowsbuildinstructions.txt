@@ -4,7 +4,7 @@ In the anaconda shell:
 
 conda create -n lapis-conda
 conda activate lapis-conda
-conda install -c conda-forge boost gdal proj geotiff libtiff xtl laz-perf gtest
+conda install -c conda-forge boost gdal proj geotiff libtiff xtl laz-perf gtest glfw
 
 Add the folder with all the newly-installed DLLs to the PATH environment variable. By default, that's C:\users\yourusername\anaconda3\envs\lapis\library\bin. Not only will this let Lapis find the needed DLLs, this will be enough of a hint for cmake to find the installed packages.
 

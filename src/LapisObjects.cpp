@@ -363,7 +363,7 @@ namespace lapis {
 
 					if (ext.size()) {
 						for (auto& subpath : fs::directory_iterator(specPath.parent_path())) {
-							if (subpath.path().has_extension() && subpath.path().extension() == ext) {
+							if (subpath.path().has_extension() && subpath.path().extension() == ext || ext == ".*") {
 								toCheck.push(subpath.path().string());
 							}
 						}
