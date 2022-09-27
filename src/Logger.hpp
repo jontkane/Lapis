@@ -29,6 +29,8 @@ namespace lapis {
 
 		void logDiagnostic(const std::string& out) const;
 
+		void setOStream(std::ostream* o);
+
 	private:
 		std::ostream* output;
 		Level level;

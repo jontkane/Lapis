@@ -50,6 +50,7 @@ namespace lapis {
 		struct TopoMetric {
 			ViewFunc<coord_t, metric_t> metric;
 			std::string name;
+			OutputUnitLabel unit;
 		};
 		std::vector<TopoMetric> topoMetrics;
 	};
@@ -99,8 +100,11 @@ namespace lapis {
 			ViewFunc<csm_t, metric_t> f;
 			std::string name;
 			Raster<metric_t> r;
+			OutputUnitLabel unit;
 		};
 		std::vector<CSMMetric> csmMetrics;
+
+		std::string runName;
 	};
 
 	//this class stores all the parameters of the run in a form usable by the actual logic of the app

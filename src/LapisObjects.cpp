@@ -95,22 +95,24 @@ namespace lapis {
 
 	void LapisObjects::setPointMetrics(const Options& opt)
 	{
+
+		using oul = OutputUnitLabel;
 		auto& pointMetrics = lp->metricRasters;
 		auto& metricAlign = gp->metricAlign;
 		auto& stratumMetrics = lp->stratumRasters;
 
-		auto addMetric = [&](std::string&& name, MetricFunc f) {
-			pointMetrics.emplace_back(std::move(name), f, metricAlign);
+		auto addMetric = [&](std::string&& name, MetricFunc f, oul u) {
+			pointMetrics.emplace_back(std::move(name), f, metricAlign, u);
 		};
 
-		addMetric("Mean_CanopyHeight", &PointMetricCalculator::meanCanopy);
-		addMetric("StdDev_CanopyHeight", &PointMetricCalculator::stdDevCanopy);
-		addMetric("25thPercentile_CanopyHeight", &PointMetricCalculator::p25Canopy);
-		addMetric("50thPercentile_CanopyHeight", &PointMetricCalculator::p50Canopy);
-		addMetric("75thPercentile_CanopyHeight", &PointMetricCalculator::p75Canopy);
-		addMetric("95thPercentile_CanopyHeight", &PointMetricCalculator::p95Canopy);
-		addMetric("TotalReturnCount", &PointMetricCalculator::returnCount);
-		addMetric("CanopyCover", &PointMetricCalculator::canopyCover);
+		addMetric("Mean_CanopyHeight", &PointMetricCalculator::meanCanopy,oul::Default);
+		addMetric("StdDev_CanopyHeight", &PointMetricCalculator::stdDevCanopy,oul::Default);
+		addMetric("25thPercentile_CanopyHeight", &PointMetricCalculator::p25Canopy,oul::Default);
+		addMetric("50thPercentile_CanopyHeight", &PointMetricCalculator::p50Canopy,oul::Default);
+		addMetric("75thPercentile_CanopyHeight", &PointMetricCalculator::p75Canopy,oul::Default);
+		addMetric("95thPercentile_CanopyHeight", &PointMetricCalculator::p95Canopy,oul::Default);
+		addMetric("TotalReturnCount", &PointMetricCalculator::returnCount,oul::Unitless);
+		addMetric("CanopyCover", &PointMetricCalculator::canopyCover,oul::Percent);
 
 
 		std::vector<coord_t> strataBreaks = opt.getStrataBreaks();
@@ -128,24 +130,26 @@ namespace lapis {
 			}
 			stratumNames.push_back("GreaterThan" + to_string_with_precision(strataBreaks[strataBreaks.size() - 1]));
 
-			stratumMetrics.emplace_back("StratumCover_", stratumNames, &PointMetricCalculator::stratumCover, metricAlign);
-			stratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &PointMetricCalculator::stratumPercent, metricAlign);
+			stratumMetrics.emplace_back("StratumCover_", stratumNames, &PointMetricCalculator::stratumCover, metricAlign,oul::Percent);
+			stratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &PointMetricCalculator::stratumPercent, metricAlign,oul::Percent);
 		}
 		
 	}
 
 	void LapisObjects::setTopoMetrics(const Options& opt) {
-		lp->topoMetrics.push_back({ viewSlope<coord_t,metric_t>,"Slope" });
-		lp->topoMetrics.push_back({ viewAspect<coord_t,metric_t>,"Aspect" });
+		using oul = OutputUnitLabel;
+		lp->topoMetrics.push_back({ viewSlope<coord_t,metric_t>,"Slope",oul::Radian});
+		lp->topoMetrics.push_back({ viewAspect<coord_t,metric_t>,"Aspect",oul::Radian});
 	}
 
 	void LapisObjects::setCSMMetrics(const Options& opt) {
 		auto& csmMetrics = gp->csmMetrics;
 		auto& align = gp->metricAlign;
-		csmMetrics.push_back({ &viewMax<csm_t>, "MaxCSM", align });
-		csmMetrics.push_back({ &viewMean<csm_t>, "MeanCSM", align });
-		csmMetrics.push_back({ &viewStdDev<csm_t>, "StdDevCSM", align });
-		csmMetrics.push_back({ &viewRumple<csm_t>, "RumpleCSM", align });
+		using oul = OutputUnitLabel;
+		csmMetrics.push_back({ &viewMax<csm_t>, "MaxCSM", align,oul::Default});
+		csmMetrics.push_back({ &viewMean<csm_t>, "MeanCSM", align,oul::Default});
+		csmMetrics.push_back({ &viewStdDev<csm_t>, "StdDevCSM", align,oul::Default});
+		csmMetrics.push_back({ &viewRumple<csm_t>, "RumpleCSM", align,oul::Unitless});
 	}
 
 	void LapisObjects::createOutAlignment(const Options& opt) {
@@ -301,6 +305,8 @@ namespace lapis {
 		gp->smoothWindow = opt.getSmoothWindow();
 
 		gp->doFineIntensity = opt.getFineIntFlag();
+
+		gp->runName = opt.getName();
 	}
 
 	void LapisObjects::makeNLaz()

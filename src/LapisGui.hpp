@@ -8,6 +8,7 @@
 #include <GLFW/glfw3.h>
 #include <nfd.hpp>
 #include "gis/Unit.hpp"
+#include "LapisController.hpp"
 
 
 namespace lapis {
@@ -123,9 +124,13 @@ namespace lapis {
 		bool fineint = false;
 
 		NFD::UniquePathU8 inifile;
+
+		LapisController lc;
+		std::thread runThread;
+		std::stringstream logStream;
 	};
 
-	void renderingBoilerplate();
+	void renderGui();
 
 	void lapisGui(LapisGuiObjects& lgo);
 

@@ -6,7 +6,7 @@
 #include"gis/alignment.hpp"
 
 namespace lapis {
-	void renderingBoilerplate()
+	void renderGui()
 	{
 		//the code in this function is copied mostly unedited from the ImGui glfw examples
 		if (!glfwInit()) {
@@ -78,44 +78,40 @@ namespace lapis {
 
 		ImGui::BeginTabBar("MainTabs");
 
-		if (ImGui::BeginTabItem("Run")) {
-			runTab(lgo);
-			ImGui::EndTabItem();
-		}
-		if (ImGui::BeginTabItem("Data Options")) {
-			ImGui::BeginChild("OutputFolderSelect", ImVec2(ImGui::GetContentRegionAvail().x, 75), true, 0);
-			ImGui::Text("Output Folder:");
-			ImGui::InputText("",lgo.outputFolderBuffer.data(),lgo.outputFolderBuffer.size());
-			if (ImGui::Button("Browse")) {
-				NFD::PickFolder(lgo.outputFolderPath);
+		if (!lgo.lc.isRunning()) {
+			if (ImGui::BeginTabItem("Run")) {
+				runTab(lgo);
+				ImGui::EndTabItem();
 			}
-			if (lgo.outputFolderPath) {
-				strncpy_s(lgo.outputFolderBuffer.data(), lgo.outputFolderBuffer.size(), lgo.outputFolderPath.get(), lgo.outputFolderBuffer.size());
-				lgo.outputFolderPath.reset();
+			if (ImGui::BeginTabItem("Data Options")) {
+				ImGui::BeginChild("LasButtonsChild", ImVec2(ImGui::GetContentRegionMax().x * 0.5f - 2, 260), true, 0);
+				lasFileButtons(lgo);
+				ImGui::EndChild();
+				ImGui::SameLine();
+				ImGui::BeginChild("DemButtonsChild", ImVec2(ImGui::GetContentRegionMax().x * 0.5f - 2, 260), true, 0);
+				demFileButtons(lgo);
+				ImGui::EndChild();
+				advancedDataOptions(lgo);
+				ImGui::EndTabItem();
 			}
-			ImGui::EndChild();
-
-			ImGui::BeginChild("LasButtonsChild", ImVec2(ImGui::GetContentRegionMax().x * 0.5f - 2, 260), true, 0);
-			lasFileButtons(lgo);
-			ImGui::EndChild();
-			ImGui::SameLine();
-			ImGui::BeginChild("DemButtonsChild", ImVec2(ImGui::GetContentRegionMax().x * 0.5f - 2, 260), true, 0);
-			demFileButtons(lgo);
-			ImGui::EndChild();
-			advancedDataOptions(lgo);
-			ImGui::EndTabItem();
+			if (ImGui::BeginTabItem("Computer Options")) {
+				ImGui::Text("Number of threads:");
+				ImGui::SameLine();
+				ImGui::InputText("", lgo.nThreadBuffer.data(), lgo.nThreadBuffer.size(), ImGuiInputTextFlags_CharsDecimal);
+				ImGui::Checkbox("Performance Mode", &lgo.performance);
+				ImGui::Checkbox("Suppress GDAL and Proj warnings", &lgo.suppressWarnings);
+				ImGui::EndTabItem();
+			}
+			if (ImGui::BeginTabItem("Processing Options")) {
+				processingOptions(lgo);
+				ImGui::EndTabItem();
+			}
 		}
-		if (ImGui::BeginTabItem("Computer Options")) { 
-			ImGui::Text("Number of threads:");
-			ImGui::SameLine();
-			ImGui::InputText("", lgo.nThreadBuffer.data(),lgo.nThreadBuffer.size(),ImGuiInputTextFlags_CharsDecimal);
-			ImGui::Checkbox("Performance Mode", &lgo.performance);
-			ImGui::Checkbox("Suppress GDAL and Proj warnings", &lgo.suppressWarnings);
-			ImGui::EndTabItem();
-		}
-		if (ImGui::BeginTabItem("Processing Options")) { 
-			processingOptions(lgo);
-			ImGui::EndTabItem();
+		else {
+			if (ImGui::BeginTabItem("Run")) {
+				runTab(lgo);
+				ImGui::EndTabItem();
+			}
 		}
 		ImGui::EndTabBar();
 
@@ -750,23 +746,59 @@ namespace lapis {
 	void runTab(LapisGuiObjects& lgo) {
 		ImGui::Text("Run Name:");
 		ImGui::SameLine();
-		ImGui::InputText("##runname", lgo.nameBuffer.data(), lgo.nameBuffer.size());
-		if (ImGui::Button("Import Parameters")) {
-			std::unique_ptr<nfdu8filteritem_t> iniFileFilter = std::make_unique<nfdu8filteritem_t>("ini files", "ini");
-			NFD::OpenDialog(lgo.inifile, iniFileFilter.get(),1);
+		if (!lgo.lc.isRunning())
+			ImGui::InputText("##runname", lgo.nameBuffer.data(), lgo.nameBuffer.size());
+		else
+			ImGui::Text(lgo.nameBuffer.data());
+		ImGui::BeginChild("OutputFolderSelect", ImVec2(ImGui::GetContentRegionAvail().x, 75), true, 0);
+		ImGui::Text("Output Folder:");
+		if (!lgo.lc.isRunning()) {
+			ImGui::InputText("", lgo.outputFolderBuffer.data(), lgo.outputFolderBuffer.size());
+			if (ImGui::Button("Browse")) {
+				NFD::PickFolder(lgo.outputFolderPath);
+			}
 		}
-
-		if (lgo.inifile) {
-			Options& opt = Options::getOptionsObject();
-			parseIni(lgo.inifile.get());
-			lgo.importFromCmdOptions(opt);
-			lgo.inifile.reset();
+		else {
+			ImGui::Text(lgo.outputFolderBuffer.data());
 		}
+		if (lgo.outputFolderPath) {
+			strncpy_s(lgo.outputFolderBuffer.data(), lgo.outputFolderBuffer.size(), lgo.outputFolderPath.get(), lgo.outputFolderBuffer.size());
+			lgo.outputFolderPath.reset();
+		}
+		ImGui::EndChild();
+		
+		if (ImGui::Button("Start Run")) {
+			if (!lgo.lc.isRunning()) {
+				lgo.logStream.str() = "";
+				Options& opt = Options::getOptionsObject();
+				parseGui(lgo);
+				auto f = [&] {lgo.lc.processFullArea(); };
+				lgo.runThread = std::thread(f);
+				lgo.runThread.detach();
+			}
+		}
+		if (!lgo.lc.isRunning()) {
+			ImGui::SameLine();
+			if (ImGui::Button("Import Parameters")) {
+				std::unique_ptr<nfdu8filteritem_t> iniFileFilter = std::make_unique<nfdu8filteritem_t>("ini files", "ini");
+				NFD::OpenDialog(lgo.inifile, iniFileFilter.get(), 1);
+			}
 
-		ImGui::SameLine();
-		if (ImGui::Button("Check Parameters for Issues")) {}
-		ImGui::SameLine();
-		if (ImGui::Button("Check Data for Issues")) {};
+			if (lgo.inifile) {
+				Options& opt = Options::getOptionsObject();
+				parseIni(lgo.inifile.get());
+				lgo.importFromCmdOptions(opt);
+				lgo.inifile.reset();
+			}
+
+			ImGui::SameLine();
+			if (ImGui::Button("Check Parameters for Issues")) {}
+			ImGui::SameLine();
+			if (ImGui::Button("Check Data for Issues")) {};
+		}
+		ImGui::BeginChild("##log", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y), true, 0);
+		ImGui::Text(lgo.logStream.str().c_str());
+		ImGui::EndChild();
 	}
 
 	void updateClassListString(LapisGuiObjects& lgo) {
@@ -803,6 +835,9 @@ namespace lapis {
 
 	LapisGuiObjects::LapisGuiObjects()
 	{
+		auto& log = Logger::getLogger();
+		log.setOStream(&logStream);
+
 		unsigned int defnt = defaultNThread() > 1000 ? 999 : defaultNThread(); //I'm not sure if this will ever be run on a thousand core supercomputer, but, I only give 3 characters for entry in the buffer
 		strcpy_s(nThreadBuffer.data(), nThreadBuffer.size(), std::to_string(defnt).c_str());
 		unitRadioOrder = { linearUnitDefs::unkLinear,linearUnitDefs::meter,linearUnitDefs::foot,linearUnitDefs::surveyFoot };

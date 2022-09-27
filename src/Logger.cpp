@@ -33,4 +33,9 @@ namespace lapis {
 		logWithLevel(out, diagnostic);
 	}
 
+	void Logger::setOStream(std::ostream* o)
+	{
+		output = o;
+	}
+
 }

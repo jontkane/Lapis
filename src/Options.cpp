@@ -8,7 +8,7 @@
 namespace lapis {
 	
 
-	ParseResults parseOptions(int argc, char* argv[])
+	ParseResults parseOptions(const std::vector<std::string>& args)
 	{
 		namespace po = boost::program_options;
 
@@ -19,6 +19,7 @@ namespace lapis {
 			po::options_description cmdOnlyOpts;
 			cmdOnlyOpts.add_options()
 				("help", "Print this message and exit")
+				("gui", "Display the GUI")
 				("ini-file", po::value<std::vector<std::string>>(), "The .ini file containing parameters for this run\n"
 					"You may specify this multiple times; values from earlier files will be preferred")
 				;
@@ -72,7 +73,7 @@ namespace lapis {
 
 
 			po::variables_map vmFull;
-			po::store(po::command_line_parser(argc, argv)
+			po::store(po::command_line_parser(args)
 				.options(cmdOptions)
 				.run(), vmFull);
 			po::notify(vmFull);
@@ -86,12 +87,15 @@ namespace lapis {
 			}
 
 
-			if (vmFull.count("help") || argc < 2) {
-				std::cout <<
+			if (vmFull.count("help") || !args.size()) {
+				std::cout << "\n" <<
 					cmdOnlyOpts <<
 					visibleOpts <<
 					"\n";
 				return ParseResults::helpPrinted;
+			}
+			if (vmFull.count("gui")) {
+				return ParseResults::guiRequested;
 			}
 
 			
@@ -139,31 +143,35 @@ namespace lapis {
 			}
 		}
 		std::string classList = "";
-		if (nblocked < nallowed) {
-			classList = "~";
-		}
-		bool comma = false;
-		for (size_t i = 0; i < lgo.classesCheck.size(); ++i) {
-			if (lgo.classesCheck[i] && nblocked < nallowed) {
-				if (comma) {
-					classList += ",";
-				}
-				else {
-					comma = true;
-				}
-				classList += std::to_string(i);
+
+		if (nblocked > 0) {
+			if (nblocked < nallowed) {
+				classList = "~";
 			}
-			else if (!lgo.classesCheck[i] && nallowed >= nblocked) {
-				if (comma) {
-					classList += ",";
+			bool comma = false;
+
+			for (size_t i = 0; i < lgo.classesCheck.size(); ++i) {
+				if (lgo.classesCheck[i] && (nblocked >= nallowed)) {
+					if (comma) {
+						classList += ",";
+					}
+					else {
+						comma = true;
+					}
+					classList += std::to_string(i);
 				}
-				else {
-					comma = true;
+				else if (!lgo.classesCheck[i] && (nblocked < nallowed)) {
+					if (comma) {
+						classList += ",";
+					}
+					else {
+						comma = true;
+					}
+					classList += std::to_string(i);
 				}
-				classList += std::to_string(i);
 			}
+			opt.updateValue(pn::classFilter, classList);
 		}
-		opt.updateValue(pn::classFilter, classList);
 
 		opt.updateValue(pn::csmCellsize, lgo.withUnits.csmCellsizeBuffer.data());
 		if (lgo.fineint) {
@@ -250,7 +258,7 @@ namespace lapis {
 			{Options::ParamCategory::data,"#Data Parameters\n"},
 			{Options::ParamCategory::processing,"#Processing Parameters\n"} };
 
-		out << std::setprecision(std::numeric_limits<coord_t>::digits10 + 1);
+		out << std::setprecision((std::streamsize)std::numeric_limits<coord_t>::digits10 + 1);
 		out << catNames.at(cat);
 		Options& opt = Options::getOptionsObject();
 		for (auto& kv : opt.getParamInfo()) {

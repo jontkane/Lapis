@@ -9,6 +9,10 @@ namespace lapis {
 	using intensity_t = uint32_t;
 	using csm_t = coord_t;
 	using taoid_t = uint32_t; //int64 would be ideal but none of the common raster formats support it
+
+	enum class OutputUnitLabel {
+		Default, Radian, Percent, Unitless
+	};
 }
 
 #endif

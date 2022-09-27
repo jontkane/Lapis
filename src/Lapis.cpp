@@ -1,39 +1,89 @@
+#ifdef _WIN32
+#define _WIN32_WINNT 0x0501
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include<windows.h>
+#include<shellapi.h>
+#endif
+
+
 #include"LapisController.hpp"
 #include"Options.hpp"
 #include"LapisGui.hpp"
+#include<sstream>
 
 using namespace lapis;
 
+int unifiedMain(std::vector<std::string> args) {
+	if (!args.size()) {
+		args.push_back("--help");
+	}
+	ParseResults parsed = parseOptions(args);
+	if (parsed == ParseResults::invalidOpts) {
+		std::cout << "Error parsing command line\n";
+		return 1;
+	}
+	else if (parsed == ParseResults::helpPrinted) {
+		return 0;
+	}
+	else if (parsed == ParseResults::guiRequested) {
+		renderGui();
+		return 0;
+	}
+
+	Logger& log = Logger::getLogger();
+
+	LapisController lc;
+	try {
+		lc.processFullArea();
+	}
+	catch (std::exception e) {
+		log.logError(e.what());
+		log.logProgress("Run Aborted");
+		return 1;
+	}
+	catch (...) {
+		log.logError("Unknown Error\nRun Aborted");
+		return 1;
+	}
+	return 0;
+}
+
+#ifdef _WIN32
+int APIENTRY WinMain(
+	_In_ HINSTANCE hInstance,
+	_In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPSTR lpCmdLine,
+	_In_ int nShowCmd
+) {
+	bool attachResult = AttachConsole(ATTACH_PARENT_PROCESS);
+	if (!attachResult) { //there is no parent console. Just open the GUI
+		renderGui();
+		return 0;
+	}
+	std::array<char, 30> oldTitle = std::array<char, 30>();
+	auto oldTitle = GetConsoleTitle(oldTitle.data(), oldTitle.size());
+	SetConsoleTitle("Lapis");
+
+	FILE* newPtr = nullptr;
+	freopen_s(&newPtr, "CON", "w", stdout);
+
+	std::vector<std::string> args = boost::program_options::split_winmain(lpCmdLine);
+	int result = unifiedMain(args);
+	SetConsoleTitle(oldTitle.data());
+	FreeConsole();
+	return result;
+}
+#endif
+
 int main(int argc, char* argv[])
 {
-	if (argc < 2) {
-		renderingBoilerplate();
+	std::vector<std::string> args;
+	for (int i = 1; i < argc; ++i) { //starting from 1 to skip the exe location, to match the WinMain entry
+		args.push_back(std::string(argv[i]));
 	}
-	else {
-		ParseResults parsed = parseOptions(argc, argv);
-		if (parsed == ParseResults::invalidOpts) {
-			std::cout << "Error parsing command line\n";
-			exit(-1);
-		}
-		else if (parsed == ParseResults::helpPrinted) {
-			exit(-1);
-		}
-
-		Logger& log = Logger::getLogger();
-
-		LapisController lc;
-		try {
-			lc.processFullArea();
-			log.logProgress("Done!");
-		}
-		catch (std::exception e) {
-			log.logError(e.what());
-			log.logProgress("Run Aborted");
-		}
-		catch (...) {
-			log.logError("Unknown Error\nRun Aborted");
-		}
-	}
+	return unifiedMain(args);
+}
 	
 	//semi-ordered to-do list:
 	//write a gui
@@ -80,4 +130,4 @@ int main(int argc, char* argv[])
 	//write a manual
 
 	//one final optimization pass
-}
+

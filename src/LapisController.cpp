@@ -1,31 +1,34 @@
 #include "LapisController.hpp"
 #include"app_pch.hpp"
 #include"LapisController.hpp"
+#include"Options.hpp"
 
 
 namespace chr = std::chrono;
 namespace fs = std::filesystem;
 
 namespace lapis {
-	LapisController::LapisController() : obj()
+	LapisController::LapisController() : obj(), gp(nullptr), lp(nullptr), pr()
 	{
-		gp = obj.gp.get();
-		lp = obj.lp.get();
-
-		pr = std::make_unique<LapisPrivate>(obj);
 	}
 
 	void LapisController::processFullArea()
 	{
-
+		_isRunning = true;
 		Logger& log = Logger::getLogger();
+		log.logProgress("Run Begun");
+
+
+
+		obj = std::make_unique<LapisObjects>();
+		gp = obj->gp.get();
+		lp = obj->lp.get();
+		pr = std::make_unique<LapisPrivate>(*obj.get());
 
 		writeParams();
 
 		size_t soFarLas = 0;
 		auto pointMetricThreadFunc = [&] {pointMetricThread(soFarLas); };
-		fs::path pointMetricDir = getPointMetricDir();
-		fs::create_directories(pointMetricDir);
 
 		std::vector<std::thread> threads;
 		for (int i = 0; i < gp->nThread; ++i) {
@@ -37,30 +40,28 @@ namespace lapis {
 
 		log.logProgress("Writing point metric rasters");
 		for (auto& metric : lp->metricRasters) {
-			std::string filename = (pointMetricDir / (metric.name + ".tif")).string();
 			try {
-				metric.rast.writeRaster(filename);
+				writeRasterWithFullName(getPointMetricDir(), metric.name, metric.rast, metric.unit);
 			}
 			catch (InvalidRasterFileException e) {
-				log.logError("Error Writing " + filename);
+				log.logError("Error Writing " + metric.name);
 			}
 		}
 
 		for (auto& metric : lp->stratumRasters) {
 			for (size_t i = 0; i < metric.stratumNames.size(); ++i) {
-				std::string filename = (getStratumDir() / (metric.baseName + metric.stratumNames[i] + ".tif")).string();
 				try {
-					metric.rasters[i].writeRaster(filename);
+					writeRasterWithFullName(getStratumDir(), metric.baseName + metric.stratumNames[i], metric.rasters[i], metric.unit);
 				}
 				catch (InvalidRasterFileException e) {
-					log.logError("Error Writing " + filename);
+					log.logError("Error Writing " + metric.baseName + metric.stratumNames[i]);
 				}
 			}
 		}
 		
 		calculateAndWriteTopo();
 
-		obj.cleanUpAfterPointMetrics();
+		obj->cleanUpAfterPointMetrics();
 		lp = nullptr;
 
 		log.logProgress("Merging CSMs");
@@ -107,6 +108,13 @@ namespace lapis {
 		if (!gp->doFineIntensity) {
 			fs::remove_all(getFineIntDir());
 		}
+		log.logProgress("Done!");
+		_isRunning = false;
+	}
+
+	bool LapisController::isRunning() const
+	{
+		return _isRunning;
 	}
 
 	template<class T>
@@ -158,13 +166,12 @@ namespace lapis {
 			pr->oncePerLas(lasExt.ext, points);
 
 			if (thiscsm.has_value()) {
-				std::string filename = (getCSMTempDir() / (std::to_string(thisidx) + ".tif")).string();
 				try {
-					thiscsm.value().writeRaster(filename);
+					writeTempRaster(getCSMTempDir(), std::to_string(thisidx), thiscsm.value());
 				}
 				catch (InvalidRasterFileException e) {
-					log.logError("Error Writing " + filename);
-					throw InvalidRasterFileException(filename);
+					log.logError("Error Writing Temporary CSM File");
+					throw InvalidRasterFileException("Error Writing Temporary CSM File");
 				}
 			}
 			
@@ -174,8 +181,14 @@ namespace lapis {
 				Raster<intensity_t> numerator{ crop(gp->csmAlign, lasExt.ext, SnapType::out) };
 				Raster<intensity_t> denominator{ crop(gp->csmAlign, lasExt.ext, SnapType::out) };
 				assignPointsToFineIntensity(points, numerator, denominator);
-				numerator.writeRaster((getFineIntTempDir() / (std::to_string(thisidx) + "_numerator.tif")).string());
-				denominator.writeRaster((getFineIntTempDir() / (std::to_string(thisidx) + "_denominator.tif")).string());
+				try {
+					writeTempRaster(getFineIntTempDir(), std::to_string(thisidx) + "_numerator", numerator);
+					writeTempRaster(getFineIntTempDir(), std::to_string(thisidx) + "_denominator", denominator);
+				}
+				catch (InvalidRasterFileException e) {
+					log.logError("Error Writing Temporary Fine Intensity File");
+					throw InvalidRasterFileException("Error Writing Temporary Fine Intensity File");
+				}
 			}
 
 			auto endTime = chr::high_resolution_clock::now();
@@ -297,79 +310,67 @@ namespace lapis {
 
 	fs::path LapisController::getCSMTempDir() const
 	{
-		fs::path csmtempdir = gp->outfolder / "CanopySurfaceModel" / "Temp";
-		fs::create_directories(csmtempdir);
-		return csmtempdir;
+		fs::path dir = gp->outfolder / "CanopySurfaceModel" / "Temp";
+		return dir;
 	}
 
 	fs::path LapisController::getCSMPermanentDir() const
 	{
-		fs::path csmpermdir = gp->outfolder / "CanopySurfaceModel";
-		fs::create_directories(csmpermdir);
-		return csmpermdir;
+		fs::path dir = gp->outfolder / "CanopySurfaceModel";
+		return dir;
 	}
 
 	fs::path LapisController::getPointMetricDir() const
 	{
-		fs::path pmdir = gp->outfolder / "PointMetrics";
-		fs::create_directories(pmdir);
-		return pmdir;
+		fs::path dir = gp->outfolder / "PointMetrics";
+		return dir;
 	}
 
 	fs::path LapisController::getParameterDir() const
 	{
-		fs::path inidir = gp->outfolder / "RunParameters";
-		fs::create_directories(inidir);
-		return inidir;
+		fs::path dir = gp->outfolder / "RunParameters";
+		return dir;
 	}
 
 	fs::path LapisController::getTAODir() const
 	{
-		fs::path taodir = gp->outfolder / "TreeApproximateObjects";
-		fs::create_directories(taodir);
-		return taodir;
+		fs::path dir = gp->outfolder / "TreeApproximateObjects";
+		return dir;
 	}
 
 	fs::path LapisController::getTempTAODir() const {
-		fs::path taodir = gp->outfolder / "TreeApproximateObjects" / "Temp";
-		fs::create_directories(taodir);
-		return taodir;
+		fs::path dir = gp->outfolder / "TreeApproximateObjects" / "Temp";
+		return dir;
 	}
 
 	fs::path LapisController::getLayoutDir() const {
 		fs::path layoutdir = gp->outfolder / "TileLayout";
-		fs::create_directories(layoutdir);
 		return layoutdir;
 	}
 
 	fs::path LapisController::getFineIntDir() const {
 		fs::path dir = gp->outfolder / "FineIntensity";
-		fs::create_directories(dir);
 		return dir;
 	}
 
 	fs::path LapisController::getFineIntTempDir() const {
 		fs::path dir = gp->outfolder / "FineIntensity" / "Temp";
-		fs::create_directories(dir);
 		return dir;
 	}
 
 	fs::path LapisController::getCSMMetricDir() const {
 		fs::path dir = gp->outfolder / "CsmMetrics";
-		fs::create_directories(dir);
 		return dir;
 	}
 
 	fs::path LapisController::getStratumDir() const {
 		fs::path dir = gp->outfolder / "StratumMetrics";
-		fs::create_directories(dir);
 		return dir;
 	}
 
 	fs::path LapisController::getTopoDir() const
 	{
 		fs::path dir = gp->outfolder / "TopoMetrics";
-		fs::create_directories(dir);
 		return dir;
 	}
 
@@ -573,10 +574,10 @@ namespace lapis {
 					segments = crop(segments, cropExt, SnapType::out);
 					maxHeight = crop(maxHeight, cropExt, SnapType::out);
 				}
-				std::string outname = "CanopySurfaceModel_" + tileName + ".tif";
-				fullTile.writeRaster((permcsmdir / outname).string());
-				segments.writeRaster((getTempTAODir() / ("Segments_" + tileName + ".tif")).string());
-				maxHeight.writeRaster((getTAODir() / ("MaxHeight_" + tileName + ".tif")).string());
+				std::string outname = "CanopySurfaceModel_" + tileName;
+				writeRasterWithFullName(getCSMPermanentDir(), outname, fullTile, OutputUnitLabel::Default);
+				writeTempRaster(getTempTAODir(), "Segments_" + tileName, segments);
+				writeRasterWithFullName(getTAODir(), "MaxHeight_" + tileName, maxHeight, OutputUnitLabel::Default);
 
 				fullTile = Raster<csm_t>(); //freeing up the memory
 				segments = Raster<taoid_t>();
@@ -585,7 +586,7 @@ namespace lapis {
 				if (gp->doFineIntensity) {
 					Raster<intensity_t> meanCanopyIntensity = canopyIntensityNumerator.value() / canopyIntensityDenominator.value();
 					meanCanopyIntensity = crop(meanCanopyIntensity, cropExt);
-					meanCanopyIntensity.writeRaster((getFineIntDir() / ("MeanCanopyIntensity_" + tileName + ".tif")).string());
+					writeRasterWithFullName(getFineIntDir(), "MeanCanopyIntensity_" + tileName, meanCanopyIntensity, OutputUnitLabel::Unitless);
 				}
 			}
 
@@ -768,7 +769,7 @@ namespace lapis {
 				}
 				v.value() = idMap.coordsToFinalName.at(localNameMap.at(v.value()));
 			}
-			segments.writeRaster((getTAODir() / ("Segments" + tileName + ".tif")).string());
+			writeRasterWithFullName(getTAODir(), "Segements" + tileName, segments, OutputUnitLabel::Unitless);
 		}
 	}
 
@@ -847,18 +848,19 @@ namespace lapis {
 
 	void LapisController::writeCSMMetrics() const {
 		for (auto& metric : gp->csmMetrics) {
-			metric.r.writeRaster((getCSMMetricDir() / (metric.name + ".tif")).string());
+			writeRasterWithFullName(getCSMMetricDir(), metric.name, metric.r, metric.unit);
 		}
 	}
 	void LapisController::calculateAndWriteTopo() const
 	{
 
 		Raster<coord_t> elev = lp->elevNumerator / lp->elevDenominator;
-		elev.writeRaster((getTopoDir() / "Elevation.tif").string());
+		writeRasterWithFullName(getTopoDir(), "Elevation", elev, OutputUnitLabel::Default);
 		
 		for (auto& metric : lp->topoMetrics) {
 			Raster<metric_t> r = focal(elev, 3, metric.metric);
-			r.writeRaster((getTopoDir() / (metric.name + ".tif")).string());
+			writeRasterWithFullName(getTopoDir(), metric.name, r, metric.unit);
 		}
 	}
+
 }

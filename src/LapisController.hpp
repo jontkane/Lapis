@@ -5,7 +5,6 @@
 
 #include"Logger.hpp"
 #include"PointMetricCalculator.hpp"
-#include"Options.hpp"
 #include"LapisUtils.hpp"
 #include"LapisObjects.hpp"
 #include"csmalgos.hpp"
@@ -27,6 +26,8 @@ namespace lapis {
 		LapisController();
 
 		void processFullArea();
+
+		bool isRunning() const;
 
 	protected:
 		//returns the filenames of the las/dtm files that overlap the given extent
@@ -100,12 +101,53 @@ namespace lapis {
 
 		void calculateAndWriteTopo() const;
 
+		template<class T>
+		void writeTempRaster(const fs::path& dir, const std::string& name, Raster<T>& r) const;
 
-		LapisObjects obj;
+		template<class T>
+		void writeRasterWithFullName(const fs::path& dir, const std::string& baseName, Raster<T>& r, OutputUnitLabel u) const;
+
+
+		std::unique_ptr<LapisObjects> obj;
 		GlobalProcessingObjects* gp;
 		LasProcessingObjects* lp;
 		std::unique_ptr<LapisPrivate> pr;
+
+		std::atomic_bool _isRunning = false;
 	};
+
+	template<class T>
+	void LapisController::writeTempRaster(const fs::path& dir, const std::string& name, Raster<T>& r) const {
+		fs::create_directories(dir);
+		r.writeRaster((dir / fs::path(name + ".tif")).string());
+	}
+
+	template<class T>
+	void LapisController::writeRasterWithFullName(const fs::path& dir, const std::string& baseName, Raster<T>& r, OutputUnitLabel u) const {
+		fs::create_directories(dir);
+		std::string unitString;
+		using oul = OutputUnitLabel;
+		if (u == oul::Default) {
+			Unit outUnit = gp->metricAlign.crs().getZUnits();
+			std::regex meterregex{ ".*met.*",std::regex::icase };
+			std::regex footregex{ ".*f(o|e)(o|e)t.*",std::regex::icase };
+			if (std::regex_match(outUnit.name, meterregex)) {
+				unitString = "_Meters";
+			}
+			else if (std::regex_match(outUnit.name, footregex)) {
+				unitString = "_Feet";
+			}
+		}
+		else if (u == oul::Percent) {
+			unitString = "_Percent";
+		}
+		else if (u == oul::Radian) {
+			unitString = "_Radians";
+		}
+		std::string runName = gp->runName.size() ? gp->runName + "_" : "";
+		fs::path fullPath = dir / (runName + baseName + unitString + ".tif");
+		r.writeRaster(fullPath.string());
+	}
 }
 
 #endif

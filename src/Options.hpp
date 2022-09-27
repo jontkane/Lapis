@@ -137,11 +137,11 @@ private:
 	};
 
 	enum class ParseResults {
-		invalidOpts, helpPrinted, validOpts
+		invalidOpts, helpPrinted, validOpts, guiRequested
 	};
 
 	//takes command line input and parses it into the options
-	ParseResults parseOptions(int argc, char* argv[]);
+	ParseResults parseOptions(const std::vector<std::string>& args);
 
 	ParseResults parseGui(const LapisGuiObjects& lgo);
 	ParseResults parseIni(const std::string& path);

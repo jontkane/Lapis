@@ -82,6 +82,7 @@ namespace lapis {
 		std::string name;
 		MetricFunc fun;
 		Raster<metric_t> rast;
+		OutputUnitLabel unit;
 	};
 
 	struct StratumMetricRasters {
@@ -89,12 +90,10 @@ namespace lapis {
 		std::vector<std::string> stratumNames;
 		StratumFunc fun;
 		std::vector<Raster<metric_t>> rasters;
+		OutputUnitLabel unit;
 
-		StratumMetricRasters(const std::string& bn, const std::vector<std::string>& sn, StratumFunc f, const Alignment& a) {
-			baseName = bn;
-			stratumNames = sn;
-			fun = f;
-			rasters = std::vector<Raster<metric_t>>(sn.size(), a);
+		StratumMetricRasters(const std::string& bn, const std::vector<std::string>& sn, StratumFunc f, const Alignment& a, OutputUnitLabel u) :
+			baseName(bn), stratumNames(sn), fun(f), rasters(sn.size(),a), unit(u) {
 		}
 	};
 }
