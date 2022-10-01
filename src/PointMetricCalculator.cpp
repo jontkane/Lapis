@@ -95,7 +95,7 @@ namespace lapis {
 	{
 		_quantileCanopy(r, cell, 0.5);
 	}
-
+	
 	void PointMetricCalculator::p75Canopy(Raster<metric_t>& r, cell_t cell)
 	{
 		_quantileCanopy(r, cell, 0.75);
