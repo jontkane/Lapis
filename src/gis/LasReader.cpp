@@ -26,7 +26,7 @@ namespace lapis {
 			}
 
 			if (!filtered) {
-				points.emplace_back(x(), y(), z(), intensity());
+				points.emplace_back(x(), y(), z(), intensity(), returnNumber());
 			}
 		}
 		if (!_dtms.size()) {

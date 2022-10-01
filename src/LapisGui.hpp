@@ -86,7 +86,6 @@ namespace lapis {
 
 		int smoothRadio = 3;
 
-		bool firstReturnsCheck = false;
 		std::array<bool, 256> classesCheck = std::array<bool, 256>{true};
 		std::string classListStr;
 		bool filterWithheldCheck = true;

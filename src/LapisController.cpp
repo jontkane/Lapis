@@ -39,7 +39,7 @@ namespace lapis {
 		}
 
 		log.logProgress("Writing point metric rasters");
-		for (auto& metric : lp->metricRasters) {
+		for (auto& metric : lp->allReturnMetricRasters) {
 			try {
 				writeRasterWithFullName(getPointMetricDir(), metric.name, metric.rast, metric.unit);
 			}
@@ -47,11 +47,29 @@ namespace lapis {
 				log.logError("Error Writing " + metric.name);
 			}
 		}
+		for (auto& metric : lp->firstReturnMetricRasters) {
+			try {
+				writeRasterWithFullName(getFRPointMetricDir(), metric.name, metric.rast, metric.unit);
+			}
+			catch (InvalidRasterFileException e) {
+				log.logError("Error Writing " + metric.name);
+			}
+		}
 
-		for (auto& metric : lp->stratumRasters) {
+		for (auto& metric : lp->allReturnStratumRasters) {
 			for (size_t i = 0; i < metric.stratumNames.size(); ++i) {
 				try {
 					writeRasterWithFullName(getStratumDir(), metric.baseName + metric.stratumNames[i], metric.rasters[i], metric.unit);
+				}
+				catch (InvalidRasterFileException e) {
+					log.logError("Error Writing " + metric.baseName + metric.stratumNames[i]);
+				}
+			}
+		}
+		for (auto& metric : lp->firstReturnStratumRasters) {
+			for (size_t i = 0; i < metric.stratumNames.size(); ++i) {
+				try {
+					writeRasterWithFullName(getFRStratumDir(), metric.baseName + metric.stratumNames[i], metric.rasters[i], metric.unit);
 				}
 				catch (InvalidRasterFileException e) {
 					log.logError("Error Writing " + metric.baseName + metric.stratumNames[i]);
@@ -200,16 +218,17 @@ namespace lapis {
 	void LapisController::assignPointsToCalculators(const LidarPointVector& points) const
 	{
 		for (auto& p : points) {
-			if (!lp->calculators.strictContains(p.x, p.y)) {
+			if (!lp->allReturnCalculators.strictContains(p.x, p.y)) {
 				continue;
 			}
-			cell_t cell = lp->calculators.cellFromXYUnsafe(p.x, p.y);
+			cell_t cell = lp->allReturnCalculators.cellFromXYUnsafe(p.x, p.y);
 
 			std::lock_guard lock{ lp->cellMuts[cell % lp->mutexN] };
-			lp->calculators[cell].value().addPoint(p);
+			lp->allReturnCalculators[cell].value().addPoint(p);
+			if (p.returnNumber == 1) {
+				lp->firstReturnCalculators[cell].value().addPoint(p);
+			}
 		}
-		
-		
 	}
 
 	void LapisController::assignPointsToCSM(const LidarPointVector& points, std::optional<Raster<csm_t>>& csm) const
@@ -294,15 +313,26 @@ namespace lapis {
 		if (lp->nLaz[cell].value() != 0) {
 			return;
 		}
-		auto& pmc = lp->calculators[cell].value();
-		for (auto& v : lp->metricRasters) {
+		auto& pmc = lp->allReturnCalculators[cell].value();
+		for (auto& v : lp->allReturnMetricRasters) {
 			auto& f = v.fun;
 			(pmc.*f)(v.rast, cell);
 		}
-		for (auto& v : lp->stratumRasters) {
+		for (auto& v : lp->allReturnStratumRasters) {
 			auto& f = v.fun;
 			for (size_t i = 0; i < v.rasters.size(); ++i) {
 				(pmc.*f)(v.rasters[i], cell, i);
+			}
+		}
+		auto& frpmc = lp->firstReturnCalculators[cell].value();
+		for (auto& v : lp->firstReturnMetricRasters) {
+			auto& f = v.fun;
+			(frpmc.*f)(v.rast, cell);
+		}
+		for (auto& v : lp->firstReturnStratumRasters) {
+			auto& f = v.fun;
+			for (size_t i = 0; i < v.rasters.size(); ++i) {
+				(frpmc.*f)(v.rasters[i], cell, i);
 			}
 		}
 		pmc.cleanUp();
@@ -322,7 +352,13 @@ namespace lapis {
 
 	fs::path LapisController::getPointMetricDir() const
 	{
-		fs::path dir = gp->outfolder / "PointMetrics";
+		fs::path dir = gp->outfolder / "PointMetrics" / "AllReturns";
+		return dir;
+	}
+
+	fs::path LapisController::getFRPointMetricDir() const
+	{
+		fs::path dir = gp->outfolder / "PointMetrics" / "FirstReturns";
 		return dir;
 	}
 
@@ -364,7 +400,11 @@ namespace lapis {
 	}
 
 	fs::path LapisController::getStratumDir() const {
-		fs::path dir = gp->outfolder / "StratumMetrics";
+		fs::path dir = gp->outfolder / "StratumMetrics" / "AllReturns";
+		return dir;
+	}
+	fs::path LapisController::getFRStratumDir() const {
+		fs::path dir = gp->outfolder / "StratumMetrics" / "FirstReturns";
 		return dir;
 	}
 
@@ -629,7 +669,7 @@ namespace lapis {
 		}
 
 		auto points = lr.getPoints(lr.nPoints());
-		points.transform(lp->calculators.crs());
+		points.transform(lp->allReturnCalculators.crs());
 
 		Raster<coord_t> fineDem = lr.unifiedDEM(gp->csmAlign);
 		Raster<coord_t> coarseSum = aggregate<coord_t, coord_t>(fineDem, gp->metricAlign, &viewSum<coord_t>);
@@ -670,6 +710,7 @@ namespace lapis {
 		const Raster<csm_t>& csm, const std::string& name) const
 	{
 		GDALRegisterWrapper::allRegister();
+		fs::create_directories(getTAODir());
 		std::string filename = (getTAODir() / ("TAOs_" + name + ".shp")).string();
 		
 		GDALDatasetWrapper outshp("ESRI Shapefile", filename.c_str(), 0, 0, GDT_Unknown);
@@ -780,6 +821,7 @@ namespace lapis {
 
 	void LapisController::writeLayout(const Alignment& layout) const {
 		fs::path filename = getLayoutDir() / "TileLayout.shp";
+		fs::create_directories(getLayoutDir());
 
 		GDALRegisterWrapper::allRegister();
 

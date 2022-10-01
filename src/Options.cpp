@@ -8,7 +8,7 @@
 namespace lapis {
 	
 
-	ParseResults parseOptions(const std::vector<std::string>& args)
+	ParseResults parseArgs(const std::vector<std::string>& args)
 	{
 		namespace po = boost::program_options;
 
@@ -54,7 +54,7 @@ namespace lapis {
 				}
 				else {
 					bool* ptr = &(std::get<bool>(p.value));
-					boostOpt->add_options()(paramNames.c_str(), po::value(ptr), p.cmdDoc.c_str());
+					boostOpt->add_options()(paramNames.c_str(), po::bool_switch(ptr), p.cmdDoc.c_str());
 				}
 			}
 
@@ -122,8 +122,18 @@ namespace lapis {
 		for (auto& s : lgo.demSpecs) {
 			opt.updateValue(pn::demFiles, s);
 		}
-		opt.updateValue(pn::lasCrs, lgo.lasAdvancedData.crsString);
-		opt.updateValue(pn::demCrs, lgo.demAdvancedData.crsString);
+
+		auto updateCRS = [&](const std::string& key, const std::string& value) {
+			try {
+				CoordRef crs{ value };
+				opt.updateValue(key, crs.getCompleteWKT());
+			}
+			catch (UnableToDeduceCRSException e) {
+				opt.updateValue(key, "");
+			}
+		};
+		updateCRS(pn::lasCrs, lgo.lasAdvancedData.crsString);
+		updateCRS(pn::demCrs, lgo.demAdvancedData.crsString);
 
 		opt.updateValue(pn::lasUnits, lgo.unitRadioOrder[lgo.lasAdvancedData.unitsRadio].name);
 		opt.updateValue(pn::demUnits, lgo.unitRadioOrder[lgo.demAdvancedData.unitsRadio].name);
@@ -177,13 +187,13 @@ namespace lapis {
 		if (lgo.fineint) {
 			opt.updateValue(pn::fineint, "");
 		}
-		if (lgo.firstReturnsCheck) {
-			opt.updateValue(pn::first, "");
+		if (lgo.advancedpoint) {
+			opt.updateValue(pn::advancedPoint, "");
 		}
 		opt.updateValue(pn::maxht, lgo.withUnits.maxHtBuffer.data());
 		opt.updateValue(pn::minht, lgo.withUnits.minHtBuffer.data());
 
-		opt.updateValue(pn::outCrs, lgo.outCRSString);
+		updateCRS(pn::outCrs, lgo.outCRSString);
 		if (!lgo.filterWithheldCheck) {
 			opt.updateValue(pn::useWithheld, "");
 		}
@@ -200,6 +210,8 @@ namespace lapis {
 
 		opt.updateValue(pn::footprint, lgo.withUnits.footprintDiamBuffer.data());
 		opt.updateValue(pn::smooth, std::to_string(lgo.smoothRadio));
+
+		opt.updateValue(pn::name, lgo.nameBuffer.data());
 
 		return ParseResults::validOpts;
 	}
@@ -362,11 +374,6 @@ namespace lapis {
 			"",
 			false));
 
-		params.emplace(pn::first, FullParam(dt::binary, pc::processing,
-			"Perform this run using only first returns.",
-			"",
-			false));
-
 		params.emplace(pn::advancedPoint, FullParam(dt::binary, pc::processing,
 			"Calculate a larger suite of point metrics.",
 			"",
@@ -477,6 +484,13 @@ namespace lapis {
 		}
 		else if (key == paramNames::yorigin) {
 			return key + "=" + std::to_string(std::abs(getAlign().yorigin)) + "\n";
+		}
+
+		if (key == paramNames::lasCrs) {
+			return key + "=" + getLasCrs().getSingleLineWKT() + "\n";
+		}
+		if (key == paramNames::demCrs) {
+			return key + "=" + getDemCrs().getSingleLineWKT() + "\n";
 		}
 
 		auto& v = params.at(key).value;
@@ -625,9 +639,6 @@ namespace lapis {
 		}
 		std::sort(out.begin(), out.end());
 		return out;
-	}
-	bool Options::getFirstFlag() const {
-		return getAsBool(paramNames::first);
 	}
 	bool Options::getFineIntFlag() const {
 		return getAsBool(paramNames::fineint);

@@ -32,7 +32,7 @@ namespace lapis {
 				//intensity is before the first bits that differ between point10 and point14, so no check is needed
 				return _point14()->intensity;
 			}
-			int returnNumber() const {
+			uint8_t returnNumber() const {
 				if (_ispoint14) {
 					return _point14()->returnNumber();
 				}

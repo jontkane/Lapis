@@ -56,6 +56,7 @@ namespace lapis {
 		fs::path getCSMTempDir() const;
 		fs::path getCSMPermanentDir() const;
 		fs::path getPointMetricDir() const;
+		fs::path getFRPointMetricDir() const;
 		fs::path getParameterDir() const;
 		fs::path getTAODir() const;
 
@@ -70,6 +71,8 @@ namespace lapis {
 		fs::path getCSMMetricDir() const;
 
 		fs::path getStratumDir() const;
+
+		fs::path getFRStratumDir() const;
 
 		fs::path getTopoDir() const;
 

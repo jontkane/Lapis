@@ -32,7 +32,6 @@ namespace lapis {
 		const std::string minht = "minht";
 		const std::string maxht = "maxht";
 		const std::string strata = "strata";
-		const std::string first = "first";
 		const std::string fineint = "fineint";
 		const std::string classFilter = "class";
 		const std::string useWithheld = "use-withheld";
@@ -107,7 +106,6 @@ namespace lapis {
 		coord_t getMinHt() const;
 		coord_t getMaxHt() const;
 		std::vector<coord_t> getStrataBreaks() const;
-		bool getFirstFlag() const;
 		bool getFineIntFlag() const;
 		ClassFilter getClassFilter() const;
 		bool getUseWithheldFlag() const;
@@ -141,7 +139,7 @@ private:
 	};
 
 	//takes command line input and parses it into the options
-	ParseResults parseOptions(const std::vector<std::string>& args);
+	ParseResults parseArgs(const std::vector<std::string>& args);
 
 	ParseResults parseGui(const LapisGuiObjects& lgo);
 	ParseResults parseIni(const std::string& path);

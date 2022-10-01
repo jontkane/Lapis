@@ -411,7 +411,6 @@ namespace lapis {
 
 		ImGui::BeginChild("FilterChild", getRegionSize(4), true, 0);
 		ImGui::Text("Filter Options");
-		ImGui::Checkbox("Use Only First Returns", &lgo.firstReturnsCheck);
 		ImGui::Checkbox("Exclude Withheld Points", &lgo.filterWithheldCheck);
 
 		ImGui::Text("Low Outlier:");
@@ -968,7 +967,6 @@ namespace lapis {
 
 		smoothRadio = opt.getSmoothWindow();
 		filterWithheldCheck = !opt.getUseWithheldFlag();
-		firstReturnsCheck = opt.getFirstFlag();
 		auto classes = opt.getClassFilter();
 		for (int i = 0; i < classesCheck.size(); ++i) {
 			if (classes.list.count(i) && classes.isWhiteList) {

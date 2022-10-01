@@ -20,7 +20,8 @@ namespace lapis {
 		Raster<int> nLaz;
 
 		//a raster aligning to the metric grid that handles the actual point metric calculation
-		Raster<PointMetricCalculator> calculators;
+		Raster<PointMetricCalculator> allReturnCalculators;
+		Raster<PointMetricCalculator> firstReturnCalculators;
 
 		//mutexes to handle shared access to the cells of a raster
 		//the intent is to mod the cell you want to access by mutexN
@@ -29,8 +30,10 @@ namespace lapis {
 		std::vector<std::mutex> cellMuts;
 
 		//the rasters that actually hold the point metric results, along with the filename and function call
-		std::vector<PointMetricRaster> metricRasters;
-		std::vector<StratumMetricRasters> stratumRasters;
+		std::vector<PointMetricRaster> allReturnMetricRasters;
+		std::vector<StratumMetricRasters> allReturnStratumRasters;
+		std::vector<PointMetricRaster> firstReturnMetricRasters;
+		std::vector<StratumMetricRasters> firstReturnStratumRasters;
 
 		//the filters to be applied to the las files
 		std::vector<std::shared_ptr<LasFilter>> filters;

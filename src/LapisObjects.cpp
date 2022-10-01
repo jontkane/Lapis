@@ -67,13 +67,6 @@ namespace lapis {
 
 		auto& filters = lp->filters;
 
-		if (opt.getOnlyFlag()) {
-			filters.push_back(std::make_shared<LasFilterOnlyReturns>());
-		}
-		else if (opt.getFirstFlag()) {
-			filters.push_back(std::make_shared<LasFilterFirstReturns>());
-		}
-
 		Options::ClassFilter cf = opt.getClassFilter();
 		if (cf.list.size()) {
 			if (cf.isWhiteList) {
@@ -97,22 +90,49 @@ namespace lapis {
 	{
 
 		using oul = OutputUnitLabel;
-		auto& pointMetrics = lp->metricRasters;
+		using pmc = PointMetricCalculator;
+		auto& pointMetrics = lp->allReturnMetricRasters;
 		auto& metricAlign = gp->metricAlign;
-		auto& stratumMetrics = lp->stratumRasters;
+		auto& stratumMetrics = lp->allReturnStratumRasters;
+		auto& frPointMetrics = lp->firstReturnMetricRasters;
+		auto& frStratumMetrics = lp->firstReturnStratumRasters;
 
-		auto addMetric = [&](std::string&& name, MetricFunc f, oul u) {
-			pointMetrics.emplace_back(std::move(name), f, metricAlign, u);
+		auto addMetric = [&](const std::string& name, MetricFunc f, oul u) {
+			pointMetrics.emplace_back(name, f, metricAlign, u);
+			frPointMetrics.emplace_back(name, f, metricAlign, u);
 		};
 
-		addMetric("Mean_CanopyHeight", &PointMetricCalculator::meanCanopy,oul::Default);
-		addMetric("StdDev_CanopyHeight", &PointMetricCalculator::stdDevCanopy,oul::Default);
-		addMetric("25thPercentile_CanopyHeight", &PointMetricCalculator::p25Canopy,oul::Default);
-		addMetric("50thPercentile_CanopyHeight", &PointMetricCalculator::p50Canopy,oul::Default);
-		addMetric("75thPercentile_CanopyHeight", &PointMetricCalculator::p75Canopy,oul::Default);
-		addMetric("95thPercentile_CanopyHeight", &PointMetricCalculator::p95Canopy,oul::Default);
-		addMetric("TotalReturnCount", &PointMetricCalculator::returnCount,oul::Unitless);
-		addMetric("CanopyCover", &PointMetricCalculator::canopyCover,oul::Percent);
+		addMetric("Mean_CanopyHeight", &pmc::meanCanopy,oul::Default);
+		addMetric("StdDev_CanopyHeight", &pmc::stdDevCanopy,oul::Default);
+		addMetric("25thPercentile_CanopyHeight", &pmc::p25Canopy,oul::Default);
+		addMetric("50thPercentile_CanopyHeight", &pmc::p50Canopy,oul::Default);
+		addMetric("75thPercentile_CanopyHeight", &pmc::p75Canopy,oul::Default);
+		addMetric("95thPercentile_CanopyHeight", &pmc::p95Canopy,oul::Default);
+		addMetric("TotalReturnCount", &pmc::returnCount,oul::Unitless);
+		addMetric("CanopyCover", &pmc::canopyCover,oul::Percent);
+
+		if (opt.getAdvancedPointFlag()) {
+			addMetric("CoverAboveMean", &pmc::coverAboveMean, oul::Percent);
+			addMetric("CanopyReliefRatio", &pmc::canopyReliefRatio, oul::Unitless);
+			addMetric("CanopySkewness", &pmc::skewnessCanopy, oul::Unitless);
+			addMetric("CanopyKurtosis", &pmc::kurtosisCanopy, oul::Unitless);
+			addMetric("05thPercentile_CanopyHeight", &pmc::p05Canopy, oul::Default);
+			addMetric("10thPercentile_CanopyHeight", &pmc::p10Canopy, oul::Default);
+			addMetric("15thPercentile_CanopyHeight", &pmc::p15Canopy, oul::Default);
+			addMetric("20thPercentile_CanopyHeight", &pmc::p20Canopy, oul::Default);
+			addMetric("30thPercentile_CanopyHeight", &pmc::p30Canopy, oul::Default);
+			addMetric("35thPercentile_CanopyHeight", &pmc::p35Canopy, oul::Default);
+			addMetric("40thPercentile_CanopyHeight", &pmc::p40Canopy, oul::Default);
+			addMetric("45thPercentile_CanopyHeight", &pmc::p45Canopy, oul::Default);
+			addMetric("55thPercentile_CanopyHeight", &pmc::p55Canopy, oul::Default);
+			addMetric("60thPercentile_CanopyHeight", &pmc::p60Canopy, oul::Default);
+			addMetric("65thPercentile_CanopyHeight", &pmc::p65Canopy, oul::Default);
+			addMetric("70thPercentile_CanopyHeight", &pmc::p70Canopy, oul::Default);
+			addMetric("80thPercentile_CanopyHeight", &pmc::p80Canopy, oul::Default);
+			addMetric("85thPercentile_CanopyHeight", &pmc::p85Canopy, oul::Default);
+			addMetric("90thPercentile_CanopyHeight", &pmc::p90Canopy, oul::Default);
+			addMetric("99thPercentile_CanopyHeight", &pmc::p99Canopy, oul::Default);
+		}
 
 
 		std::vector<coord_t> strataBreaks = opt.getStrataBreaks();
@@ -125,13 +145,15 @@ namespace lapis {
 			};
 			std::vector<std::string> stratumNames;
 			stratumNames.push_back("LessThan" + to_string_with_precision(strataBreaks[0]));
-			for (int i = 1; i < strataBreaks.size(); ++i) {
+			for (size_t i = 1; i < strataBreaks.size(); ++i) {
 				stratumNames.push_back(to_string_with_precision(strataBreaks[i - 1]) + "To" + to_string_with_precision(strataBreaks[i]));
 			}
 			stratumNames.push_back("GreaterThan" + to_string_with_precision(strataBreaks[strataBreaks.size() - 1]));
 
-			stratumMetrics.emplace_back("StratumCover_", stratumNames, &PointMetricCalculator::stratumCover, metricAlign,oul::Percent);
-			stratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &PointMetricCalculator::stratumPercent, metricAlign,oul::Percent);
+			stratumMetrics.emplace_back("StratumCover_", stratumNames, &pmc::stratumCover, metricAlign,oul::Percent);
+			stratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &pmc::stratumPercent, metricAlign,oul::Percent);
+			frStratumMetrics.emplace_back("StratumCover_", stratumNames, &pmc::stratumCover, metricAlign, oul::Percent);
+			frStratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &pmc::stratumPercent, metricAlign, oul::Percent);
 		}
 		
 	}
@@ -280,7 +302,8 @@ namespace lapis {
 		lp->elevDenominator = Raster<coord_t>(gp->metricAlign);
 		lp->elevNumerator = Raster<coord_t>(gp->metricAlign);
 
-		lp->calculators = Raster<PointMetricCalculator>(gp->metricAlign);
+		lp->allReturnCalculators = Raster<PointMetricCalculator>(gp->metricAlign);
+		lp->firstReturnCalculators = Raster<PointMetricCalculator>(gp->metricAlign);
 		lp->cellMuts = std::vector<std::mutex>(LasProcessingObjects::mutexN);
 		lp->lasCRSOverride = opt.getLasCrs();
 		lp->lasUnitOverride = opt.getLasUnits();

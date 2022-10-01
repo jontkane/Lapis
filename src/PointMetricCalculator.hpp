@@ -10,12 +10,13 @@
 namespace lapis {
 
 	class SparseHistogram {
+		
 	public:
 		static void setNHists(size_t nHists);
 
 		SparseHistogram() = default;
 
-		int countInBin(size_t bin);
+		int countInBin(size_t bin) const;
 
 		void incrementBin(size_t bin);
 
@@ -25,7 +26,8 @@ namespace lapis {
 
 	private:
 		inline static constexpr size_t binsPerHist = 100;
-		std::vector<std::unique_ptr<std::array<int,binsPerHist>>> _data;
+		using _storage = std::vector<std::unique_ptr<std::array<int, binsPerHist>>>;
+		_storage _data;
 		inline static size_t _nHists;
 	};
 
@@ -53,6 +55,28 @@ namespace lapis {
 		void p95Canopy(Raster<metric_t>& r, cell_t cell);
 		void returnCount(Raster<metric_t>& r, cell_t cell);
 		void canopyCover(Raster<metric_t>& r, cell_t cell);
+
+		//these are currently classes as "advanced" metrics. Grouped separately for clarity
+		void coverAboveMean(Raster<metric_t>& r, cell_t cell);
+		void canopyReliefRatio(Raster<metric_t>& r, cell_t cell);
+		void skewnessCanopy(Raster<metric_t>& r, cell_t cell);
+		void kurtosisCanopy(Raster<metric_t>& r, cell_t cell);
+		void p05Canopy(Raster<metric_t>& r, cell_t cell);
+		void p10Canopy(Raster<metric_t>& r, cell_t cell);
+		void p15Canopy(Raster<metric_t>& r, cell_t cell);
+		void p20Canopy(Raster<metric_t>& r, cell_t cell);
+		void p30Canopy(Raster<metric_t>& r, cell_t cell);
+		void p35Canopy(Raster<metric_t>& r, cell_t cell);
+		void p40Canopy(Raster<metric_t>& r, cell_t cell);
+		void p45Canopy(Raster<metric_t>& r, cell_t cell);
+		void p55Canopy(Raster<metric_t>& r, cell_t cell);
+		void p60Canopy(Raster<metric_t>& r, cell_t cell);
+		void p65Canopy(Raster<metric_t>& r, cell_t cell);
+		void p70Canopy(Raster<metric_t>& r, cell_t cell);
+		void p80Canopy(Raster<metric_t>& r, cell_t cell);
+		void p85Canopy(Raster<metric_t>& r, cell_t cell);
+		void p90Canopy(Raster<metric_t>& r, cell_t cell);
+		void p99Canopy(Raster<metric_t>& r, cell_t cell);
 
 		void stratumCover(Raster<metric_t>& r, cell_t cell, size_t stratumIdx);
 		void stratumPercent(Raster<metric_t>& r, cell_t cell, size_t stratumIdx);

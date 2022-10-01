@@ -18,9 +18,10 @@ namespace lapis {
 	struct LasPoint {
 		coord_t x, y, z;
 		int intensity;
+		uint8_t returnNumber;
 
 		LasPoint() : x(0), y(0), z(0), intensity(0) {}
-		LasPoint(coord_t x, coord_t y, coord_t z, int intensity) : x(x), y(y), z(z), intensity(intensity) {}
+		LasPoint(coord_t x, coord_t y, coord_t z, int intensity, uint8_t returnNumber) : x(x), y(y), z(z), intensity(intensity), returnNumber(returnNumber) {}
 	};
 
 	using LidarPointVector = CoordVector3D<LasPoint>;

@@ -18,7 +18,7 @@ int unifiedMain(std::vector<std::string> args) {
 	if (!args.size()) {
 		args.push_back("--help");
 	}
-	ParseResults parsed = parseOptions(args);
+	ParseResults parsed = parseArgs(args);
 	if (parsed == ParseResults::invalidOpts) {
 		std::cout << "Error parsing command line\n";
 		return 1;
@@ -62,7 +62,7 @@ int APIENTRY WinMain(
 		return 0;
 	}
 	std::array<char, 30> oldTitle = std::array<char, 30>();
-	auto oldTitle = GetConsoleTitle(oldTitle.data(), oldTitle.size());
+	GetConsoleTitle(oldTitle.data(), (DWORD)oldTitle.size());
 	SetConsoleTitle("Lapis");
 
 	FILE* newPtr = nullptr;

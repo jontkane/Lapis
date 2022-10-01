@@ -64,17 +64,17 @@ namespace lapis {
 
 	void PointMetricCalculator::stdDevCanopy(Raster<metric_t>& r, cell_t cell)
 	{
-		if (!_canopyCount) {
+		if (_canopyCount < 2) {
 			r[cell].has_value() = false;
 			return;
 		}
-		coord_t mean = _canopySum / (metric_t)_canopyCount;
+		metric_t mean = _canopySum / (metric_t)_canopyCount;
 
-		coord_t sd = 0;
+		metric_t sd = 0;
 
 		//right now this assumes all points fall at the midpoint of the two bins
 		for (int i = 0; i < _hist.size(); ++i) {
-			coord_t tmp = _canopy + _binsize * i + (_binsize / 2);
+			metric_t tmp = _canopy + _binsize * i + (_binsize / 2);
 			tmp -= mean;
 			tmp *= tmp;
 			tmp *= _hist.countInBin(i);
@@ -108,14 +108,107 @@ namespace lapis {
 
 	void PointMetricCalculator::returnCount(Raster<metric_t>& r, cell_t cell)
 	{
-		r[cell].has_value() = true;
+		r[cell].has_value() = (_count > 0);
 		r[cell].value() = _count;
 	}
 
 	void PointMetricCalculator::canopyCover(Raster<metric_t>& r, cell_t cell)
 	{
-		r[cell].has_value() = true;
+		r[cell].has_value() = (_count > 0);
 		r[cell].value() = (metric_t)_canopyCount / (metric_t)_count * 100.;
+	}
+
+	void PointMetricCalculator::coverAboveMean(Raster<metric_t>& r, cell_t cell)
+	{
+		if (_canopyCount == 0) {
+			r[cell].has_value() = false;
+			return;
+		}
+		r[cell].has_value() = true;
+
+		metric_t mean = _canopySum / (metric_t)_canopyCount;
+		int binWithMean = (int)((mean - _canopy) / _binsize);
+		metric_t countAbove = 0;
+		//assumes all points are at the center of their bins
+		for (int i = 0; i < _hist.size(); ++i) {
+			if ((_canopy + _binsize * i + (_binsize / 2)) > mean) {
+				countAbove += _hist.countInBin(i);
+			}
+		}
+		r[cell].value() = countAbove / _canopyCount * 100.;
+	}
+
+	void PointMetricCalculator::canopyReliefRatio(Raster<metric_t>& r, cell_t cell)
+	{
+		if (!_canopyCount) {
+			r[cell].has_value() = false;
+			return;
+		}
+		r[cell].has_value() = true;
+		metric_t mean = _canopySum / (metric_t)_canopyCount;
+		metric_t min = _canopy;
+		//this loop could be eliminated by keeping track of the max as points are added
+		metric_t max = 0;
+		size_t highestBin = 0;
+		for (size_t i = 0; i < _hist.size(); ++i) {
+			if (_hist.countInBin(i)) {
+				highestBin = i;
+			}
+		}
+		max = _estimatePointValue(highestBin, _hist.countInBin(highestBin));
+
+		r[cell].value() = (mean - min) / (max - min);
+	}
+
+	void PointMetricCalculator::skewnessCanopy(Raster<metric_t>& r, cell_t cell)
+	{
+		if (_canopyCount < 2) {
+			r[cell].has_value() = false;
+			return;
+		}
+		r[cell].has_value() = true;
+
+		metric_t mean = _canopySum / (metric_t)_canopyCount;
+		metric_t denominator = 0;
+		metric_t numerator = 0;
+
+		for (size_t i = 0; i < _hist.size(); ++i) {
+			//this assumes all points are at the center of their bins
+			metric_t diffFromMean = _canopy + _binsize * i + (_binsize / 2) - mean;
+			metric_t tmp = diffFromMean * diffFromMean * _hist.countInBin(i);
+			denominator += tmp;
+			numerator += tmp * diffFromMean;
+		}
+		denominator /= _canopyCount;
+		denominator = std::sqrt(denominator); //this is now the std dev
+		denominator *= (denominator * denominator);
+		denominator *= _canopyCount - 1;
+		r[cell].value() = numerator / denominator;
+	}
+
+	void PointMetricCalculator::kurtosisCanopy(Raster<metric_t>& r, cell_t cell)
+	{
+		if (_canopyCount < 2) {
+			r[cell].has_value() = false;
+			return;
+		}
+		r[cell].has_value() = true;
+
+		metric_t mean = _canopySum / (metric_t)_canopyCount;
+		metric_t denominator = 0;
+		metric_t numerator = 0;
+
+		for (size_t i = 0; i < _hist.size(); ++i) {
+			//this assumes all points are at the center of their bins
+			metric_t diffFromMean = _canopy + _binsize * i + (_binsize / 2) - mean;
+			metric_t tmp = diffFromMean * diffFromMean * _hist.countInBin(i);
+			denominator += tmp;
+			numerator += tmp * diffFromMean * diffFromMean;
+		}
+		denominator /= _canopyCount; //this is now the square of the std dev
+		denominator *= denominator;
+		denominator *= _canopyCount - 1;
+		r[cell].value() = numerator / denominator;
 	}
 
 	void PointMetricCalculator::_quantileCanopy(Raster<metric_t>& r, cell_t cell, metric_t q)
@@ -163,6 +256,7 @@ namespace lapis {
 	void PointMetricCalculator::stratumCover(Raster<metric_t>& r, cell_t cell, size_t stratumIdx) {
 
 		if (!_strataCounts.size()) {
+			r[cell].has_value() = false;
 			return;
 		}
 		metric_t numerator = 0; metric_t denominator = 0;
@@ -179,6 +273,7 @@ namespace lapis {
 	void PointMetricCalculator::stratumPercent(Raster<metric_t>& r, cell_t cell, size_t stratumIdx) {
 
 		if (!_strataCounts.size()) {
+			r[cell].has_value() = false;
 			return;
 		}
 
@@ -206,7 +301,7 @@ namespace lapis {
 		_nHists = nHists;
 	}
 
-	int SparseHistogram::countInBin(size_t bin)
+	int SparseHistogram::countInBin(size_t bin) const
 	{
 		if (!_data.size()) {
 			return 0;
@@ -250,6 +345,86 @@ namespace lapis {
 	{
 		_data.clear();
 		_data.shrink_to_fit();
+	}
+
+	void PointMetricCalculator::p05Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.05);
+	}
+
+	void PointMetricCalculator::p10Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.1);
+	}
+
+	void PointMetricCalculator::p15Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.15);
+	}
+
+	void PointMetricCalculator::p20Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.2);
+	}
+
+	void PointMetricCalculator::p30Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.3);
+	}
+
+	void PointMetricCalculator::p35Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.35);
+	}
+
+	void PointMetricCalculator::p40Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.4);
+	}
+
+	void PointMetricCalculator::p45Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.45);
+	}
+
+	void PointMetricCalculator::p55Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.55);
+	}
+
+	void PointMetricCalculator::p60Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.6);
+	}
+
+	void PointMetricCalculator::p65Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.65);
+	}
+
+	void PointMetricCalculator::p70Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.7);
+	}
+
+	void PointMetricCalculator::p80Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.8);
+	}
+
+	void PointMetricCalculator::p85Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.85);
+	}
+
+	void PointMetricCalculator::p90Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.9);
+	}
+
+	void PointMetricCalculator::p99Canopy(Raster<metric_t>& r, cell_t cell)
+	{
+		_quantileCanopy(r, cell, 0.99);
 	}
 
 }
