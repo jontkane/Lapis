@@ -2,7 +2,6 @@
 #ifndef lp_lapisobjects_h
 #define lp_lapisobjects_h
 
-#include"Options.hpp"
 #include"gis/Raster.hpp"
 #include"PointMetricCalculator.hpp"
 #include"LapisUtils.hpp"
@@ -125,16 +124,16 @@ namespace lapis {
 		//these functions are protected instead of private to enable easier testing 
 	protected:
 
-		void finalParams(const Options& opt);
-		void identifyLasFiles(const Options& opt);
-		void identifyDEMFiles(const Options& opt);
-		void setFilters(const Options& opt);
-		void setPointMetrics(const Options& opt);
-		void setTopoMetrics(const Options& opt);
-		void setCSMMetrics(const Options& opt);
+		void finalParams();
+		void identifyLasFiles();
+		void identifyDEMFiles();
+		void setFilters();
+		void setPointMetrics();
+		void setTopoMetrics();
+		void setCSMMetrics();
 		//as a necessary consequence of the complicated chain of dependencies, this function also reprojects the las extents into the output extent
-		void createOutAlignment(const Options& opt);
-		void sortLasFiles(const Options& opt);
+		void createOutAlignment();
+		void sortLasFiles();
 		void makeNLaz();
 
 	private:
@@ -142,7 +141,7 @@ namespace lapis {
 		using openFuncType = void(const std::filesystem::path&, std::vector<T>&, Logger&,
 			const CoordRef&, const Unit&);
 		template<class T>
-		std::vector<T> iterateOverFileSpecifiers(const std::vector<std::string>& specifiers, openFuncType<T> openFunc,
+		std::vector<T> iterateOverFileSpecifiers(const std::set<std::string>& specifiers, openFuncType<T> openFunc,
 			const CoordRef& crsOverride, const Unit& zUnitOverride);
 
 	};

@@ -8,8 +8,8 @@
 
 
 #include"LapisController.hpp"
-#include"Options.hpp"
 #include"LapisGui.hpp"
+#include"LapisData.hpp"
 #include<sstream>
 
 using namespace lapis;
@@ -18,16 +18,18 @@ int unifiedMain(std::vector<std::string> args) {
 	if (!args.size()) {
 		args.push_back("--help");
 	}
-	ParseResults parsed = parseArgs(args);
-	if (parsed == ParseResults::invalidOpts) {
+	auto& d = LapisData::getDataObject();
+	using pr = LapisData::ParseResults;
+	pr parsed = d.parseArgs(args);
+	if (parsed == pr::invalidOpts) {
 		std::cout << "Error parsing command line\n";
 		return 1;
 	}
-	else if (parsed == ParseResults::helpPrinted) {
+	else if (parsed == pr::helpPrinted) {
 		return 0;
 	}
-	else if (parsed == ParseResults::guiRequested) {
-		renderGui();
+	else if (parsed == pr::guiRequested) {
+		renderFullGui();
 		return 0;
 	}
 
@@ -58,7 +60,7 @@ int APIENTRY WinMain(
 ) {
 	bool attachResult = AttachConsole(ATTACH_PARENT_PROCESS);
 	if (!attachResult) { //there is no parent console. Just open the GUI
-		renderGui();
+		renderFullGui();
 		return 0;
 	}
 	std::array<char, 30> oldTitle = std::array<char, 30>();

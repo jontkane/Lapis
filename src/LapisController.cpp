@@ -1,7 +1,7 @@
 #include "LapisController.hpp"
 #include"app_pch.hpp"
 #include"LapisController.hpp"
-#include"Options.hpp"
+#include"LapisData.hpp"
 
 
 namespace chr = std::chrono;
@@ -420,15 +420,17 @@ namespace lapis {
 
 		fs::path paramDir = getParameterDir();
 		fs::create_directories(paramDir);
+		
+		auto& d = LapisData::getDataObject();
 
 		std::ofstream fullParams{ paramDir / "FullParameters.ini" };
 		if (!fullParams) {
 			log.logError("Could not open " + (paramDir / "FullParameters.ini").string() + " for writing");
 		}
 		else {
-			writeOptions(fullParams, Options::ParamCategory::data);
-			writeOptions(fullParams, Options::ParamCategory::processing);
-			writeOptions(fullParams, Options::ParamCategory::computer);
+			d.writeOptions(fullParams, ParamCategory::data);
+			d.writeOptions(fullParams, ParamCategory::process);
+			d.writeOptions(fullParams, ParamCategory::computer);
 			
 		}
 
@@ -437,8 +439,8 @@ namespace lapis {
 			log.logError("Could not open " + (paramDir / "ProcessingAndComputerParameters.ini").string() + " for writing");
 		}
 		else {
-			writeOptions(runAndComp, Options::ParamCategory::processing);
-			writeOptions(runAndComp, Options::ParamCategory::computer);
+			d.writeOptions(runAndComp, ParamCategory::process);
+			d.writeOptions(runAndComp, ParamCategory::computer);
 		}
 
 		std::ofstream data{ paramDir / "DataParameters.ini" };
@@ -446,7 +448,7 @@ namespace lapis {
 			log.logError("Could not open " + (paramDir / "DataParameters.ini").string() + " for writing");
 		}
 		else {
-			writeOptions(data, Options::ParamCategory::data);
+			d.writeOptions(data, ParamCategory::data);
 		}
 
 		std::ofstream metric{ paramDir / "ProcessingParameters.ini" };
@@ -454,7 +456,7 @@ namespace lapis {
 			log.logError("Could not open " + (paramDir / "ProcessingParameters.ini").string() + " for writing");
 		}
 		else {
-			writeOptions(metric, Options::ParamCategory::processing);
+			d.writeOptions(metric, ParamCategory::process);
 		}
 
 		std::ofstream computer{ paramDir / "ComputerParameters.ini" };
@@ -462,7 +464,7 @@ namespace lapis {
 			log.logError("Could not open " + (paramDir / "ComputerParameters.ini").string() + " for writing");
 		}
 		else {
-			writeOptions(data, Options::ParamCategory::computer);
+			d.writeOptions(data, ParamCategory::computer);
 		}
 	}
 

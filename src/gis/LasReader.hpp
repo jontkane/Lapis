@@ -20,7 +20,7 @@ namespace lapis {
 		int intensity;
 		uint8_t returnNumber;
 
-		LasPoint() : x(0), y(0), z(0), intensity(0) {}
+		LasPoint() : x(0), y(0), z(0), intensity(0), returnNumber(0) {}
 		LasPoint(coord_t x, coord_t y, coord_t z, int intensity, uint8_t returnNumber) : x(x), y(y), z(z), intensity(intensity), returnNumber(returnNumber) {}
 	};
 

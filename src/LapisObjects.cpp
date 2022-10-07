@@ -1,37 +1,39 @@
 #include"app_pch.hpp"
 #include"LapisObjects.hpp"
+#include"LapisData.hpp"
 
 namespace lapis {
 
 	LapisObjects::LapisObjects()
 	{
-		Options& opt = Options::getOptionsObject();
+		LapisData& opt = LapisData::getDataObject();
+		opt.importBoostAndUpdateUnits();
 
 		lp = std::make_unique<LasProcessingObjects>();
 		gp = std::make_unique<GlobalProcessingObjects>();
 
-		identifyLasFiles(opt);
-		createOutAlignment(opt);
-		sortLasFiles(opt);
+		identifyLasFiles();
+		createOutAlignment();
+		sortLasFiles();
 
-		identifyDEMFiles(opt);
-		setFilters(opt);
-		setPointMetrics(opt);
-		setTopoMetrics(opt);
-		setCSMMetrics(opt);
+		identifyDEMFiles();
+		setFilters();
+		setPointMetrics();
+		setTopoMetrics();
+		setCSMMetrics();
 
 		makeNLaz();
 
-		finalParams(opt);
+		finalParams();
 	}
 	void LapisObjects::cleanUpAfterPointMetrics()
 	{
 		lp.reset(nullptr);
 	}
-	void LapisObjects::identifyLasFiles(const Options& opt)
+	void LapisObjects::identifyLasFiles()
 	{
 		Logger& log = Logger::getLogger();
-
+		LapisData& opt = LapisData::getDataObject();
 		std::vector<LasFileExtent> foundLaz = iterateOverFileSpecifiers<LasFileExtent>(opt.getLas(), &tryLasFile,
 			lp->lasCRSOverride, lp->lasUnitOverride);
 		std::unordered_set<std::string> unique;
@@ -45,8 +47,9 @@ namespace lapis {
 		log.logProgress(std::to_string(gp->sortedLasFiles.size()) + " point cloud files identified");
 	}
 
-	void LapisObjects::identifyDEMFiles(const Options& opt)
+	void LapisObjects::identifyDEMFiles()
 	{
+		LapisData& opt = LapisData::getDataObject();
 		Logger& log = Logger::getLogger();
 		std::vector<DemFileAlignment> foundDem = iterateOverFileSpecifiers<DemFileAlignment>(opt.getDem(), &tryDtmFile,
 			opt.getDemCrs(), opt.getDemUnits());
@@ -61,13 +64,13 @@ namespace lapis {
 		log.logProgress(std::to_string(gp->demFiles.size()) + " DEM files identified");
 	}
 
-	void LapisObjects::setFilters(const Options& opt)
+	void LapisObjects::setFilters()
 	{
 		Logger& log = Logger::getLogger();
 
 		auto& filters = lp->filters;
-
-		Options::ClassFilter cf = opt.getClassFilter();
+		LapisData& opt = LapisData::getDataObject();
+		auto cf = opt.getClassFilter();
 		if (cf.list.size()) {
 			if (cf.isWhiteList) {
 				filters.push_back(std::make_shared<LasFilterClassWhitelist>(cf.list));
@@ -86,9 +89,9 @@ namespace lapis {
 		log.logDiagnostic(std::to_string(filters.size()) + " filters applied");
 	}
 
-	void LapisObjects::setPointMetrics(const Options& opt)
+	void LapisObjects::setPointMetrics()
 	{
-
+		LapisData& opt = LapisData::getDataObject();
 		using oul = OutputUnitLabel;
 		using pmc = PointMetricCalculator;
 		auto& pointMetrics = lp->allReturnMetricRasters;
@@ -158,13 +161,13 @@ namespace lapis {
 		
 	}
 
-	void LapisObjects::setTopoMetrics(const Options& opt) {
+	void LapisObjects::setTopoMetrics() {
 		using oul = OutputUnitLabel;
 		lp->topoMetrics.push_back({ viewSlope<coord_t,metric_t>,"Slope",oul::Radian});
 		lp->topoMetrics.push_back({ viewAspect<coord_t,metric_t>,"Aspect",oul::Radian});
 	}
 
-	void LapisObjects::setCSMMetrics(const Options& opt) {
+	void LapisObjects::setCSMMetrics() {
 		auto& csmMetrics = gp->csmMetrics;
 		auto& align = gp->metricAlign;
 		using oul = OutputUnitLabel;
@@ -174,13 +177,14 @@ namespace lapis {
 		csmMetrics.push_back({ &viewRumple<csm_t>, "RumpleCSM", align,oul::Unitless});
 	}
 
-	void LapisObjects::createOutAlignment(const Options& opt) {
+	void LapisObjects::createOutAlignment() {
 
 		Logger& log = Logger::getLogger();
 
 		Alignment& metricAlign = gp->metricAlign;
+		LapisData& opt = LapisData::getDataObject();
 
-		Options::AlignWithoutExtent optAlign = opt.getAlign();
+		auto optAlign = opt.getAlign();
 
 		CoordRef outCRS;
 		if (!optAlign.crs.isEmpty()) {
@@ -224,29 +228,11 @@ namespace lapis {
 
 		fullExtent.defineCRS(outCRS); //getting the units right and maybe cleaning up some wkt nonsense
 
-		auto getCorrectedValue = [&](coord_t value, coord_t defaultValue)->coord_t {
-			if (value > 0) {
-				return value;
-			}
-			if (value == 0) {
-				return convertUnits(defaultValue, linearUnitDefs::meter, outCRS.getXYUnits());
-			}
-			return convertUnits(-value, opt.getUserUnits(), outCRS.getXYUnits());
-		};
-
-		metricAlign = Alignment(fullExtent,getCorrectedValue(optAlign.xorigin,0),
-			getCorrectedValue(optAlign.yorigin,0),
-			getCorrectedValue(optAlign.xres,30),
-			getCorrectedValue(optAlign.yres, 30));
+		metricAlign = Alignment(fullExtent,optAlign.xorigin,optAlign.yorigin,
+			optAlign.xres, optAlign.yres);
 
 
 		coord_t csmcellsize = opt.getCSMCellsize();
-		if (csmcellsize == 0) {
-			csmcellsize = convertUnits(1, linearUnitDefs::meter, outCRS.getXYUnits());
-		}
-		else {
-			csmcellsize = convertUnits(csmcellsize, opt.getUserUnits(), outCRS.getXYUnits());
-		}
 
 		gp->csmAlign = Alignment(fullExtent, metricAlign.xOrigin(), metricAlign.yOrigin(), csmcellsize, csmcellsize);
 
@@ -259,7 +245,7 @@ namespace lapis {
 
 		log.logDiagnostic("Alignment calculated");
 	}
-	void LapisObjects::sortLasFiles(const Options& opt)
+	void LapisObjects::sortLasFiles()
 	{
 		//this just sorts north->south in a sort of naive way that ought to present a relatively minimal surface area when the data is tiled
 		auto lasExtentSorter = [](const LasFileExtent& a, const LasFileExtent& b) {
@@ -297,8 +283,10 @@ namespace lapis {
 		std::sort(gp->sortedLasFiles.begin(), gp->sortedLasFiles.end(), lasExtentSorter);
 	}
 
-	void LapisObjects::finalParams(const Options& opt)
+	void LapisObjects::finalParams()
 	{
+		LapisData& opt = LapisData::getDataObject();
+
 		lp->elevDenominator = Raster<coord_t>(gp->metricAlign);
 		lp->elevNumerator = Raster<coord_t>(gp->metricAlign);
 
@@ -346,7 +334,7 @@ namespace lapis {
 	}
 
 	template<class T>
-	std::vector<T> LapisObjects::iterateOverFileSpecifiers(const std::vector<std::string>& specifiers, openFuncType<T> openFunc,
+	std::vector<T> LapisObjects::iterateOverFileSpecifiers(const std::set<std::string>& specifiers, openFuncType<T> openFunc,
 		const CoordRef& crsOverride, const Unit& zUnitOverride)
 	{
 
@@ -403,10 +391,10 @@ namespace lapis {
 		return fileList;
 	}
 
-	template std::vector<LasFileExtent> LapisObjects::iterateOverFileSpecifiers<LasFileExtent>(const std::vector<std::string>& specifiers,
+	template std::vector<LasFileExtent> LapisObjects::iterateOverFileSpecifiers<LasFileExtent>(const std::set<std::string>& specifiers,
 		openFuncType<LasFileExtent> openFunc,
 		const CoordRef& crsOverride, const Unit& zUnitOverride);
-	template std::vector<DemFileAlignment> LapisObjects::iterateOverFileSpecifiers<DemFileAlignment>(const std::vector<std::string>& specifiers,
+	template std::vector<DemFileAlignment> LapisObjects::iterateOverFileSpecifiers<DemFileAlignment>(const std::set<std::string>& specifiers,
 		openFuncType<DemFileAlignment> openFunc,
 		const CoordRef& crsOverride, const Unit& zUnitOverride);
 

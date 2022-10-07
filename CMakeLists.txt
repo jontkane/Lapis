@@ -54,8 +54,6 @@ set(LAPIS_APP_SOURCES
 		src/lapisutils.hpp
 		src/logger.cpp
 		src/logger.hpp
-		src/options.cpp
-		src/options.hpp
 		src/pointmetriccalculator.cpp
 		src/pointmetriccalculator.hpp
 		src/lapisobjects.hpp
@@ -67,6 +65,10 @@ set(LAPIS_APP_SOURCES
 		src/lapistypedefs.hpp
 		src/lapisgui.hpp
 		src/lapisgui.cpp
+		src/LapisParameters.hpp
+		src/LapisParameters.cpp
+		src/LapisData.hpp
+		src/LapisData.cpp
 		)
 
 set(LAPIS_TEST_SOURCES
