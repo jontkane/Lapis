@@ -195,8 +195,8 @@ namespace lapis {
 		if (!a.overlaps(e)) {
 			throw OutsideExtentException();
 		}
-		Extent cropE = crop(e, a);
-		cropE = a.alignExtent(cropE, snap);
+		Extent cropE = a.alignExtent(e, snap);
+		cropE = crop(cropE, a);
 		rowcol_t nrow = (rowcol_t)std::round((cropE.ymax() - cropE.ymin()) / a.yres());
 		rowcol_t ncol = (rowcol_t)std::round((cropE.xmax() - cropE.xmin()) / a.xres());
 		return Alignment(cropE, nrow, ncol);

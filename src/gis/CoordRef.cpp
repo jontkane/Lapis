@@ -182,8 +182,14 @@ namespace lapis {
 		if (zUnits.type != unitType::linear) {
 			throw ImproperUnitsException("");
 		}
-		_zUnits = zUnits;
-		_zUnits.status = unitStatus::setByUser;
+		if (!zUnits.isUnknown()) {
+			_zUnits = zUnits;
+			_zUnits.status = unitStatus::setByUser;
+		}
+		else {
+			_zUnits = _inferZUnits();
+		}
+
 	}
 
 	bool CoordRef::hasVertDatum() const {

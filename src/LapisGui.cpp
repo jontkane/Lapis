@@ -77,10 +77,9 @@ namespace lapis {
 		LapisData& d = LapisData::getDataObject();
 		LapisGuiObjects& lgo = LapisGuiObjects::getGuiObjects();
 
-		d.importBoostAndUpdateUnits();
-		d.setPrevUnits(d.getUserUnits());
-
 		if (!lgo.isRunning()) {
+			d.importBoostAndUpdateUnits();
+			d.setPrevUnits(d.getCurrentUnits());
 			if (ImGui::BeginTabItem("Run")) {
 				runTab();
 				ImGui::EndTabItem();
@@ -166,23 +165,26 @@ namespace lapis {
 		d.renderGui(ParamName::outUnits);
 		ImGui::EndChild();
 
-		ImGui::BeginChild("units", getRegionSize(1), true, 0);
+		ImGui::SameLine();
+		ImGui::BeginChild("alignment", getRegionSize(1), true, 0);
 		d.renderGui(ParamName::alignment);
 		ImGui::EndChild();
 
-		ImGui::BeginChild("units", getRegionSize(2), true, 0);
+		ImGui::BeginChild("csm", getRegionSize(2), true, 0);
 		d.renderGui(ParamName::csmOptions);
 		ImGui::EndChild();
 
-		ImGui::BeginChild("units", getRegionSize(3), true, 0);
+		ImGui::SameLine();
+		ImGui::BeginChild("metric", getRegionSize(3), true, 0);
 		d.renderGui(ParamName::metricOptions);
 		ImGui::EndChild();
 
-		ImGui::BeginChild("units", getRegionSize(4), true, 0);
+		ImGui::BeginChild("filter", getRegionSize(4), true, 0);
 		d.renderGui(ParamName::filterOptions);
 		ImGui::EndChild();
 
-		ImGui::BeginChild("units", getRegionSize(5), true, 0);
+		ImGui::SameLine();
+		ImGui::BeginChild("optional", getRegionSize(5), true, 0);
 		d.renderGui(ParamName::optionalMetrics);
 		ImGui::EndChild();
 	}

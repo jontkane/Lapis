@@ -6,9 +6,9 @@
 #include"Logger.hpp"
 #include"PointMetricCalculator.hpp"
 #include"LapisUtils.hpp"
-#include"LapisObjects.hpp"
 #include"csmalgos.hpp"
 #include"LapisPrivate.hpp"
+#include"LapisData.hpp"
 
 namespace std {
 	namespace filesystem {
@@ -110,13 +110,11 @@ namespace lapis {
 		template<class T>
 		void writeRasterWithFullName(const fs::path& dir, const std::string& baseName, Raster<T>& r, OutputUnitLabel u) const;
 
-
-		std::unique_ptr<LapisObjects> obj;
-		GlobalProcessingObjects* gp;
-		LasProcessingObjects* lp;
 		std::unique_ptr<LapisPrivate> pr;
 
 		std::atomic_bool _isRunning = false;
+
+		LapisData* data;
 	};
 
 	template<class T>
@@ -131,7 +129,7 @@ namespace lapis {
 		std::string unitString;
 		using oul = OutputUnitLabel;
 		if (u == oul::Default) {
-			Unit outUnit = gp->metricAlign.crs().getZUnits();
+			Unit outUnit = data->metricAlign()->crs().getZUnits();
 			std::regex meterregex{ ".*met.*",std::regex::icase };
 			std::regex footregex{ ".*f(o|e)(o|e)t.*",std::regex::icase };
 			if (std::regex_match(outUnit.name, meterregex)) {
@@ -147,7 +145,7 @@ namespace lapis {
 		else if (u == oul::Radian) {
 			unitString = "_Radians";
 		}
-		std::string runName = gp->runName.size() ? gp->runName + "_" : "";
+		std::string runName = data->name().size() ? data->name() + "_" : "";
 		fs::path fullPath = dir / (runName + baseName + unitString + ".tif");
 		r.writeRaster(fullPath.string());
 	}

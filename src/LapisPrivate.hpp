@@ -2,8 +2,9 @@
 #ifndef lp_privateprocessing_h
 #define lp_privateprocessing_h
 
-#include"LapisObjects.hpp"
-#include"csmalgos.hpp"
+#include"gis/Raster.hpp"
+#include"gis/LasReader.hpp"
+#include"LapisTypedefs.hpp"
 
 //The functions defined in this file are intended to be used for defining new analyses that for whatever reason aren't appropriate for a stable release of lapis
 //but where the user wants to piggyback on lapis' existing workflow
@@ -15,7 +16,7 @@ namespace lapis {
 	class LapisPrivate {
 	public:
 		//This constructor is called before any processing is done
-		LapisPrivate(LapisObjects& obj);
+		LapisPrivate();
 
 		void oncePerLas(const Extent& e, const LidarPointVector& points);
 

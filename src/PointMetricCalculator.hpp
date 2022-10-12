@@ -98,28 +98,6 @@ namespace lapis {
 
 		metric_t _estimatePointValue(size_t binNumber, int ordinal);
 	};
-
-	using MetricFunc = void(PointMetricCalculator::*)(Raster<metric_t>& r, cell_t cell);
-	using StratumFunc = void(PointMetricCalculator::*)(Raster<metric_t>& r, cell_t cell, size_t stratumIdx);
-
-	struct PointMetricRaster {
-		std::string name;
-		MetricFunc fun;
-		Raster<metric_t> rast;
-		OutputUnitLabel unit;
-	};
-
-	struct StratumMetricRasters {
-		std::string baseName;
-		std::vector<std::string> stratumNames;
-		StratumFunc fun;
-		std::vector<Raster<metric_t>> rasters;
-		OutputUnitLabel unit;
-
-		StratumMetricRasters(const std::string& bn, const std::vector<std::string>& sn, StratumFunc f, const Alignment& a, OutputUnitLabel u) :
-			baseName(bn), stratumNames(sn), fun(f), rasters(sn.size(),a), unit(u) {
-		}
-	};
 }
 
 #endif

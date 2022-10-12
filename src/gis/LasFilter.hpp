@@ -75,6 +75,10 @@ namespace lapis {
 			return !whitelist.contains(p.classification());
 		}
 
+		const std::unordered_set<std::uint8_t>& getSet() const {
+			return whitelist;
+		}
+
 	private:
 		std::unordered_set<std::uint8_t> whitelist;
 	};
@@ -86,6 +90,10 @@ namespace lapis {
 		}
 		bool isFiltered(const CurrentLasPoint& p) override {
 			return blacklist.contains(p.classification());
+		}
+
+		const std::unordered_set<std::uint8_t>& getSet() const {
+			return blacklist;
 		}
 
 	private:

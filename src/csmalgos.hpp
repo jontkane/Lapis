@@ -3,7 +3,7 @@
 #define lp_csmalgos_h
 
 #include"gis/Raster.hpp"
-#include"LapisObjects.hpp"
+#include"LapisTypedefs.hpp"
 
 namespace lapis {
 
@@ -43,8 +43,7 @@ namespace lapis {
 	//thisTile should be >=0 and <nTiles
 	//the labels of the output raster will all have the property that their value, mod nTiles, is congruent to thisTile
 	//this can be used to guarantee unique IDs across all tiles
-	Raster<taoid_t> watershedSegment(const Raster<csm_t>& csm, const std::vector<cell_t>& highPoints,
-		const GlobalProcessingObjects& gp, cell_t thisTile, cell_t nTiles);
+	Raster<taoid_t> watershedSegment(const Raster<csm_t>& csm, const std::vector<cell_t>& highPoints, cell_t thisTile, cell_t nTiles);
 
 	Raster<csm_t> maxHeightBySegment(const Raster<taoid_t>& segments, const Raster<csm_t>& csm, std::vector<cell_t>& highPoints);
 

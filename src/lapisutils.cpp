@@ -6,7 +6,23 @@ namespace fs = std::filesystem;
 namespace lapis {
 
 
+	bool operator<(const DemFileAlignment& a, const DemFileAlignment& b) {
+		if (a.filename == b.filename) return false; //this ensures that entries with duplicate filenames don't both get added into a set
+		return true;
+	}
 
+	bool operator<(const LasFileExtent& a, const LasFileExtent& b) {
+		if (a.filename == b.filename) { return false; }
+		if (a.ext.ymax() > b.ext.ymax()) { return true; }
+		if (a.ext.ymax() < b.ext.ymax()) { return false; }
+		if (a.ext.ymin() > b.ext.ymin()) { return true; }
+		if (a.ext.ymin() < b.ext.ymin()) { return false; }
+		if (a.ext.xmax() > b.ext.xmax()) { return true; }
+		if (a.ext.xmin() < b.ext.xmin()) { return false; }
+		if (a.ext.xmax() > b.ext.xmax()) { return true; }
+		if (a.ext.xmax() < b.ext.xmax()) { return false; }
+		return a.filename < b.filename;
+	}
 
 
 	bool extentSorter(const Extent& lhs, const Extent& rhs) {
@@ -24,8 +40,8 @@ namespace lapis {
 	
 	std::string insertZeroes(int value, int maxvalue)
 	{
-		int nDigits = (int)(std::log10(maxvalue) + 1);
-		int thisDigitCount = std::max(1, (int)(std::log10(value) + 1));
+		size_t nDigits = (size_t)(std::log10(maxvalue) + 1);
+		size_t thisDigitCount = std::max(1ull, (size_t)(std::log10(value) + 1));
 		return std::string(nDigits - thisDigitCount, '0') + std::to_string(value);
 	}
 

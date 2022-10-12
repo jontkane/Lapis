@@ -21,6 +21,7 @@ int unifiedMain(std::vector<std::string> args) {
 	auto& d = LapisData::getDataObject();
 	using pr = LapisData::ParseResults;
 	pr parsed = d.parseArgs(args);
+	d.importBoostAndUpdateUnits();
 	if (parsed == pr::invalidOpts) {
 		std::cout << "Error parsing command line\n";
 		return 1;

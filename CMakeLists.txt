@@ -56,8 +56,6 @@ set(LAPIS_APP_SOURCES
 		src/logger.hpp
 		src/pointmetriccalculator.cpp
 		src/pointmetriccalculator.hpp
-		src/lapisobjects.hpp
-		src/lapisobjects.cpp
 		src/csmalgos.hpp
 		src/csmalgos.cpp
 		src/LapisPrivate.hpp
@@ -69,6 +67,7 @@ set(LAPIS_APP_SOURCES
 		src/LapisParameters.cpp
 		src/LapisData.hpp
 		src/LapisData.cpp
+		src/MetricTypeDefs.hpp
 		)
 
 set(LAPIS_TEST_SOURCES
@@ -82,10 +81,10 @@ set(LAPIS_TEST_SOURCES
 		src/test/lasreadertest.cpp
 		src/test/quadextenttest.cpp
 		src/test/rastertest.cpp
-		src/test/lapisobjectstest.cpp
 		src/test/pointmetriccalculatortest.cpp
 		src/test/csmalgostest.cpp
 		src/test/RasterAlgosTest.cpp
+		src/test/lapisdatatest.cpp
 		)
 		
 set(LAPIS_IMGUI_SOURCES
@@ -111,7 +110,7 @@ add_library(Lapis_gis STATIC ${LAPIS_GIS_SOURCES})
 add_library(Lapis_app STATIC ${LAPIS_APP_SOURCES})
 add_library(Lapis_imgui STATIC ${LAPIS_IMGUI_SOURCES})
 
-add_executable(Lapis src/lapis.cpp)
+add_executable(Lapis WIN32 src/lapis.cpp)
 target_link_libraries(Lapis PUBLIC Lapis_gis)
 target_link_libraries(Lapis PUBLIC Lapis_app)
 target_link_libraries(Lapis PUBLIC Lapis_imgui)
@@ -119,6 +118,7 @@ target_link_libraries(Lapis PUBLIC Lapis_imgui)
 add_executable(Lapis_test ${LAPIS_TEST_SOURCES})
 target_link_libraries(Lapis_test PUBLIC Lapis_gis)
 target_link_libraries(Lapis_test PUBLIC Lapis_app)
+target_link_libraries(Lapis_test PUBLIC Lapis_imgui)
 
 find_package(Boost 1.74 COMPONENTS program_options REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
@@ -153,13 +153,16 @@ include_directories(${XTL_INCLUDE_DIR})
 
 find_package(glfw3 3.3 REQUIRED)
 target_link_libraries(Lapis PRIVATE glfw)
+target_link_libraries(Lapis_test PRIVATE glfw)
 
 find_package(OpenGL REQUIRED)
 target_link_libraries(Lapis PRIVATE OpenGL::GL)
+target_link_libraries(Lapis_test PRIVATE OpenGL::GL)
 
 add_subdirectory(src/nativefiledialog-extended)
 include_directories(src/nativefiledialog-extended/src/include)
 target_link_libraries(Lapis PRIVATE nfd)
+target_link_libraries(Lapis_test PRIVATE nfd)
 
 find_package(gtest REQUIRED)
 
@@ -170,7 +173,6 @@ if(MSVC)
   target_compile_options(Lapis PRIVATE /W3 /WX)
   target_compile_options(Lapis_app PRIVATE /W3 /WX)
   target_compile_options(Lapis_gis PRIVATE /W3 /WX)
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
 else()
   target_compile_options(Lapis PRIVATE -Wall -Wextra -Werror)
   target_compile_options(Lapis_app PRIVATE -Wall -Wextra -Werror)

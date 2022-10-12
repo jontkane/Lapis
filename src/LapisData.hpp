@@ -3,16 +3,19 @@
 #define LAPISDATA_H
 
 #include"LapisParameters.hpp"
+#include"LapisUtils.hpp"
+#include"MetricTypeDefs.hpp"
+#include"gis/LasFilter.hpp"
+#include<filesystem>
 
 namespace lapis {
 
+	template<class T>
+	using shared_raster = std::shared_ptr<Raster<T>>;
 
 	class LapisData {
 
 	public:
-		template<ParamName N>
-		using data = Parameter<N>::data_type;
-
 
 		static LapisData& getDataObject();
 
@@ -27,36 +30,66 @@ namespace lapis {
 
 		void renderGui(ParamName pn);
 		void setPrevUnits(const Unit& u);
+		const Unit& getCurrentUnits() const;
 		const Unit& getPrevUnits() const;
 		void importBoostAndUpdateUnits();
 
-		const std::set<std::string>& getLas() const;
-		const std::set<std::string>& getDem() const;
-		const std::string& getOutput() const;
-		const Unit& getLasUnits() const;
-		const Unit& getDemUnits() const;
-		CoordRef getLasCrs() const;
-		CoordRef getDemCrs() const;
-		coord_t getFootprintDiameter() const;
-		int getSmoothWindow() const;
-		AlignWithoutExtent getAlign() const;
-		coord_t getCSMCellsize() const;
-		const Unit& getUserUnits() const;
-		coord_t getCanopyCutoff() const;
-		coord_t getMinHt() const;
-		coord_t getMaxHt() const;
-		std::vector<coord_t> getStrataBreaks() const;
-		bool getFineIntFlag() const;
-		ClassFilter getClassFilter() const;
-		bool getUseWithheldFlag() const;
-		//value is negative if there isn't a scan angle filter
-		int8_t getMaxScanAngle() const;
-		bool getOnlyFlag() const;
-		int getNThread() const;
-		bool getPerformanceFlag() const;
-		std::string getName() const;
-		bool getGdalProjWarningFlag() const;
-		bool getAdvancedPointFlag() const;
+		void prepareForRun();
+		void cleanAfterRun();
+		void resetObject();
+
+		std::shared_ptr<Alignment> metricAlign();
+		std::shared_ptr<Alignment> csmAlign();
+
+		
+		shared_raster<int> nLazRaster();
+		shared_raster<PointMetricCalculator> allReturnPMC();
+		shared_raster<PointMetricCalculator> firstReturnPMC();
+
+		std::mutex& cellMutex(cell_t cell);
+		std::mutex& globalMutex();
+
+		std::vector<PointMetricRaster>& allReturnPointMetrics();
+		std::vector<PointMetricRaster>& firstReturnPointMetrics();
+		std::vector<StratumMetricRasters>& allReturnStratumMetrics();
+		std::vector<StratumMetricRasters>& firstReturnStratumMetrics();
+		std::vector<CSMMetric>& csmMetrics();
+		std::vector<TopoMetric>& topoMetrics();
+		shared_raster<coord_t> elevNum();
+		shared_raster<coord_t> elevDenom();
+
+		const std::vector<std::shared_ptr<LasFilter>>& filters();
+		coord_t minHt();
+		coord_t maxHt();
+
+		const CoordRef& lasCrsOverride();
+		const CoordRef& demCrsOverride();
+		const Unit& lasUnitOverride();
+		const Unit& demUnitOverride();
+
+		coord_t footprintDiameter();
+		int smooth();
+
+		const std::vector<LasFileExtent>& sortedLasList();
+		const std::set<DemFileAlignment>& demList();
+
+		int nThread();
+		coord_t binSize();
+		size_t csmFileSize();
+
+		coord_t canopyCutoff();
+		const std::vector<coord_t>& strataBreaks();
+
+		const std::filesystem::path& outFolder();
+		const std::string& name();
+
+		bool doFirstReturnMetrics();
+		bool doAllReturnMetrics();
+		bool doCsm();
+		bool doTaos();
+		bool doFineInt();
+		bool doTopo();
+		bool doAdvPointMetrics();
 
 		enum class ParseResults {
 			invalidOpts, helpPrinted, validOpts, guiRequested
@@ -69,6 +102,10 @@ namespace lapis {
 
 
 	private:
+
+		template<ParamName N>
+		friend class Parameter;
+
 		LapisData();
 		std::vector<std::unique_ptr<ParamBase>> _params;
 
@@ -83,6 +120,10 @@ namespace lapis {
 		const Parameter<N>& _getRawParam() const;
 
 		Unit _prevUnits;
+
+		size_t _cellMutCount = 10000;
+		std::unique_ptr<std::vector<std::mutex>> _cellMuts;
+		std::mutex _globalMut;
 	};
 
 	template<ParamName N>

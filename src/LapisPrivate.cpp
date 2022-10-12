@@ -3,7 +3,7 @@
 
 namespace lapis {
 
-	LapisPrivate::LapisPrivate(LapisObjects& obj)
+	LapisPrivate::LapisPrivate()
 	{
 	}
 	void LapisPrivate::oncePerLas(const Extent& e, const LidarPointVector& points)

@@ -1,5 +1,6 @@
 #include"app_pch.hpp"
 #include"csmalgos.hpp"
+#include"LapisGui.hpp"
 
 namespace lapis {
 
@@ -138,12 +139,12 @@ namespace lapis {
 		return out;
 	}
 
-	Raster<taoid_t> watershedSegment(const Raster<csm_t>& csm, const std::vector<cell_t>& highPoints,
-		const GlobalProcessingObjects& gp, cell_t thisTile, cell_t nTiles)
+	Raster<taoid_t> watershedSegment(const Raster<csm_t>& csm, const std::vector<cell_t>& highPoints, cell_t thisTile, cell_t nTiles)
 	{
 		//this is modified from https://arxiv.org/pdf/1511.04463.pdf
 		//algorithm 5 on page 15
-		HierarchicalQueue open{ gp.canopyCutoff, gp.maxht,gp.binSize };
+		auto& d = LapisData::getDataObject();
+		HierarchicalQueue open{ d.canopyCutoff(), d.maxHt(),d.binSize()};
 		const taoid_t CANDIDATE = -2;
 		const taoid_t QUEUED = -3;
 		const taoid_t INTENTIONALLY_UNABELLED = 0;
@@ -151,7 +152,7 @@ namespace lapis {
 		for (cell_t cell = 0; cell < labels.ncell(); ++cell) {
 			if (csm[cell].has_value()) {
 				labels[cell].has_value() = true;
-				if (csm[cell].value() >= gp.canopyCutoff) {
+				if (csm[cell].value() >= d.canopyCutoff()) {
 					labels[cell].value() = CANDIDATE;
 				}
 				else {

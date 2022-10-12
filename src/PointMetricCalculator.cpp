@@ -182,7 +182,7 @@ namespace lapis {
 		denominator /= _canopyCount;
 		denominator = std::sqrt(denominator); //this is now the std dev
 		denominator *= (denominator * denominator);
-		denominator *= _canopyCount - 1;
+		denominator *= _canopyCount - 1ll;
 		r[cell].value() = numerator / denominator;
 	}
 
@@ -207,7 +207,7 @@ namespace lapis {
 		}
 		denominator /= _canopyCount; //this is now the square of the std dev
 		denominator *= denominator;
-		denominator *= _canopyCount - 1;
+		denominator *= _canopyCount - 1ll;
 		r[cell].value() = numerator / denominator;
 	}
 
@@ -324,8 +324,7 @@ namespace lapis {
 		if (bin >= _nHists * binsPerHist) {
 			bin = _nHists * binsPerHist - 1;
 		}
-
-		auto& thisHist = _data[bin / binsPerHist];
+		auto& thisHist = _data.at(bin / binsPerHist);
 		size_t binInHist = bin % binsPerHist;
 		if (!thisHist) {
 			thisHist = std::make_unique<std::array<int, binsPerHist>>();

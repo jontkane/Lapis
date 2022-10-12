@@ -6,7 +6,7 @@ namespace lapis {
 	class PointMetricCalculatorTest : public ::testing::Test {
 	public:
 		static void SetUpTestSuite() {
-			PointMetricCalculator::setInfo(2, 100, 0.1);
+			PointMetricCalculator::setInfo(2, 100, 0.1, {});
 		}
 
 		PointMetricCalculator sparsePMC;
@@ -16,11 +16,11 @@ namespace lapis {
 		void SetUp() override {
 			r = Raster<metric_t>(Alignment(Extent(0, 1, 0, 2), 1, 2));
 			for (coord_t i = -10; i < 21; ++i) {
-				sparsePMC.addPoint({ 0,0,i,0 });
+				sparsePMC.addPoint({ 0,0,i,0,0 });
 			}
 
 			for (int i = 0; i < 1000; ++i) {
-				densePMC.addPoint({ 0,0,2 + i * 0.01,0 });
+				densePMC.addPoint({ 0,0,2 + i * 0.01,0,0 });
 			}
 		}
 

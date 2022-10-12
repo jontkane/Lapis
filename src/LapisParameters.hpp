@@ -2,12 +2,16 @@
 #ifndef LAPISPARAMETERS_H
 #define LAPISPARAMETERS_H
 
+#pragma warning(push)
+#pragma warning(disable: 26495)
 #include<boost/program_options.hpp>
+#pragma warning(pop)
 #include"imgui/imgui.h"
-#include <nfd.hpp>
+#include<nfd.hpp>
 #include"gis/CoordRef.hpp"
 #include"gis/Alignment.hpp"
-#include<sstream>
+#include"LapisUtils.hpp"
+#include"MetricTypeDefs.hpp"
 
 namespace lapis {
 
@@ -69,6 +73,9 @@ namespace lapis {
 
 		virtual void importFromBoost() = 0;
 		virtual void updateUnits() = 0;
+
+		virtual void prepareForRun() = 0;
+		virtual void cleanAfterRun() = 0;
 	};
 
 	template<ParamName N>
@@ -93,6 +100,9 @@ namespace lapis {
 
 		void importFromBoost() override;
 		void updateUnits() override;
+
+		void prepareForRun() override;
+		void cleanAfterRun() override;
 	};
 	*/
 
@@ -115,17 +125,22 @@ namespace lapis {
 		void importFromBoost() override;
 		void updateUnits() override;
 
+		void prepareForRun() override;
+		void cleanAfterRun() override;
+
 	private:
-		std::string _nameCmd;
+		std::string _nameCmd = "name";
 		std::string _nameBoost;
 		std::array<char, 30> _nameBuffer;
+
+		std::string _runString;
 	};
 
 	struct LasDemSpecifics {
 		mutable std::vector<std::string> fileSpecsVector;
 		NFD::UniquePathU8 nfdFolder;
 		NFD::UniquePathSet nfdFiles;
-		bool recursiveCheckbox;
+		bool recursiveCheckbox = true;
 
 		std::unique_ptr<nfdnfilteritem_t> fileFilter;
 		std::string name;
@@ -161,9 +176,17 @@ namespace lapis {
 		void importFromBoost() override;
 		void updateUnits() override;
 
+		void prepareForRun() override;
+		void cleanAfterRun() override;
+
+		Extent getFullExtent();
+		const std::vector<LasFileExtent> getAllExtents();
+
 	private:
 		const std::string _cmdName = "las";
 		LasDemSpecifics _spec;
+
+		std::vector<LasFileExtent> _fileExtents;
 	};
 
 	template<>
@@ -185,9 +208,13 @@ namespace lapis {
 		void importFromBoost() override;
 		void updateUnits() override;
 
+		void prepareForRun() override;
+		void cleanAfterRun() override;
+
 	private:
 		const std::string _cmdName = "dem";
 		LasDemSpecifics _spec;
+		std::set<DemFileAlignment> _fileAligns;
 	};
 
 	template<>
@@ -209,27 +236,22 @@ namespace lapis {
 		void importFromBoost() override;
 		void updateUnits() override;
 
+		void prepareForRun() override;
+		void cleanAfterRun() override;
+
 	private:
 		std::string _cmdName = "output";
-		std::string _string;
-		std::array<char, 255> _buffer = std::array<char, 255>{0};
+		std::string _boostString;
+		std::array<char, 256> _buffer = std::array<char, 256>{0};
 		NFD::UniquePathU8 _nfdFolder;
+
+		std::filesystem::path _path;
 	};
 
-	std::string getDisplayCrsString(const char* inStr, const char* defaultMessage);
+	void updateCrsAndDisplayString(const char* inStr, const char* defaultMessage, std::string* display, CoordRef* crs);
 	int unitRadioFromString(const std::string& s);
 
 	struct LasDemOverrideSpecifics {
-		CoordRef getAsCrs() {
-			CoordRef crs;
-			try {
-				crs = CoordRef(crsBoostString);
-			}
-			catch (UnableToDeduceCRSException e) {}
-			crs.setZUnits(ParamBase::unitRadioOrder[unitRadio]);
-			return crs;
-		}
-
 		std::string crsDisplayString = "Infer From Files";
 		std::vector<char> crsBuffer;
 		int unitRadio = 0;
@@ -239,6 +261,8 @@ namespace lapis {
 		std::string name;
 		bool displayManualCrsWindow = false;
 		bool textSiezeFocus = false;
+
+		CoordRef crs;
 
 		NFD::UniquePathU8 nfdFile;
 
@@ -265,6 +289,10 @@ namespace lapis {
 		void importFromBoost() override;
 		void updateUnits() override;
 
+		const CoordRef& getCurrentCrs();
+		void prepareForRun() override;
+		void cleanAfterRun() override;
+
 	private:
 		LasDemOverrideSpecifics _spec;
 
@@ -290,6 +318,10 @@ namespace lapis {
 
 		void importFromBoost() override;
 		void updateUnits() override;
+
+		const CoordRef& getCurrentCrs();
+		void prepareForRun() override;
+		void cleanAfterRun() override;
 
 	private:
 		LasDemOverrideSpecifics _spec;
@@ -318,13 +350,14 @@ namespace lapis {
 
 		void importFromBoost() override;
 		void updateUnits() override;
+		void prepareForRun() override;
+		void cleanAfterRun() override;
 
 	private:
-		inline static int _radio = 1; //making it static so that the other template specializations can check what the units currently are
-		inline static int _radioLastFrame = 1;
+		int _radio = 1;
 
 		std::string _boostString;
-		std::string _cmdName;
+		std::string _cmdName = "user-units";
 	};
 
 	void updateUnitsBuffer(ParamBase::FloatBuffer& buff);
@@ -350,6 +383,13 @@ namespace lapis {
 		void importFromBoost() override;
 		void updateUnits() override;
 
+		CoordRef getCurrentOutCrs() const;
+		const Alignment& getFullAlignment();
+		void prepareForRun() override;
+		void cleanAfterRun() override;
+
+		bool isDebug() const;
+
 	private:
 		std::string _alignCmd = "alignment";
 		std::string _cellsizeCmd = "cellsize";
@@ -358,6 +398,7 @@ namespace lapis {
 		std::string _xoriginCmd = "xorigin";
 		std::string _yoriginCmd = "yorigin";
 		std::string _crsCmd = "out-crs";
+		std::string _debugCmd = "debug-no-alignment";
 
 		std::string _alignFileBoostString;
 		std::string _crsBoostString;
@@ -382,6 +423,11 @@ namespace lapis {
 		bool _displayManualWindow = false;
 		bool _xyResDiffCheck = false;
 		bool _xyOriginDiffCheck = false;
+
+		std::shared_ptr<Alignment> _align;
+		std::shared_ptr<Raster<int>> _nLaz;
+
+		bool _debugBool;
 	};
 
 	template<>
@@ -402,6 +448,8 @@ namespace lapis {
 
 		void importFromBoost() override;
 		void updateUnits() override;
+		void prepareForRun() override;
+		void cleanAfterRun() override;
 
 	private:
 		std::string _footprintDiamCmd = "footprint";
@@ -416,7 +464,10 @@ namespace lapis {
 		FloatBuffer _footprintDiamBuffer = FloatBuffer{ 0 };
 		FloatBuffer _csmCellsizeBuffer = FloatBuffer{ 0 };
 
-		bool _showAdvanced;
+		bool _showAdvanced = false;
+
+		coord_t _footprintDiamCache;
+		std::shared_ptr<Alignment> _csmAlign;
 	};
 
 	template<>
@@ -437,6 +488,10 @@ namespace lapis {
 
 		void importFromBoost() override;
 		void updateUnits() override;
+		void prepareForRun() override;
+		void cleanAfterRun() override;
+
+		const std::vector<coord_t>& getStrataBreaks();
 
 	private:
 		std::string _canopyCmd = "canopy";
@@ -448,7 +503,10 @@ namespace lapis {
 		std::string _strataBoost;
 		coord_t _canopyBoost;
 
-		bool _displayStratumWindow;
+		bool _displayStratumWindow = false;
+
+		coord_t _canopyCache;
+		std::vector<coord_t> _strataCache;
 	};
 
 	template<>
@@ -470,6 +528,9 @@ namespace lapis {
 		void importFromBoost() override;
 		void updateUnits() override;
 
+		void prepareForRun() override;
+		void cleanAfterRun() override;
+
 	private:
 		void _updateClassListString();
 
@@ -488,10 +549,10 @@ namespace lapis {
 		std::array<bool, 255> _classChecks;
 		std::string _classDisplayString;
 
-		bool _useWithheld;
-		bool _filterWithheldCheck;
+		bool _useWithheld = false;
+		bool _filterWithheldCheck = true;
 
-		bool _displayClassWindow;
+		bool _displayClassWindow = false;
 
 		const std::vector<std::string> _classNames = { "Never Classified",
 		"Unassigned",
@@ -512,6 +573,10 @@ namespace lapis {
 		"Wire-Structure Connector (Insulator)",
 		"Bridge Deck",
 		"High Noise" };
+
+		std::vector<std::shared_ptr<LasFilter>> _filters;
+		coord_t _minhtCache;
+		coord_t _maxhtCache;
 	};
 
 	template<>
@@ -532,13 +597,30 @@ namespace lapis {
 
 		void importFromBoost() override;
 		void updateUnits() override;
+		void prepareForRun() override;
+		void cleanAfterRun() override;
 
 	private:
 		std::string _fineIntCmd = "fine-int";
 		std::string _advPointCmd = "adv-point";
+		std::string _debugNoAllocRaster = "debug-no-alloc-raster";
 
 		bool _fineIntCheck = false;
 		bool _advPointCheck = false;
+
+		std::vector<PointMetricRaster> _allReturnPointMetrics;
+		std::vector<PointMetricRaster> _firstReturnPointMetrics;
+		std::vector<StratumMetricRasters> _allReturnStratumMetrics;
+		std::vector<StratumMetricRasters> _firstReturnStratumMetrics;
+		std::vector<CSMMetric> _csmMetrics;
+		std::vector<TopoMetric> _topoMetrics;
+		std::shared_ptr<Raster<coord_t>> _elevNumerator;
+		std::shared_ptr<Raster<coord_t>> _elevDenominator;
+
+		std::shared_ptr<Raster<PointMetricCalculator>> _allReturnCalculators;
+		std::shared_ptr<Raster<PointMetricCalculator>> _firstReturnCalculators;
+
+		bool _debugBool;
 	};
 
 	template<>
@@ -559,23 +641,42 @@ namespace lapis {
 
 		void importFromBoost() override;
 		void updateUnits() override;
+		void prepareForRun() override;
+		void cleanAfterRun() override;
 
 	private:
 		std::string _threadCmd = "thread";
 		std::string _perfCmd = "performance";
-		std::string _displayGdalProjCmd = "gdalproj";
 
 		int _threadBoost;
 
-		bool _perfCheck;
-		bool _gdalprojCheck;
+		bool _perfCheck = false;
 
 		FloatBuffer _threadBuffer = FloatBuffer{ 0 };
+
+		int _threadCache;
 	};
 
 	const Unit& getCurrentUnits();
 	const Unit& getUnitsLastFrame();
 	const std::string& getUnitsPluralName();
+
+	template<class T>
+	using fileSpecOpen = void(const std::filesystem::path&, std::set<T>&,
+		const CoordRef& crs, const Unit& u);
+	template<class T>
+	std::set<T> iterateOverFileSpecifiers(const std::set<std::string>& specifiers, fileSpecOpen<T> openFunc,
+		const CoordRef& crs, const Unit& u);
+
+	// attempts to open the given file as a las / laz file.If it succeeds, adds the given file to data
+	//otherwise, logs an error and does nothing
+	void tryLasFile(const std::filesystem::path& file, std::set<LasFileExtent>& data,
+		const CoordRef& crs, const Unit& u);
+
+	//attempts to open the given file as a raster file. If it succeeds, adds the given file to data
+	//otherwise, logs an error and does nothing
+	void tryDtmFile(const std::filesystem::path& file, std::set<DemFileAlignment>& data,
+		const CoordRef& crs, const Unit& u);
 }
 
 #endif

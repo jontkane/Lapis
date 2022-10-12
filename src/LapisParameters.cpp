@@ -2,14 +2,17 @@
 #include "LapisParameters.hpp"
 #include"LapisUtils.hpp"
 #include"lapisdata.hpp"
+#include"gis/RasterAlgos.hpp"
 
 namespace lapis {
 	void lasDemUnifiedGui(LasDemSpecifics& spec)
 	{
 		std::set<std::string>& fileSpecSet = spec.getFileSpecsSet();
 		std::string buttonText = "Add " + spec.name + " Files";
+		auto filterptr = spec.fileFilter ? spec.fileFilter.get() : nullptr;
+		int filtercnt = spec.fileFilter ? 1 : 0;
 		if (ImGui::Button(buttonText.c_str())) {
-			NFD::OpenDialogMultiple(spec.nfdFiles, spec.fileFilter.get(), 1, (const nfdnchar_t*)nullptr);
+			NFD::OpenDialogMultiple(spec.nfdFiles, filterptr, filtercnt, (const nfdnchar_t*)nullptr);
 		}
 		nfdpathsetsize_t selectedFileCount = 0;
 		if (spec.nfdFiles) {
@@ -53,22 +56,19 @@ namespace lapis {
 		}
 		ImGui::EndChild();
 	}
-	std::string getDisplayCrsString(const char* inStr, const char* defaultMessage) {
-		std::string out;
-		CoordRef crs;
+	void updateCrsAndDisplayString(const char* inStr, const char* defaultMessage, std::string* display, CoordRef* crs) {
 		try {
-			crs = CoordRef(inStr);
-			if (crs.isEmpty()) {
-				out = defaultMessage;
+			*crs = CoordRef(inStr);
+			if (crs->isEmpty()) {
+				*display = defaultMessage;
 			}
 			else {
-				out = crs.getSingleLineWKT();
+				*display = crs->getSingleLineWKT();
 			}
 		}
 		catch (UnableToDeduceCRSException e) {
-			out = "Error reading CRS";
+			*display = "Error reading CRS";
 		}
-		return out;
 	}
 	int unitRadioFromString(const std::string& s) {
 		std::regex meterregex{ ".*m.*",std::regex::icase };
@@ -116,20 +116,19 @@ namespace lapis {
 					ImGui::SetKeyboardFocusHere();
 					spec.textSiezeFocus = false;
 				}
-
 				ImGui::InputTextMultiline("", spec.crsBuffer.data(), spec.crsBuffer.size(), ImVec2(350, 100), 0);
 				ImGui::Text("The CRS deduction is flexible but not perfect.\nFor best results when manually specifying,\nspecify an EPSG code or a WKT string");
 				if (ImGui::Button("Specify from file")) {
 					NFD::OpenDialog(spec.nfdFile);
 				}
 				if (spec.nfdFile) {
-					spec.crsDisplayString = getDisplayCrsString(spec.nfdFile.get(), "No CRS in File");
+					updateCrsAndDisplayString(spec.nfdFile.get(), "No CRS in File", &spec.crsDisplayString, &spec.crs);
 					spec.nfdFile.reset();
 					spec.crsBuffer[0] = 0;
 				}
 				ImGui::SameLine();
 				if (ImGui::Button("OK")) {
-					spec.crsDisplayString = getDisplayCrsString(spec.crsBuffer.data(), "Infer From Files");
+					updateCrsAndDisplayString(spec.crsBuffer.data(), "Infer From Files", &spec.crsDisplayString, &spec.crs);
 					spec.displayManualCrsWindow = false;
 				}
 				ImGui::End();
@@ -138,21 +137,23 @@ namespace lapis {
 	}
 	void LasDemOverrideSpecifics::importFromBoost() {
 		if (crsBoostString.size()) {
-			crsDisplayString = getDisplayCrsString(crsBoostString.c_str(), "Infer From Files");
+			updateCrsAndDisplayString(crsBoostString.c_str(), "Infer From Files", &crsDisplayString, &crs);
 			crsBoostString.clear();
 		}
 		if (unitBoostString.size()) {
 			unitRadio = unitRadioFromString(unitBoostString);
 			unitBoostString.clear();
 		}
+		if (unitRadio == 0 && !crs.getZUnits().isUnknown()) {
+			unitRadio = unitRadioFromString(crs.getZUnits().name);
+		}
 	}
 	void updateUnitsBuffer(ParamBase::FloatBuffer& buff)
 	{
-		
 		const Unit& src = getUnitsLastFrame();
 		const Unit& dst = getCurrentUnits();
 		try {
-			double v = atof(buff.data());
+			double v = std::stod(buff.data());
 			v = convertUnits(v, src, dst);
 			std::string s = std::to_string(v);
 			s.erase(s.find_last_not_of('0') + 1, std::string::npos);
@@ -160,8 +161,10 @@ namespace lapis {
 			strncpy_s(buff.data(), buff.size(), s.c_str(), buff.size());
 		}
 		catch (...) {
-			const char* msg = "Error";
-			strncpy_s(buff.data(), buff.size(), msg, buff.size());
+			if (strlen(buff.data())) {
+				const char* msg = "Error";
+				strncpy_s(buff.data(), buff.size(), msg, buff.size());
+			}
 		}
 	}
 	void copyToBuffer(ParamBase::FloatBuffer& buff, coord_t x) {
@@ -172,7 +175,7 @@ namespace lapis {
 	}
 	const Unit& getCurrentUnits() {
 		auto& d = LapisData::getDataObject();
-		return d.getUserUnits();
+		return d.getCurrentUnits();
 	}
 	const Unit& getUnitsLastFrame() {
 		auto& d = LapisData::getDataObject();
@@ -180,6 +183,41 @@ namespace lapis {
 	}
 	const std::string& getUnitsPluralName() {
 		return Parameter<ParamName::outUnits>::getUnitsPluralName();
+	}
+
+	Parameter<ParamName::name>::Parameter() {
+		_nameBuffer[0] = 0;
+	}
+	void Parameter<ParamName::name>::addToCmd(po::options_description& visible,
+		po::options_description& hidden) {
+
+		visible.add_options()((_nameCmd + ",N").c_str(), po::value<std::string>(&_nameBoost),
+			"The name of the acquisition. If specified, will be included in the filenames and metadata.");
+	}
+	std::ostream& Parameter<ParamName::name>::printToIni(std::ostream& o) {
+		o << _nameCmd << "=" << _nameBuffer.data() << "\n";
+		return o;
+	}
+	ParamCategory Parameter<ParamName::name>::getCategory() const {
+		return ParamCategory::data;
+	}
+	void Parameter<ParamName::name>::renderGui() {
+		ImGui::Text("Run Name:");
+		ImGui::SameLine();
+		ImGui::InputText("##runname", _nameBuffer.data(), _nameBuffer.size());
+	}
+	void Parameter<ParamName::name>::importFromBoost() {
+		if (_nameBoost.size()) {
+			strncpy_s(_nameBuffer.data(), _nameBuffer.size(), _nameBoost.c_str(), _nameBuffer.size());
+			_nameBoost.clear();
+		}
+	}
+	void Parameter<ParamName::name>::updateUnits() {}
+	void Parameter<ParamName::name>::prepareForRun() {
+		_runString = _nameBuffer.data();
+	}
+	void Parameter<ParamName::name>::cleanAfterRun() {
+		_runString.clear();
 	}
 
 	Parameter<ParamName::las>::Parameter() {
@@ -213,6 +251,79 @@ namespace lapis {
 		_spec.importFromBoost();
 	}
 	void Parameter<ParamName::las>::updateUnits() {}
+	void Parameter<ParamName::las>::prepareForRun() {
+		if (_fileExtents.size()) {
+			return;
+		}
+		auto& d = LapisData::getDataObject();
+		auto& lasOverride = d._getRawParam<ParamName::lasOverride>();
+		auto& alignParam = d._getRawParam<ParamName::alignment>();
+
+		if (alignParam.isDebug()) {
+			return;
+		}
+
+		CoordRef crsOver = lasOverride.getCurrentCrs();
+		auto s = iterateOverFileSpecifiers(_spec.getFileSpecsSet(), &tryLasFile, crsOver, crsOver.getZUnits());
+
+		
+		CoordRef outCrs = alignParam.getCurrentOutCrs();
+		if (outCrs.isEmpty()) {
+			for (auto& v : s) {
+				outCrs = v.ext.crs();
+				if (!outCrs.isEmpty()) {
+					break;
+				}
+			}
+		}
+		
+		for (auto& v : s) {
+			Extent e = QuadExtent(v.ext, outCrs).outerExtent();
+			_fileExtents.emplace_back(v.filename,e);
+		}
+	}
+	void Parameter<ParamName::las>::cleanAfterRun() {
+		_fileExtents.clear();
+	}
+	Extent Parameter<ParamName::las>::getFullExtent() {
+		prepareForRun();
+		auto& d = LapisData::getDataObject();
+		auto& alignParam = d._getRawParam<ParamName::alignment>();
+		auto& lasOverride = d._getRawParam<ParamName::lasOverride>();
+		CoordRef crsOut = alignParam.getCurrentOutCrs();
+		coord_t xmin = std::numeric_limits<coord_t>::max();
+		coord_t ymin = std::numeric_limits<coord_t>::max();
+		coord_t xmax = std::numeric_limits<coord_t>::lowest();
+		coord_t ymax = std::numeric_limits<coord_t>::lowest();
+		for (auto& l : _fileExtents) {
+			if (!crsOut.isConsistentHoriz(l.ext.crs())) {
+				Extent e = QuadExtent(l.ext, crsOut).outerExtent();
+				xmin = std::min(xmin, e.xmin());
+				xmax = std::max(xmax, e.xmax());
+				ymin = std::min(ymin, e.ymin());
+				ymax = std::max(ymax, e.ymax());
+			}
+			else {
+				if (!l.ext.crs().isEmpty()) {
+					crsOut = l.ext.crs();
+					const Unit& u = lasOverride.getCurrentCrs().getZUnits();
+					if (!u.isUnknown()) {
+						crsOut.setZUnits(u);
+					}
+				}
+				xmin = std::min(xmin, l.ext.xmin());
+				xmax = std::max(xmax, l.ext.xmax());
+				ymin = std::min(ymin, l.ext.ymin());
+				ymax = std::max(ymax, l.ext.ymax());
+			}
+		}
+		return Extent(xmin, xmax, ymin, ymax, crsOut);
+	}
+	const std::vector<LasFileExtent> Parameter<ParamName::las>::getAllExtents()
+	{
+		prepareForRun();
+		return _fileExtents;
+	}
 
 	Parameter<ParamName::dem>::Parameter() {
 		_spec.name = "Dem";
@@ -244,11 +355,26 @@ namespace lapis {
 		_spec.importFromBoost();
 	}
 	void Parameter<ParamName::dem>::updateUnits() {}
+	void Parameter<ParamName::dem>::prepareForRun() {
+		if (_fileAligns.size()) {
+			return;
+		}
+		if (!_spec.getFileSpecsSet().size()) {
+			return;
+		}
+		auto& d = LapisData::getDataObject();
+		auto& demOverride = d._getRawParam<ParamName::demOverride>();
+		CoordRef crsOver = demOverride.getCurrentCrs();
+		_fileAligns = iterateOverFileSpecifiers(_spec.getFileSpecsSet(), &tryDtmFile, crsOver, crsOver.getZUnits());
+	}
+	void Parameter<ParamName::dem>::cleanAfterRun() {
+		_fileAligns.clear();
+	}
 
 	Parameter<ParamName::output>::Parameter() {}
 	void Parameter<ParamName::output>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
-		visible.add_options()((_cmdName + ",O").c_str(), po::value<std::string>(&_string),
+		visible.add_options()((_cmdName + ",O").c_str(), po::value<std::string>(&_boostString),
 			"The output folder to store results in");
 	}
 	std::ostream& Parameter<ParamName::output>::printToIni(std::ostream& o){
@@ -260,9 +386,9 @@ namespace lapis {
 	}
 	void Parameter<ParamName::output>::renderGui(){
 		ImGui::Text("Output Folder:");
-
+		ImGui::SameLine();
 		ImGui::InputText("", _buffer.data(), _buffer.size());
-
+		ImGui::SameLine();
 		if (ImGui::Button("Browse")) {
 			NFD::PickFolder(_nfdFolder);
 		}
@@ -272,12 +398,18 @@ namespace lapis {
 		}
 	}
 	void Parameter<ParamName::output>::importFromBoost() {
-		if (_string.size()) {
-			strncpy_s(_buffer.data(), _buffer.size(), _string.c_str(), _buffer.size());
-			_string.clear();
+		if (_boostString.size()) {
+			strncpy_s(_buffer.data(), _buffer.size(), _boostString.c_str(), _buffer.size());
+			_boostString.clear();
 		}
 	}
 	void Parameter<ParamName::output>::updateUnits() {}
+	void Parameter<ParamName::output>::prepareForRun() {
+		_path = _buffer.data();
+	}
+	void Parameter<ParamName::output>::cleanAfterRun() {
+		_path.clear();
+	}
 
 	Parameter<ParamName::lasOverride>::Parameter() {
 		_spec.crsBuffer = std::vector<char>(10000);
@@ -314,6 +446,17 @@ namespace lapis {
 		_spec.importFromBoost();
 	}
 	void Parameter<ParamName::lasOverride>::updateUnits() {}
+	const CoordRef& Parameter<ParamName::lasOverride>::getCurrentCrs() {
+		prepareForRun();
+		return _spec.crs;
+	}
+	void Parameter<ParamName::lasOverride>::prepareForRun() {
+		const Unit& u = unitRadioOrder[_spec.unitRadio];
+		if (!u.isUnknown()) {
+			_spec.crs.setZUnits(u);
+		}
+	}
+	void Parameter<ParamName::lasOverride>::cleanAfterRun() {}
 
 	Parameter<ParamName::demOverride>::Parameter() {
 		_spec.crsBuffer = std::vector<char>(10000);
@@ -350,8 +493,19 @@ namespace lapis {
 		_spec.importFromBoost();
 	}
 	void Parameter<ParamName::demOverride>::updateUnits() {}
+	const CoordRef& Parameter<ParamName::demOverride>::getCurrentCrs() {
+		prepareForRun();
+		return _spec.crs;
+	}
+	void Parameter<ParamName::demOverride>::prepareForRun() {
+		const Unit& u = unitRadioOrder[_spec.unitRadio];
+		if (!u.isUnknown()) {
+			_spec.crs.setZUnits(u);
+		}
+	}
+	void Parameter<ParamName::demOverride>::cleanAfterRun() {}
 
-	Parameter<ParamName::outUnits>::Parameter() {}
+	Parameter<ParamName::outUnits>::Parameter() : _radio(1) {}
 	void Parameter<ParamName::outUnits>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
 		visible.add_options()(_cmdName.c_str(), po::value<std::string>(&_boostString),
@@ -376,7 +530,9 @@ namespace lapis {
 		ImGui::RadioButton("US Survey Feet", &_radio, 3);
 	}
 	const std::string& Parameter<ParamName::outUnits>::getUnitsPluralName() {
-		return unitPluralNames[_radio];
+		auto& d = LapisData::getDataObject();
+		auto& p = d._getRawParam<ParamName::outUnits>();
+		return unitPluralNames[p._radio];
 	}
 	void Parameter<ParamName::outUnits>::importFromBoost() {
 		if (_boostString.size()) {
@@ -385,8 +541,11 @@ namespace lapis {
 		}
 	}
 	void Parameter<ParamName::outUnits>::updateUnits() {}
+	void Parameter<ParamName::outUnits>::prepareForRun() {}
+	void Parameter<ParamName::outUnits>::cleanAfterRun() {}
 
-	Parameter<ParamName::alignment>::Parameter() : _cellsizeBoost(30), _xresBoost(30), _yresBoost(30), _xoriginBoost(0), _yoriginBoost(0) {
+	Parameter<ParamName::alignment>::Parameter() : _cellsizeBoost(30), _xresBoost(30), _yresBoost(30), _xoriginBoost(0), _yoriginBoost(0),
+	_debugBool(false) {
 		_crsBuffer = std::vector<char>(10000);
 		_crsBuffer[0] = 0;
 	}
@@ -398,14 +557,16 @@ namespace lapis {
 			(_cellsizeCmd.c_str(), po::value<coord_t>(&_cellsizeBoost),
 				"The desired cellsize of the output metric rasters\n"
 				"Defaults to 30 meters")
-			(_crsBoostString.c_str(), po::value<std::string>(&_crsBoostString),
+			(_crsCmd.c_str(), po::value<std::string>(&_crsBoostString),
 				"The desired CRS for the output layers\n"
 				"Can be a filename, or a manual specification (usually EPSG)");
 
 		hidden.add_options()(_xresCmd.c_str(), po::value<coord_t>(&_xresBoost), "")
 			(_yresCmd.c_str(), po::value<coord_t>(&_yresBoost), "")
 			(_xoriginCmd.c_str(), po::value<coord_t>(&_xoriginBoost), "")
-			(_yoriginCmd.c_str(), po::value<coord_t>(&_yoriginBoost), "");
+			(_yoriginCmd.c_str(), po::value<coord_t>(&_yoriginBoost), "")
+			(_debugCmd.c_str(), po::bool_switch(&_debugBool), "")
+			;
 	}
 	std::ostream& Parameter<ParamName::alignment>::printToIni(std::ostream& o){
 		CoordRef crs;
@@ -448,11 +609,15 @@ namespace lapis {
 		ImGui::EndChild();
 		ImGui::Text("Cellsize: ");
 		ImGui::SameLine();
-		ImGui::Text(_cellsizeBuffer.data());
-		ImGui::SameLine();
-		if (atof(_cellsizeBuffer.data()) != 0) {
+		if (_xyResDiffCheck) {
+			ImGui::Text("Diff X/Y");
+		}
+		else {
+			ImGui::Text(_cellsizeBuffer.data());
+			ImGui::SameLine();
 			ImGui::Text(getUnitsPluralName().c_str());
 		}
+
 
 		if (!_displayManualWindow) {
 			return;
@@ -484,13 +649,10 @@ namespace lapis {
 				if (atof(_xresBuffer.data()) == atof(_yresBuffer.data())) {
 					strcpy_s(_cellsizeBuffer.data(), _cellsizeBuffer.size(), _xresBuffer.data());
 				}
-				else {
-					strcpy_s(_cellsizeBuffer.data(), _cellsizeBuffer.size(), "Diff X/Y");
-				}
 			}
 		}
 		else {
-			cellSizeUpdate = input("X/Y Resolution:", _cellsizeBuffer);
+			cellSizeUpdate = input("Cellsize:", _cellsizeBuffer);
 			if (cellSizeUpdate) {
 				strcpy_s(_xresBuffer.data(), _xresBuffer.size(), _cellsizeBuffer.data());
 				strcpy_s(_yresBuffer.data(), _yresBuffer.size(), _cellsizeBuffer.data());
@@ -547,9 +709,7 @@ namespace lapis {
 		updateUnitsBuffer(_yresBuffer);
 		updateUnitsBuffer(_xoriginBuffer);
 		updateUnitsBuffer(_yoriginBuffer);
-		if (std::atof(_cellsizeBuffer.data()) > 0) {
-			updateUnitsBuffer(_cellsizeBuffer);
-		}
+		updateUnitsBuffer(_cellsizeBuffer);
 	}
 	void Parameter<ParamName::alignment>::importFromBoost() {
 		if (_alignFileBoostString.size()) {
@@ -567,11 +727,13 @@ namespace lapis {
 				convertAndCopy(_yresBuffer, a.yres());
 				convertAndCopy(_xoriginBuffer, a.xOrigin());
 				convertAndCopy(_yoriginBuffer, a.yOrigin());
+				_xyOriginDiffCheck = (a.xOrigin() == a.yOrigin());
 				if (a.xres() == a.yres()) {
+					_xyResDiffCheck = false;
 					convertAndCopy(_cellsizeBuffer, a.xres());
 				}
 				else {
-					strcpy_s(_cellsizeBuffer.data(), _cellsizeBuffer.size(), "Diff X/Y");
+					_xyResDiffCheck = true;
 				}
 				if (!a.crs().isEmpty()) {
 					_crsDisplayString = a.crs().getSingleLineWKT();
@@ -591,7 +753,6 @@ namespace lapis {
 				setError(_xoriginBuffer);
 				setError(_yoriginBuffer);
 				setError(_cellsizeBuffer);
-				_crsDisplayString = err;
 				_crsBuffer[0] = 0;
 			}
 
@@ -601,9 +762,11 @@ namespace lapis {
 			copyToBuffer(_cellsizeBuffer, _cellsizeBoost);
 			copyToBuffer(_xresBuffer, _cellsizeBoost);
 			copyToBuffer(_yresBuffer, _cellsizeBoost);
+			_xyResDiffCheck = false;
 		}
 		_cellsizeBoost = std::nan("");
 
+		bool xory = !std::isnan(_xresBoost) || !std::isnan(_yresBoost);
 		if (!std::isnan(_xresBoost)) {
 			copyToBuffer(_xresBuffer, _xresBoost);
 		}
@@ -612,13 +775,17 @@ namespace lapis {
 			copyToBuffer(_yresBuffer, _yresBoost);
 		}
 		_yresBoost = std::nan("");
-		if (strcmp(_xresBuffer.data(), _yresBuffer.data()) != 0) {
-			strcpy_s(_cellsizeBuffer.data(), _cellsizeBuffer.size(), _xresBuffer.data());
-		}
-		else {
-			strcpy_s(_cellsizeBuffer.data(), _cellsizeBuffer.size(), "Diff X/Y");
+		if (xory) {
+			if (strcmp(_xresBuffer.data(), _yresBuffer.data()) == 0) {
+				strcpy_s(_cellsizeBuffer.data(), _cellsizeBuffer.size(), _xresBuffer.data());
+				_xyResDiffCheck = false;
+			}
+			else {
+				_xyResDiffCheck = true;
+			}
 		}
 
+		xory = !std::isnan(_xoriginBoost) || !std::isnan(_yoriginBoost);
 		if (!std::isnan(_xoriginBoost)) {
 			copyToBuffer(_xoriginBuffer, _xoriginBoost);
 		}
@@ -628,6 +795,9 @@ namespace lapis {
 			copyToBuffer(_yoriginBuffer, _yoriginBoost);
 		}
 		_yoriginBoost = std::nan("");
+		if (xory) {
+			_xyOriginDiffCheck = strcmp(_xoriginBuffer.data(), _yoriginBuffer.data());
+		}
 
 		if (_crsBoostString.size()) {
 			CoordRef crs;
@@ -641,6 +811,64 @@ namespace lapis {
 			}
 		}
 		_crsBoostString.clear();
+	}
+	CoordRef Parameter<ParamName::alignment>::getCurrentOutCrs() const {
+		CoordRef crs;
+		try {
+			crs = CoordRef(_crsDisplayString);
+		}
+		catch (UnableToDeduceCRSException e) {}
+		return crs;
+	}
+	const Alignment& Parameter<ParamName::alignment>::getFullAlignment()
+	{
+		prepareForRun();
+		return *_align;
+	}
+	void Parameter<ParamName::alignment>::prepareForRun() {
+		if (_align) {
+			return;
+		}
+		if (_debugBool) {
+			//something intentionally weird so nothing will match it unless it copied from it
+			_align = std::make_shared<Alignment>(Extent(0, 90, 10, 80), 8, 6, 13, 19);
+			return;
+		}
+		auto& d = LapisData::getDataObject();
+		auto& las = d._getRawParam<ParamName::las>();
+		Extent e = las.getFullExtent();
+		coord_t xres = std::stod(_xresBuffer.data());
+		coord_t yres = std::stod(_yresBuffer.data());
+		coord_t xorigin = std::stod(_xoriginBuffer.data());
+		coord_t yorigin = std::stod(_yoriginBuffer.data());
+		const Unit& src = d.getCurrentUnits();
+		Unit dst = e.crs().getXYUnits();
+		xres = convertUnits(xres, src, dst);
+		yres = convertUnits(yres, src, dst);
+		xorigin = convertUnits(xorigin, src, dst);
+		yorigin = convertUnits(yorigin, src, dst);
+
+		_align.reset();
+		_align = std::make_shared<Alignment>(e, xorigin, yorigin, xres, yres);
+
+		_nLaz = std::make_shared<Raster<int>>(*_align);
+		auto& exts = las.getAllExtents();
+		for (auto& le : exts) {
+			std::vector<cell_t> cells = _nLaz->cellsFromExtent(le.ext, SnapType::out);
+			for (cell_t cell : cells) {
+				_nLaz->atCellUnsafe(cell).value()++;
+				_nLaz->atCellUnsafe(cell).has_value() = true;
+			}
+		}
+	}
+	void Parameter<ParamName::alignment>::cleanAfterRun() {
+		_align.reset();
+		_nLaz.reset();
+	}
+
+	bool Parameter<ParamName::alignment>::isDebug() const
+	{
+		return _debugBool;
 	}
 
 	Parameter<ParamName::csmOptions>::Parameter() : _smooth(3), _footprintDiamBoost(0.4), _csmCellsizeBoost(1) {}
@@ -710,12 +938,33 @@ namespace lapis {
 			_footprintDiamBoost = std::nan("");
 		}
 		if (!std::isnan(_csmCellsizeBoost)) {
-			copyToBuffer(_footprintDiamBuffer, _footprintDiamBoost);
-			_footprintDiamBoost = std::nan("");
+			copyToBuffer(_csmCellsizeBuffer, _csmCellsizeBoost);
+			_csmCellsizeBoost = std::nan("");
 		}
 	}
+	void Parameter<ParamName::csmOptions>::prepareForRun() {
+		if (_csmAlign) {
+			return;
+		}
 
-	Parameter<ParamName::metricOptions>::Parameter() : _canopyBoost(2) {}
+		auto& d = LapisData::getDataObject();
+		auto& alignParam = d._getRawParam<ParamName::alignment>();
+		
+		_footprintDiamCache = std::stod(_footprintDiamBuffer.data());
+		coord_t cellsize = std::stod(_csmCellsizeBuffer.data());
+		const Alignment& metricAlign = alignParam.getFullAlignment();
+		const Unit& u = d.getCurrentUnits();
+		cellsize = convertUnits(cellsize, u, metricAlign.crs().getXYUnits());
+		_csmAlign = std::make_shared<Alignment>(metricAlign, metricAlign.xOrigin(), metricAlign.yOrigin(), cellsize, cellsize);
+	}
+	void Parameter<ParamName::csmOptions>::cleanAfterRun() {
+		_footprintDiamCache = std::nan("");
+		_csmAlign.reset();
+	}
+
+	Parameter<ParamName::metricOptions>::Parameter() : _canopyBoost(2) {
+		_strataBoost = "0.5,1,2,4,8,16,32,48,64";
+	}
 	void Parameter<ParamName::metricOptions>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
 		visible.add_options()(_canopyCmd.c_str(), po::value<coord_t>(&_canopyBoost),
@@ -777,10 +1026,12 @@ namespace lapis {
 		}
 		if (ImGui::Button("Add")) {
 			_strataBuffers.emplace_back();
+			_strataBuffers[_strataBuffers.size() - 1][0] = 0;
 		}
 		if (ImGui::Button("Remove All")) {
 			_strataBuffers.clear();
 			_strataBuffers.emplace_back();
+			_strataBuffers[_strataBuffers.size() - 1][0] = 0;
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("OK")) {
@@ -789,17 +1040,22 @@ namespace lapis {
 				try {
 					numericBreaks.insert(std::stod(_strataBuffers[i].data()));
 				}
-				catch (std::runtime_error e) { /*TODO: log the error*/ }
+				catch (std::invalid_argument e) { /*TODO: log the error*/ }
 			}
 			_strataBuffers.clear();
 			for (double v : numericBreaks) {
-				if (v > 0) {
+				if (v != 0) {
 					_strataBuffers.emplace_back();
 					std::string s = std::to_string(v);
 					s.erase(s.find_last_not_of('0') + 1, std::string::npos);
 					s.erase(s.find_last_not_of('.') + 1, std::string::npos);
 					strcpy_s(_strataBuffers[_strataBuffers.size() - 1].data(),
 						_strataBuffers[_strataBuffers.size() - 1].size(), s.c_str());
+				}
+				else {
+					_strataBuffers.emplace_back();
+					strcpy_s(_strataBuffers[_strataBuffers.size() - 1].data(),
+						_strataBuffers[_strataBuffers.size() - 1].size(), "0");
 				}
 			}
 			_displayStratumWindow = false;
@@ -844,12 +1100,28 @@ namespace lapis {
 		if (numericStrata.size()) {
 			std::sort(numericStrata.begin(), numericStrata.end());
 			_strataBuffers.clear();
-			_strataBuffers.resize(numericStrata.size());
 			for (size_t i = 0; i < numericStrata.size(); ++i) {
 				_strataBuffers.emplace_back();
 				copyToBuffer(_strataBuffers[i], numericStrata[i]);
 			}
 		}
+		_strataBoost.clear();
+	}
+	void Parameter<ParamName::metricOptions>::prepareForRun() {
+		_canopyCache = std::stod(_canopyBuffer.data());
+		_strataCache.resize(_strataBuffers.size());
+		for (size_t i = 0; i < _strataCache.size(); ++i) {
+			_strataCache[i] = std::stod(_strataBuffers[i].data());
+		}
+	}
+	void Parameter<ParamName::metricOptions>::cleanAfterRun() {
+		_strataCache.clear();
+		_strataCache.shrink_to_fit();
+	}
+	const std::vector<coord_t>& Parameter<ParamName::metricOptions>::getStrataBreaks()
+	{
+		prepareForRun();
+		return _strataCache;
 	}
 
 	Parameter<ParamName::filterOptions>::Parameter() : _minhtBoost(-8), _maxhtBoost(100) {
@@ -965,32 +1237,36 @@ namespace lapis {
 		if (!ImGui::Begin("##classwindow", &_displayClassWindow, flags)) {
 			ImGui::End();
 		}
-		if (ImGui::Button("Select All")) {
+		else {
+			if (ImGui::Button("Select All")) {
+				for (size_t i = 0; i < _classChecks.size(); ++i) {
+					_classChecks[i] = true;
+				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Deselect All")) {
+				for (size_t i = 0; i < _classChecks.size(); ++i) {
+					_classChecks[i] = false;
+				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("OK")) {
+				_displayClassWindow = false;
+				_updateClassListString();
+			}
+
+			ImGui::BeginChild("##classcheckboxchild", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y - 60), true, 0);
 			for (size_t i = 0; i < _classChecks.size(); ++i) {
-				_classChecks[i] = true;
+				std::string label = std::to_string(i);
+				if (i < _classNames.size()) {
+					label += " " + _classNames[i];
+				}
+				ImGui::Checkbox(label.c_str(), &_classChecks[i]);
 			}
+			ImGui::EndChild();
+
+			ImGui::Text("Lapis does not classify points.\nThis filter only applies to\nclassification already performed\non the data.");
 		}
-		ImGui::SameLine();
-		if (ImGui::Button("Deselect All")) {
-			for (size_t i = 0; i < _classChecks.size(); ++i) {
-				_classChecks[i] = false;
-			}
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("OK")) {
-			_displayClassWindow = false;
-			_updateClassListString();
-		}
-		ImGui::BeginChild("##classcheckboxchild", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y - 60), true, 0);
-		for (size_t i = 0; i < _classChecks.size(); ++i) {
-			std::string label = std::to_string(i);
-			if (i < _classNames.size()) {
-				label += " " + _classNames[i];
-			}
-			ImGui::Checkbox(label.c_str(), &_classChecks[i]);
-		}
-		ImGui::EndChild();
-		ImGui::Text("Lapis does not classify points.\nThis filter only applies to\nclassification already performed\non the data.");
 
 		ImGui::End();
 	}
@@ -1064,14 +1340,61 @@ namespace lapis {
 			}
 		}
 	}
+	void Parameter<ParamName::filterOptions>::prepareForRun() {
+		if (_filters.size()) {
+			return;
+		}
 
-	Parameter<ParamName::optionalMetrics>::Parameter() {}
+		_minhtCache = std::stod(_minhtBuffer.data());
+		_maxhtCache = std::stod(_maxhtBuffer.data());
+
+		if (_filterWithheldCheck) {
+			_filters.emplace_back(new LasFilterWithheld());
+		}
+		int nallowed = 0;
+		int nblocked = 0;
+		for (size_t i = 0; i < _classChecks.size(); ++i) {
+			if (_classChecks[i]) {
+				nallowed++;
+			}
+			else {
+				nblocked++;
+			}
+		}
+
+		if (nblocked == 0) {
+			return;
+		}
+		std::unordered_set<uint8_t> classes;
+		for (size_t i = 0; i < _classChecks.size(); ++i) {
+			if (nallowed < nblocked && _classChecks[i]) {
+				classes.insert((uint8_t)i);
+			}
+			if (nallowed >= nblocked && !_classChecks[i]) {
+				classes.insert((uint8_t)i);
+			}
+		}
+		if (nallowed < nblocked) {
+			_filters.emplace_back(new LasFilterClassWhitelist(classes));
+		}
+		else {
+			_filters.emplace_back(new LasFilterClassBlacklist(classes));
+		}
+	}
+	void Parameter<ParamName::filterOptions>::cleanAfterRun() {
+		_filters.clear();
+		_filters.shrink_to_fit();
+	}
+
+	Parameter<ParamName::optionalMetrics>::Parameter() : _debugBool(false) {}
 	void Parameter<ParamName::optionalMetrics>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
 		visible.add_options()(_advPointCmd.c_str(), po::bool_switch(&_advPointCheck),
 			"Calculate a larger suite of point metrics.")
 			(_fineIntCmd.c_str(), po::bool_switch(&_fineIntCheck),
 				"Create a canopy mean intensity raster with the same resolution as the CSM");
+
+		hidden.add_options()(_debugNoAllocRaster.c_str(), po::bool_switch(&_debugBool), "");
 	}
 	std::ostream& Parameter<ParamName::optionalMetrics>::printToIni(std::ostream& o){
 		if (_fineIntCheck) {
@@ -1092,22 +1415,113 @@ namespace lapis {
 	}
 	void Parameter<ParamName::optionalMetrics>::importFromBoost() {}
 	void Parameter<ParamName::optionalMetrics>::updateUnits() {}
+	void Parameter<ParamName::optionalMetrics>::prepareForRun() {
+		if (_debugBool) {
+			return;
+		}
 
-	Parameter<ParamName::computerOptions>::Parameter() : _threadBoost(defaultNThread()), _gdalprojCheck(false), _perfCheck(false) {}
+		auto& d = LapisData::getDataObject();
+		const Alignment& a = d._getRawParam<ParamName::alignment>().getFullAlignment();
+
+		using oul = OutputUnitLabel;
+		using pmc = PointMetricCalculator;
+
+		auto addMetric = [&](const std::string& name, MetricFunc f, oul u) {
+			_allReturnPointMetrics.emplace_back(name, f, a, u);
+			_firstReturnPointMetrics.emplace_back(name, f, a, u);
+		};
+
+		addMetric("Mean_CanopyHeight", &pmc::meanCanopy, oul::Default);
+		addMetric("StdDev_CanopyHeight", &pmc::stdDevCanopy, oul::Default);
+		addMetric("25thPercentile_CanopyHeight", &pmc::p25Canopy, oul::Default);
+		addMetric("50thPercentile_CanopyHeight", &pmc::p50Canopy, oul::Default);
+		addMetric("75thPercentile_CanopyHeight", &pmc::p75Canopy, oul::Default);
+		addMetric("95thPercentile_CanopyHeight", &pmc::p95Canopy, oul::Default);
+		addMetric("TotalReturnCount", &pmc::returnCount, oul::Unitless);
+		addMetric("CanopyCover", &pmc::canopyCover, oul::Percent);
+
+		if (_advPointCheck) {
+			addMetric("CoverAboveMean", &pmc::coverAboveMean, oul::Percent);
+			addMetric("CanopyReliefRatio", &pmc::canopyReliefRatio, oul::Unitless);
+			addMetric("CanopySkewness", &pmc::skewnessCanopy, oul::Unitless);
+			addMetric("CanopyKurtosis", &pmc::kurtosisCanopy, oul::Unitless);
+			addMetric("05thPercentile_CanopyHeight", &pmc::p05Canopy, oul::Default);
+			addMetric("10thPercentile_CanopyHeight", &pmc::p10Canopy, oul::Default);
+			addMetric("15thPercentile_CanopyHeight", &pmc::p15Canopy, oul::Default);
+			addMetric("20thPercentile_CanopyHeight", &pmc::p20Canopy, oul::Default);
+			addMetric("30thPercentile_CanopyHeight", &pmc::p30Canopy, oul::Default);
+			addMetric("35thPercentile_CanopyHeight", &pmc::p35Canopy, oul::Default);
+			addMetric("40thPercentile_CanopyHeight", &pmc::p40Canopy, oul::Default);
+			addMetric("45thPercentile_CanopyHeight", &pmc::p45Canopy, oul::Default);
+			addMetric("55thPercentile_CanopyHeight", &pmc::p55Canopy, oul::Default);
+			addMetric("60thPercentile_CanopyHeight", &pmc::p60Canopy, oul::Default);
+			addMetric("65thPercentile_CanopyHeight", &pmc::p65Canopy, oul::Default);
+			addMetric("70thPercentile_CanopyHeight", &pmc::p70Canopy, oul::Default);
+			addMetric("80thPercentile_CanopyHeight", &pmc::p80Canopy, oul::Default);
+			addMetric("85thPercentile_CanopyHeight", &pmc::p85Canopy, oul::Default);
+			addMetric("90thPercentile_CanopyHeight", &pmc::p90Canopy, oul::Default);
+			addMetric("99thPercentile_CanopyHeight", &pmc::p99Canopy, oul::Default);
+		}
+
+		const std::vector<coord_t>& strataBreaks = d._getRawParam<ParamName::metricOptions>().getStrataBreaks();
+		if (strataBreaks.size()) {
+			auto to_string_with_precision = [](coord_t v)->std::string {
+				std::ostringstream out;
+				out.precision(2);
+				out << v;
+				return out.str();
+			};
+			std::vector<std::string> stratumNames;
+			stratumNames.push_back("LessThan" + to_string_with_precision(strataBreaks[0]));
+			for (size_t i = 1; i < strataBreaks.size(); ++i) {
+				stratumNames.push_back(to_string_with_precision(strataBreaks[i - 1]) + "To" + to_string_with_precision(strataBreaks[i]));
+			}
+			stratumNames.push_back("GreaterThan" + to_string_with_precision(strataBreaks[strataBreaks.size() - 1]));
+
+			_allReturnStratumMetrics.emplace_back("StratumCover_", stratumNames, &pmc::stratumCover, a, oul::Percent);
+			_allReturnStratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &pmc::stratumPercent, a, oul::Percent);
+			_firstReturnStratumMetrics.emplace_back("StratumCover_", stratumNames, &pmc::stratumCover, a, oul::Percent);
+			_firstReturnStratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &pmc::stratumPercent, a, oul::Percent);
+		}
+
+		_elevNumerator = std::make_shared<Raster<coord_t>>(a);
+		_elevDenominator = std::make_shared<Raster<coord_t>>(a);
+		_topoMetrics.push_back({ viewSlope<coord_t,metric_t>,"Slope",oul::Radian });
+		_topoMetrics.push_back({ viewAspect<coord_t,metric_t>,"Aspect",oul::Radian });
+
+		_csmMetrics.push_back({ &viewMax<csm_t>, "MaxCSM", a,oul::Default });
+		_csmMetrics.push_back({ &viewMean<csm_t>, "MeanCSM", a,oul::Default });
+		_csmMetrics.push_back({ &viewStdDev<csm_t>, "StdDevCSM", a,oul::Default });
+		_csmMetrics.push_back({ &viewRumple<csm_t>, "RumpleCSM", a,oul::Unitless });
+
+		_allReturnCalculators = std::make_shared<Raster<PointMetricCalculator>>(a);
+		_firstReturnCalculators = std::make_shared<Raster<PointMetricCalculator>>(a);
+	}
+	void Parameter<ParamName::optionalMetrics>::cleanAfterRun() {
+		_allReturnPointMetrics.clear();
+		_firstReturnPointMetrics.clear();
+		_allReturnStratumMetrics.clear();
+		_firstReturnStratumMetrics.clear();
+		_csmMetrics.clear();
+		_topoMetrics.clear();
+		_elevNumerator.reset();
+		_elevDenominator.reset();
+		_allReturnCalculators.reset();
+		_firstReturnCalculators.reset();
+	}
+
+	Parameter<ParamName::computerOptions>::Parameter() : _threadBoost(defaultNThread()), _perfCheck(false) {}
 	void Parameter<ParamName::computerOptions>::addToCmd(po::options_description& visible,
 		po::options_description& hidden) {
 		visible.add_options()(_threadCmd.c_str(), po::value<int>(&_threadBoost),
 			"The number of threads to run Lapis on. Defaults to the number of cores on the computer");
 		hidden.add_options()(_perfCmd.c_str(), po::bool_switch(&_perfCheck), "")
-			(_displayGdalProjCmd.c_str(), po::bool_switch(&_gdalprojCheck), "");
+			;
 	}
 	std::ostream& Parameter<ParamName::computerOptions>::printToIni(std::ostream& o) {
 		o << _threadCmd << "=" << _threadBuffer.data() << "\n";
 		if (_perfCheck) {
 			o << _perfCmd << "=\n";
-		}
-		if (_gdalprojCheck) {
-			o << _displayGdalProjCmd << "=\n";
 		}
 		return o;
 	}
@@ -1119,15 +1533,19 @@ namespace lapis {
 		ImGui::SameLine();
 		ImGui::InputText("", _threadBuffer.data(), _threadBuffer.size(), ImGuiInputTextFlags_CharsDecimal);
 		ImGui::Checkbox("Performance Mode", &_perfCheck);
-		ImGui::Checkbox("Display GDAL and Proj warnings", &_gdalprojCheck);
 	}
 	void Parameter<ParamName::computerOptions>::importFromBoost() {
 		if (_threadBoost > 0) {
 			int x = _threadBoost < 999 ? _threadBoost : 999;
+			copyToBuffer(_threadBuffer, x);
 			_threadBoost = 0;
 		}
 	}
 	void Parameter<ParamName::computerOptions>::updateUnits() {}
+	void Parameter<ParamName::computerOptions>::prepareForRun() {
+		_threadCache = std::stoi(_threadBuffer.data());
+	}
+	void Parameter<ParamName::computerOptions>::cleanAfterRun() {}
 
 	std::set<std::string>& LasDemSpecifics::getFileSpecsSet() {
 		return fileSpecsSet;
@@ -1149,32 +1567,122 @@ namespace lapis {
 	}
 
 
-	Parameter<ParamName::name>::Parameter() {
-		_nameBuffer[0] = 0;
-	}
-	void Parameter<ParamName::name>::addToCmd(po::options_description& visible,
-		po::options_description& hidden) {
-		
-		visible.add_options()((_nameCmd + ",N").c_str(), po::value<std::string>(&_nameBoost),
-			"The name of the acquisition. If specified, will be included in the filenames and metadata.");
+	template<class T>
+	std::set<T> iterateOverFileSpecifiers(const std::set<std::string>& specifiers, fileSpecOpen<T> openFunc,
+		const CoordRef& crs, const Unit& u)
+	{
+
+		namespace fs = std::filesystem;
+
+		Logger& log = Logger::getLogger();
+
+		std::set<T> fileList;
+
+		std::queue<std::string> toCheck;
+
+		for (const std::string& spec : specifiers) {
+			toCheck.push(spec);
 		}
-	std::ostream& Parameter<ParamName::name>::printToIni(std::ostream& o) {
-		o << _nameCmd << "=" << _nameBuffer.data() << "\n";
-		return o;
+
+		while (toCheck.size()) {
+			fs::path specPath{ toCheck.front() };
+			toCheck.pop();
+
+			//specified directories get searched recursively
+			if (fs::is_directory(specPath)) {
+				for (auto& subpath : fs::directory_iterator(specPath)) {
+					toCheck.push(subpath.path().string());
+				}
+				//because of the dumbass ESRI grid format, I have to try to open folders as rasters as well
+				(*openFunc)(specPath, fileList, crs, u);
+			}
+
+			if (fs::is_regular_file(specPath)) {
+				//if it's a file, try to add it to the map
+				(*openFunc)(specPath, fileList, crs, u);
+			}
+
+			//wildcard specifiers (e.g. C:\data\*.laz) are basically a non-recursive directory check with an extension
+			if (specPath.has_filename()) {
+				if (fs::is_directory(specPath.parent_path())) {
+					std::regex wildcard{ "^\\*\\..+" };
+					std::string ext = "";
+					if (std::regex_match(specPath.filename().string(), wildcard)) {
+						ext = specPath.extension().string();
+					}
+
+					if (ext.size()) {
+						for (auto& subpath : fs::directory_iterator(specPath.parent_path())) {
+							if (subpath.path().has_extension() && subpath.path().extension() == ext || ext == ".*") {
+								toCheck.push(subpath.path().string());
+							}
+						}
+					}
+				}
+			}
+		}
+		return fileList;
 	}
-	ParamCategory Parameter<ParamName::name>::getCategory() const {
-		return ParamCategory::data;
-	}
-	void Parameter<ParamName::name>::renderGui() {
-		ImGui::Text("Run Name:");
-		ImGui::SameLine();
-		ImGui::InputText("##runname", _nameBuffer.data(), _nameBuffer.size());
-	}
-	void Parameter<ParamName::name>::importFromBoost() {
-		if (_nameBoost.size()) {
-			strncpy_s(_nameBuffer.data(), _nameBuffer.size(), _nameBoost.c_str(), _nameBuffer.size());
-			_nameBoost.clear();
+
+	template std::set<LasFileExtent> iterateOverFileSpecifiers<LasFileExtent>(const std::set<std::string>& specifiers,
+		fileSpecOpen<LasFileExtent> openFunc, const CoordRef& crs, const Unit& u);
+	template std::set<DemFileAlignment> iterateOverFileSpecifiers<DemFileAlignment>(const std::set<std::string>& specifiers,
+		fileSpecOpen<DemFileAlignment> openFunc, const CoordRef& crs, const Unit& u);
+
+	void tryLasFile(const std::filesystem::path& file, std::set<LasFileExtent>& data,
+		const CoordRef& crs, const Unit& u)
+	{
+		Logger& log = Logger::getLogger();
+		if (!file.has_extension()) {
+			return;
+		}
+		if (file.extension() != ".laz" && file.extension() != ".las") {
+			return;
+		}
+		try {
+			Extent e{ file.string() };
+			if (!crs.isEmpty()) {
+				e.defineCRS(crs);
+			}
+			if (!u.isUnknown()) {
+				e.setZUnits(u);
+			}
+			data.insert({ file.string(), e });
+		}
+		catch (InvalidLasFileException e) {
+			log.logError(e.what());
+		}
+		catch (InvalidExtentException e) {
+			log.logError(e.what());
 		}
 	}
-	void Parameter<ParamName::name>::updateUnits() {}
+
+	void tryDtmFile(const std::filesystem::path& file, std::set<DemFileAlignment>& data,
+		const CoordRef& crs, const Unit& u)
+	{
+		Logger& log = Logger::getLogger();
+		if (file.extension() == ".aux" || file.extension() == ".ovr" || file.extension() == ".adf"
+			|| file.extension() == ".xml") { //excluding commonly-found non-raster files to prevent slow calls to GDAL
+			return;
+		}
+		try {
+			Alignment a{ file.string() };
+			if (!crs.isEmpty()) {
+				a.defineCRS(crs);
+			}
+			if (!u.isUnknown()) {
+				a.setZUnits(u);
+			}
+			data.insert({ file.string(), a });
+		}
+		catch (InvalidRasterFileException e) {
+			log.logError(e.what());
+		}
+		catch (InvalidAlignmentException e) {
+			log.logError(e.what());
+		}
+		catch (InvalidExtentException e) {
+			log.logError(e.what());
+		}
+	}
 }

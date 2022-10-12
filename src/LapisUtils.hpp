@@ -18,6 +18,10 @@ namespace lapis {
 		Alignment align;
 	};
 
+	bool operator<(const DemFileAlignment& a, const DemFileAlignment& b);
+
+	bool operator<(const LasFileExtent& a, const LasFileExtent& b);
+
 
 	//sorts extents by north to south, then east to west. If the LAS files are well-tiled, this will result in a pattern where
 	//the exposed surface area of already-processed files is minimized, since that's a big source of memory usage
