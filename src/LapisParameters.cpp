@@ -3,6 +3,7 @@
 #include"LapisUtils.hpp"
 #include"lapisdata.hpp"
 #include"gis/RasterAlgos.hpp"
+#include"LapisLogger.hpp"
 
 namespace lapis {
 	void lasDemUnifiedGui(LasDemSpecifics& spec)
@@ -262,6 +263,8 @@ namespace lapis {
 		if (alignParam.isDebug()) {
 			return;
 		}
+		LapisLogger& log = LapisLogger::getLogger();
+		log.setProgress(RunProgress::findingLasFiles);
 
 		CoordRef crsOver = lasOverride.getCurrentCrs();
 		auto s = iterateOverFileSpecifiers(_spec.getFileSpecsSet(), &tryLasFile, crsOver, crsOver.getZUnits());
@@ -281,6 +284,7 @@ namespace lapis {
 			Extent e = QuadExtent(v.ext, outCrs).outerExtent();
 			_fileExtents.emplace_back(v.filename,e);
 		}
+		log.logMessage(std::to_string(_fileExtents.size()) + " Las Files Found");
 	}
 	void Parameter<ParamName::las>::cleanAfterRun() {
 		_fileExtents.clear();
@@ -364,8 +368,13 @@ namespace lapis {
 		}
 		auto& d = LapisData::getDataObject();
 		auto& demOverride = d._getRawParam<ParamName::demOverride>();
+		LapisLogger& log = LapisLogger::getLogger();
+		log.setProgress(RunProgress::findingDemFiles);
+
 		CoordRef crsOver = demOverride.getCurrentCrs();
 		_fileAligns = iterateOverFileSpecifiers(_spec.getFileSpecsSet(), &tryDtmFile, crsOver, crsOver.getZUnits());
+		log.logMessage(std::to_string(_fileAligns.size()) + " Dem Files Found");
+
 	}
 	void Parameter<ParamName::dem>::cleanAfterRun() {
 		_fileAligns.clear();
@@ -836,6 +845,9 @@ namespace lapis {
 		}
 		auto& d = LapisData::getDataObject();
 		auto& las = d._getRawParam<ParamName::las>();
+		LapisLogger& log = LapisLogger::getLogger();
+		log.setProgress(RunProgress::settingUp);
+
 		Extent e = las.getFullExtent();
 		coord_t xres = std::stod(_xresBuffer.data());
 		coord_t yres = std::stod(_yresBuffer.data());
@@ -983,6 +995,7 @@ namespace lapis {
 					o << ",";
 				}
 				o << _strataBuffers[i].data();
+				needComma = true;
 			}
 			o << "\n";
 		}
@@ -1574,8 +1587,6 @@ namespace lapis {
 
 		namespace fs = std::filesystem;
 
-		Logger& log = Logger::getLogger();
-
 		std::set<T> fileList;
 
 		std::queue<std::string> toCheck;
@@ -1632,7 +1643,7 @@ namespace lapis {
 	void tryLasFile(const std::filesystem::path& file, std::set<LasFileExtent>& data,
 		const CoordRef& crs, const Unit& u)
 	{
-		Logger& log = Logger::getLogger();
+		LapisLogger& log = LapisLogger::getLogger();
 		if (!file.has_extension()) {
 			return;
 		}
@@ -1649,18 +1660,14 @@ namespace lapis {
 			}
 			data.insert({ file.string(), e });
 		}
-		catch (InvalidLasFileException e) {
-			log.logError(e.what());
-		}
-		catch (InvalidExtentException e) {
-			log.logError(e.what());
+		catch (...) {
+			log.logMessage("Error reading " + file.string());
 		}
 	}
 
 	void tryDtmFile(const std::filesystem::path& file, std::set<DemFileAlignment>& data,
 		const CoordRef& crs, const Unit& u)
 	{
-		Logger& log = Logger::getLogger();
 		if (file.extension() == ".aux" || file.extension() == ".ovr" || file.extension() == ".adf"
 			|| file.extension() == ".xml") { //excluding commonly-found non-raster files to prevent slow calls to GDAL
 			return;
@@ -1675,14 +1682,6 @@ namespace lapis {
 			}
 			data.insert({ file.string(), a });
 		}
-		catch (InvalidRasterFileException e) {
-			log.logError(e.what());
-		}
-		catch (InvalidAlignmentException e) {
-			log.logError(e.what());
-		}
-		catch (InvalidExtentException e) {
-			log.logError(e.what());
-		}
+		catch (...) {}
 	}
 }

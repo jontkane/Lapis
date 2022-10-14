@@ -9,6 +9,8 @@ namespace lapis {
 	}
 	LapisData::LapisData()
 	{
+		CPLSetErrorHandler(LapisData::silenceGDALErrors);
+
 		constexpr ParamName FIRSTPARAM = (ParamName)0;
 		_addParam<FIRSTPARAM>();
 		_prevUnits = linearUnitDefs::meter;

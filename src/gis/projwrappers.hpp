@@ -12,7 +12,9 @@ namespace lapis {
 		PJ_CONTEXT* ptr;
 
 		ProjCtxWrapper(nullptr_t) : ptr(nullptr) {}
-		ProjCtxWrapper() : ptr(proj_context_create()) {}
+		ProjCtxWrapper() : ptr(proj_context_create()) {
+			proj_log_level(ptr, PJ_LOG_NONE);
+		}
 		~ProjCtxWrapper() {
 			if (ptr != nullptr)
 				proj_context_destroy(ptr);

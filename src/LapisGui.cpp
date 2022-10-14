@@ -131,7 +131,8 @@ namespace lapis {
 		if (ImGui::Button("Start Run")) {
 			if (!lgo.isRunning()) {
 				lgo.controller.reset(new LapisController);
-				lgo.vlog.clear();
+				auto& log = LapisLogger::getLogger();
+				log.reset();
 				auto f = [&] {lgo.controller->processFullArea(); };
 				lgo.runThread = std::thread(f);
 				lgo.runThread.detach();
@@ -224,10 +225,8 @@ namespace lapis {
 		ImGuiWindowFlags flags = ImGuiWindowFlags_HorizontalScrollbar;
 		ImGui::BeginChild("log", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y), true,
 			flags);
-		auto& lgo = LapisGuiObjects::getGuiObjects();
-		for (size_t i = 0; i < lgo.vlog.log.size(); ++i) {
-			ImGui::Text(lgo.vlog.log[i].c_str());
-		}
+		auto& log = LapisLogger::getLogger();
+		log.renderGui();
 		ImGui::EndChild();
 	}
 

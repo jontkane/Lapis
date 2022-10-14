@@ -34,19 +34,17 @@ int unifiedMain(std::vector<std::string> args) {
 		return 0;
 	}
 
-	Logger& log = Logger::getLogger();
-
 	LapisController lc;
 	try {
 		lc.processFullArea();
 	}
 	catch (std::exception e) {
-		log.logError(e.what());
-		log.logProgress("Run Aborted");
+		std::cout << e.what() << "\n";
+		std::cout << "Run Aborted\n";
 		return 1;
 	}
 	catch (...) {
-		log.logError("Unknown Error\nRun Aborted");
+		std::cout << "Unknown Error\nRun Aborted\n";
 		return 1;
 	}
 	return 0;

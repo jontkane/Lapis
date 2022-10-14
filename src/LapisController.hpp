@@ -3,7 +3,7 @@
 #define lp_pointmetriccontroller_h
 
 
-#include"Logger.hpp"
+#include"LapisLogger.hpp"
 #include"PointMetricCalculator.hpp"
 #include"LapisUtils.hpp"
 #include"csmalgos.hpp"

@@ -52,8 +52,8 @@ set(LAPIS_APP_SOURCES
 		src/lapiscontroller.hpp
 		src/lapisutils.cpp
 		src/lapisutils.hpp
-		src/logger.cpp
-		src/logger.hpp
+		src/LapisLogger.cpp
+		src/LapisLogger.hpp
 		src/pointmetriccalculator.cpp
 		src/pointmetriccalculator.hpp
 		src/csmalgos.hpp

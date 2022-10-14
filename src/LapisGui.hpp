@@ -13,28 +13,8 @@
 
 namespace lapis {
 
-	//this class is a quick and dirty to get the logger printing to the gui. It will be replaced when the logger is overhauled
-	class VectorStream : private std::streambuf, public std::ostream {
-	public:
-		std::vector<std::string> log;
-
-		VectorStream() : std::ostream(this), log(1) {}
-	private:
-		int overflow(int c) override {
-			if (c == '\n') {
-				log.emplace_back();
-			}
-			else {
-				std::stringstream ss{ log[log.size() - 1] };
-				ss << (char)c;
-			}
-			return 0;
-		}
-	};
-
 	struct LapisGuiObjects {
 		std::unique_ptr<LapisController> controller;
-		VectorStream vlog;
 		std::thread runThread;
 		NFD::UniquePathU8 inifile;
 

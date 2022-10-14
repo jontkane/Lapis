@@ -100,6 +100,8 @@ namespace lapis {
 
 		std::ostream& writeOptions(std::ostream& out, ParamCategory cat);
 
+		static void silenceGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg) {}
+
 
 	private:
 

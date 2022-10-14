@@ -14,8 +14,7 @@ namespace lapis {
 	void LapisController::processFullArea()
 	{
 		_isRunning = true;
-		Logger& log = Logger::getLogger();
-		log.logProgress("Run Begun");
+		LapisLogger& log = LapisLogger::getLogger();
 
 		data->prepareForRun();
 		PointMetricCalculator::setInfo(data->canopyCutoff(), data->maxHt(), data->binSize(), data->strataBreaks());
@@ -27,6 +26,8 @@ namespace lapis {
 		size_t soFar = 0;
 		auto pointMetricThreadFunc = [&] {pointMetricThread(soFar); };
 
+		log.setProgress(RunProgress::lasFiles, (int)data->sortedLasList().size());
+
 		std::vector<std::thread> threads;
 		for (int i = 0; i < data->nThread(); ++i) {
 			threads.push_back(std::thread(pointMetricThreadFunc));
@@ -35,22 +36,29 @@ namespace lapis {
 			threads[i].join();
 		}
 
-		log.logProgress("Writing point metric rasters");
+		size_t pointMetricCount = data->allReturnPointMetrics().size() +
+			data->firstReturnPointMetrics().size() +
+			data->allReturnStratumMetrics().size() * (data->strataBreaks().size() + 1) +
+			data->firstReturnStratumMetrics().size() * (data->strataBreaks().size() + 1) +
+			data->topoMetrics().size() + 1; //+1 is elevation
+		log.setProgress(RunProgress::writeMetrics, (int)pointMetricCount);
 		for (auto& metric : data->allReturnPointMetrics()) {
 			try {
 				writeRasterWithFullName(getPointMetricDir(), metric.name, metric.rast, metric.unit);
 			}
 			catch (InvalidRasterFileException e) {
-				log.logError("Error Writing " + metric.name);
+				log.logMessage("Error Writing " + metric.name);
 			}
+			log.incrementTask();
 		}
 		for (auto& metric : data->firstReturnPointMetrics()) {
 			try {
 				writeRasterWithFullName(getFRPointMetricDir(), metric.name, metric.rast, metric.unit);
 			}
 			catch (InvalidRasterFileException e) {
-				log.logError("Error Writing " + metric.name);
+				log.logMessage("Error Writing " + metric.name);
 			}
+			log.incrementTask();
 		}
 
 		for (auto& metric : data->allReturnStratumMetrics()) {
@@ -59,8 +67,9 @@ namespace lapis {
 					writeRasterWithFullName(getStratumDir(), metric.baseName + metric.stratumNames[i], metric.rasters[i], metric.unit);
 				}
 				catch (InvalidRasterFileException e) {
-					log.logError("Error Writing " + metric.baseName + metric.stratumNames[i]);
+					log.logMessage("Error Writing " + metric.baseName + metric.stratumNames[i]);
 				}
+				log.incrementTask();
 			}
 		}
 		for (auto& metric : data->firstReturnStratumMetrics()) {
@@ -69,21 +78,21 @@ namespace lapis {
 					writeRasterWithFullName(getFRStratumDir(), metric.baseName + metric.stratumNames[i], metric.rasters[i], metric.unit);
 				}
 				catch (InvalidRasterFileException e) {
-					log.logError("Error Writing " + metric.baseName + metric.stratumNames[i]);
+					log.logMessage("Error Writing " + metric.baseName + metric.stratumNames[i]);
 				}
+				log.incrementTask();
 			}
 		}
 		
 		calculateAndWriteTopo();
-		data->nLazRaster()->writeRaster("D:/nlaztestpost.tif");
-
-		log.logProgress("Merging CSMs");
 
 		cell_t targetNCell = data->csmFileSize() / sizeof(csm_t);
 		rowcol_t targetNRowCol = (rowcol_t)std::sqrt(targetNCell);
 		std::shared_ptr<Alignment> csmAlign = data->csmAlign();
 		coord_t tileRes = targetNRowCol * csmAlign->xres();
 		Alignment layout{ *csmAlign,0,0,tileRes,tileRes };
+
+		log.setProgress(RunProgress::csmTiles, (int)layout.ncell());
 
 		cell_t soFarCSM = 0;
 		TaoIdMap idMap;
@@ -98,7 +107,10 @@ namespace lapis {
 			threads[i].join();
 		}
 
-		log.logProgress("Final Cleanup");
+		log.setProgress(RunProgress::writeCsmMetrics, (int)data->csmMetrics().size());
+		writeCSMMetrics();
+
+		log.setProgress(RunProgress::cleanUp);
 
 		soFarCSM = 0;
 		auto taoIdFixFunc = [&] {fixTAOIds(idMap, layout, soFarCSM); };
@@ -109,8 +121,6 @@ namespace lapis {
 		for (int i = 0; i < data->nThread(); ++i) {
 			threads[i].join();
 		}
-
-		writeCSMMetrics();
 
 		writeLayout(layout);
 
@@ -125,7 +135,7 @@ namespace lapis {
 
 		data->cleanAfterRun();
 
-		log.logProgress("Done!");
+		log.setProgress(RunProgress::finished);
 		_isRunning = false;
 	}
 
@@ -149,7 +159,7 @@ namespace lapis {
 
 	void LapisController::pointMetricThread(size_t& soFar) const
 	{
-		Logger& log = Logger::getLogger();
+		LapisLogger& log = LapisLogger::getLogger();
 		while (true) {
 
 			LasFileExtent lasExt;
@@ -164,12 +174,8 @@ namespace lapis {
 				thisidx = soFar;
 
 				++soFar;
-
-				log.logProgress("las file " + std::to_string(thisidx+1) + " out of " + std::to_string(lasFiles.size()) + " started");
 			}
-			
 
-			auto startTime = chr::high_resolution_clock::now();
 
 			std::optional<Raster<csm_t>> thiscsm;
 			if (true) { //the ability to skip calculating the CSM might go here eventually
@@ -189,7 +195,7 @@ namespace lapis {
 					writeTempRaster(getCSMTempDir(), std::to_string(thisidx), thiscsm.value());
 				}
 				catch (InvalidRasterFileException e) {
-					log.logError("Error Writing Temporary CSM File");
+					log.logMessage("Error Writing Temporary CSM File");
 					throw InvalidRasterFileException("Error Writing Temporary CSM File");
 				}
 			}
@@ -206,14 +212,11 @@ namespace lapis {
 					writeTempRaster(getFineIntTempDir(), std::to_string(thisidx) + "_denominator", denominator);
 				}
 				catch (InvalidRasterFileException e) {
-					log.logError("Error Writing Temporary Fine Intensity File");
+					log.logMessage("Error Writing Temporary Fine Intensity File");
 					throw InvalidRasterFileException("Error Writing Temporary Fine Intensity File");
 				}
 			}
-
-			auto endTime = chr::high_resolution_clock::now();
-			auto duration = chr::duration_cast<chr::seconds>(endTime - startTime).count();
-			log.logDiagnostic(lasExt.filename + " " + std::to_string(points.size()) + " points read and processed in " + std::to_string(duration) + " seconds");
+			log.incrementTask();
 		}
 	}
 
@@ -422,7 +425,7 @@ namespace lapis {
 
 	void LapisController::writeParams() const
 	{
-		Logger& log = Logger::getLogger();
+		LapisLogger& log = LapisLogger::getLogger();
 
 		fs::path paramDir = getParameterDir();
 		fs::create_directories(paramDir);
@@ -431,7 +434,7 @@ namespace lapis {
 
 		std::ofstream fullParams{ paramDir / "FullParameters.ini" };
 		if (!fullParams) {
-			log.logError("Could not open " + (paramDir / "FullParameters.ini").string() + " for writing");
+			log.logMessage("Could not open " + (paramDir / "FullParameters.ini").string() + " for writing");
 		}
 		else {
 			d.writeOptions(fullParams, ParamCategory::data);
@@ -442,7 +445,7 @@ namespace lapis {
 
 		std::ofstream runAndComp{ paramDir / "ProcessingAndComputerParameters.ini" };
 		if (!runAndComp) {
-			log.logError("Could not open " + (paramDir / "ProcessingAndComputerParameters.ini").string() + " for writing");
+			log.logMessage("Could not open " + (paramDir / "ProcessingAndComputerParameters.ini").string() + " for writing");
 		}
 		else {
 			d.writeOptions(runAndComp, ParamCategory::process);
@@ -451,7 +454,7 @@ namespace lapis {
 
 		std::ofstream data{ paramDir / "DataParameters.ini" };
 		if (!data) {
-			log.logError("Could not open " + (paramDir / "DataParameters.ini").string() + " for writing");
+			log.logMessage("Could not open " + (paramDir / "DataParameters.ini").string() + " for writing");
 		}
 		else {
 			d.writeOptions(data, ParamCategory::data);
@@ -459,7 +462,7 @@ namespace lapis {
 
 		std::ofstream metric{ paramDir / "ProcessingParameters.ini" };
 		if (!data) {
-			log.logError("Could not open " + (paramDir / "ProcessingParameters.ini").string() + " for writing");
+			log.logMessage("Could not open " + (paramDir / "ProcessingParameters.ini").string() + " for writing");
 		}
 		else {
 			d.writeOptions(metric, ParamCategory::process);
@@ -467,7 +470,7 @@ namespace lapis {
 
 		std::ofstream computer{ paramDir / "ComputerParameters.ini" };
 		if (!data) {
-			log.logError("Could not open " + (paramDir / "ComputerParameters.ini").string() + " for writing");
+			log.logMessage("Could not open " + (paramDir / "ComputerParameters.ini").string() + " for writing");
 		}
 		else {
 			d.writeOptions(computer, ParamCategory::computer);
@@ -476,7 +479,7 @@ namespace lapis {
 
 	void LapisController::csmProcessingThread(const Alignment& layout, cell_t& soFar, TaoIdMap& idMap) const
 	{
-		Logger& log = Logger::getLogger();
+		LapisLogger& log = LapisLogger::getLogger();
 		
 		cell_t thisidx = 0;
 		Extent thistile;
@@ -493,7 +496,6 @@ namespace lapis {
 				++soFar;
 				
 			}
-			log.logProgress("Processing CSM tile " + std::to_string(thisidx+1) + " of " + std::to_string(layout.ncell()));
 
 			coord_t bufferDist = convertUnits(30, linearUnitDefs::meter, layout.crs().getXYUnits());
 			std::shared_ptr<Alignment> metricAlign = data->metricAlign();
@@ -643,6 +645,7 @@ namespace lapis {
 			}
 
 			pr->oncePerCsmTile(fullTile);
+			log.incrementTask();
 		}
 	}
 
@@ -655,10 +658,17 @@ namespace lapis {
 	
 	LidarPointVector LapisController::getPointsAndDem(size_t n) const
 	{
-		Logger& log = Logger::getLogger();
+		LapisLogger& log = LapisLogger::getLogger();
 
 		LasReader lr;
-		lr = LasReader(data->sortedLasList()[n].filename); //may throw
+		try {
+			lr = LasReader(data->sortedLasList()[n].filename);
+		}
+		catch (InvalidLasFileException e) {
+			log.logMessage(e.what());
+			return LidarPointVector();
+		}
+
 		if (!data->lasCrsOverride().isEmpty()) {
 			lr.defineCRS(data->lasCrsOverride());
 		}
@@ -676,7 +686,7 @@ namespace lapis {
 				lr.addDEM(d.filename, data->demCrsOverride(), data->demUnitOverride());
 			}
 			catch (InvalidRasterFileException e) {
-				log.logError(e.what());
+				log.logMessage(e.what());
 			}
 		}
 
@@ -689,6 +699,13 @@ namespace lapis {
 		std::scoped_lock<std::mutex> lock{ data->globalMutex()};
 		overlaySum(*data->elevNum(), coarseSum);
 		overlaySum(*data->elevDenom(), coarseCount);
+
+		double ratio = (double)points.size() / lr.nPoints() * 100.;
+
+		if (ratio < 50.) {
+			log.logMessage("Only " + (int)std::round(ratio) + std::string("% of points in ") + 
+				data->sortedLasList()[n].filename + " passed filters. Perhaps an issue with the DEMs?");
+		}
 
 		return points;
 	}
@@ -905,19 +922,38 @@ namespace lapis {
 	}
 
 	void LapisController::writeCSMMetrics() const {
+		LapisLogger& log = LapisLogger::getLogger();
 		for (auto& metric : data->csmMetrics()) {
-			writeRasterWithFullName(getCSMMetricDir(), metric.name, metric.r, metric.unit);
+			try {
+				writeRasterWithFullName(getCSMMetricDir(), metric.name, metric.r, metric.unit);
+			}
+			catch (...) {
+				log.logMessage("Error writing " + metric.name);
+			}
+			log.incrementTask();
 		}
 	}
 	void LapisController::calculateAndWriteTopo() const
 	{
-
+		LapisLogger& log = LapisLogger::getLogger();
 		Raster<coord_t> elev = *data->elevNum() / *data->elevDenom();
-		writeRasterWithFullName(getTopoDir(), "Elevation", elev, OutputUnitLabel::Default);
+		try {
+			writeRasterWithFullName(getTopoDir(), "Elevation", elev, OutputUnitLabel::Default);
+		}
+		catch (...) {
+			log.logMessage("Error writing elevation");
+		}
+		log.incrementTask();
 		
 		for (auto& metric : data->topoMetrics()) {
 			Raster<metric_t> r = focal(elev, 3, metric.metric);
-			writeRasterWithFullName(getTopoDir(), metric.name, r, metric.unit);
+			try {
+				writeRasterWithFullName(getTopoDir(), metric.name, r, metric.unit);
+			}
+			catch (...) {
+				log.logMessage("Error writing" + metric.name);
+			}
+			log.incrementTask();
 		}
 	}
 
