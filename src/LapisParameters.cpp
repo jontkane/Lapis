@@ -2,7 +2,6 @@
 #include "LapisParameters.hpp"
 #include"LapisUtils.hpp"
 #include"lapisdata.hpp"
-#include"gis/RasterAlgos.hpp"
 #include"LapisLogger.hpp"
 
 namespace lapis {

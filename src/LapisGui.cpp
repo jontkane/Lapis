@@ -1,8 +1,5 @@
 #include"app_pch.hpp"
 #include"lapisgui.hpp"
-#include<locale>
-#include<codecvt>
-#include"gis/alignment.hpp"
 #include"LapisData.hpp"
 
 namespace lapis {

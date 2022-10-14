@@ -2,14 +2,7 @@
 #ifndef LAPISPARAMETERS_H
 #define LAPISPARAMETERS_H
 
-#pragma warning(push)
-#pragma warning(disable: 26495)
-#include<boost/program_options.hpp>
-#pragma warning(pop)
-#include"imgui/imgui.h"
-#include<nfd.hpp>
-#include"gis/CoordRef.hpp"
-#include"gis/Alignment.hpp"
+#include"app_pch.hpp"
 #include"LapisUtils.hpp"
 #include"MetricTypeDefs.hpp"
 

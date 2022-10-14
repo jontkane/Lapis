@@ -2,11 +2,10 @@
 #ifndef LAPISDATA_H
 #define LAPISDATA_H
 
+#include"app_pch.hpp"
 #include"LapisParameters.hpp"
 #include"LapisUtils.hpp"
 #include"MetricTypeDefs.hpp"
-#include"gis/LasFilter.hpp"
-#include<filesystem>
 
 namespace lapis {
 

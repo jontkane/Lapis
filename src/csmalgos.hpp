@@ -2,7 +2,7 @@
 #ifndef lp_csmalgos_h
 #define lp_csmalgos_h
 
-#include"gis/Raster.hpp"
+#include"app_pch.hpp"
 #include"LapisTypedefs.hpp"
 
 namespace lapis {

@@ -3,8 +3,6 @@
 #define lp_lapisutils_h
 
 #include"app_pch.hpp"
-#include"gis/LasExtent.hpp"
-#include"gis/Raster.hpp"
 
 namespace lapis {
 

@@ -2,8 +2,7 @@
 #ifndef LP_LAPISLOGGER_H
 #define LP_LAPISLOGGER_H
 
-#include<unordered_map>
-#include<mutex>
+#include"app_pch.hpp"
 
 namespace lapis {
 

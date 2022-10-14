@@ -2,7 +2,7 @@
 #ifndef lp_lapistypedefs_h
 #define lp_lapistypedefs_h
 
-#include"gis/BaseDefs.hpp"
+#include"app_pch.hpp"
 
 namespace lapis {
 	using metric_t = coord_t;

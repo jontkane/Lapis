@@ -2,8 +2,8 @@
 #ifndef LP_METRICTYPEDEFS_H
 #define LP_METRICTYPEDEFS_H
 
+#include"app_pch.hpp"
 #include"PointMetricCalculator.hpp"
-#include"gis/RasterAlgos.hpp"
 
 namespace lapis {
 	using MetricFunc = void(PointMetricCalculator::*)(Raster<metric_t>& r, cell_t cell);

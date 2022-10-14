@@ -4,8 +4,6 @@
 
 #include"app_pch.hpp"
 #include"LapisTypedefs.hpp"
-#include"gis/Raster.hpp"
-#include"gis/LasReader.hpp"
 
 namespace lapis {
 

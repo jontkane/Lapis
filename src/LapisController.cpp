@@ -1,6 +1,5 @@
 #include"app_pch.hpp"
 #include"LapisController.hpp"
-#include"gis/RasterAlgos.hpp"
 
 
 namespace chr = std::chrono;

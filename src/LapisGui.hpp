@@ -2,13 +2,8 @@
 #ifndef LP_LAPISGUI_H
 #define LP_LAPISGUI_H
 
-#include "imgui/imgui.h"
-#include "imgui/imgui_impl_glfw.h"
-#include "imgui/imgui_impl_opengl3.h"
-#include <GLFW/glfw3.h>
-#include <nfd.hpp>
-#include "gis/Unit.hpp"
-#include "LapisController.hpp"
+#include"app_pch.hpp"
+#include"LapisController.hpp"
 
 
 namespace lapis {

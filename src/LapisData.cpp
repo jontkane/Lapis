@@ -1,5 +1,6 @@
 #include"app_pch.hpp"
 #include"LapisData.hpp"
+#include"LapisLogger.hpp"
 
 namespace lapis {
 	LapisData& LapisData::getDataObject()
@@ -338,7 +339,9 @@ namespace lapis {
 			}
 		}
 		catch (po::error_with_option_name e) {
-			std::cout << e.what() << "\n";
+			LapisLogger& log = LapisLogger::getLogger();
+			log.logMessage("Error reading parameters: ");
+			log.logMessage(e.what());
 			return ParseResults::invalidOpts;
 		}
 		return ParseResults::validOpts;

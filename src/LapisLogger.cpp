@@ -1,6 +1,5 @@
 #include"app_pch.hpp"
 #include"LapisLogger.hpp"
-#include"imgui/imgui.h"
 
 namespace lapis {
 	LapisLogger& LapisLogger::getLogger()
