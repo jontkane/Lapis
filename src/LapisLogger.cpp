@@ -29,13 +29,16 @@ namespace lapis {
 
 		ImGui::SameLine();
 		ImGui::BeginChild("logger messages", ImVec2(ImGui::GetContentRegionAvail().x - 2, ImGui::GetContentRegionAvail().y), true, 0);
-		for (size_t i = 0; i < _messages.size(); ++i) {
+		for (int i = (int)_messages.size()-1; i >= 0; --i) {
 			ImGui::Text(_messages[i].c_str());
 		}
 		ImGui::EndChild();
 	}
 	void LapisLogger::setProgress(RunProgress p, int total)
 	{
+		if (p == _currentTask) {
+			return;
+		}
 		if (_progressTracker.size()) {
 			size_t previdx = _progressTracker.size() - 1;
 			_progressTracker[previdx] = taskMessage.at(_currentTask) + "...";
@@ -71,6 +74,7 @@ namespace lapis {
 	void LapisLogger::reset()
 	{
 		_progressTracker.clear();
+		_incrementStrings.clear();
 		_messages.clear();
 		_currentTask = RunProgress::notStarted;
 	}
@@ -80,10 +84,9 @@ namespace lapis {
 	void LapisLogger::_updateEllipsis()
 	{
 		_frameCounter = (_frameCounter + 1) % 60;
-		if (_currentTask == RunProgress::notStarted) {
-			return;
-		}
-		if (_currentTask == RunProgress::finished) {
+		if (_currentTask == RunProgress::notStarted ||
+			_currentTask == RunProgress::finished ||
+			_currentTask == RunProgress::runAborted) {
 			return;
 		}
 		size_t idx = _progressTracker.size() - 1;

@@ -111,6 +111,9 @@ namespace lapis {
 			}
 		}
 		else {
+			if (ImGui::Button("Cancel")) {
+				d.needAbort = true;
+			}
 			displayLog();
 		}
 		ImGui::EndTabBar();

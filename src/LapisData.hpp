@@ -101,6 +101,8 @@ namespace lapis {
 
 		static void silenceGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg) {}
 
+		bool needAbort;
+
 
 	private:
 
@@ -125,6 +127,13 @@ namespace lapis {
 		size_t _cellMutCount = 10000;
 		std::unique_ptr<std::vector<std::mutex>> _cellMuts;
 		std::mutex _globalMut;
+
+		const int maxLapisFileName = 75;
+#ifdef _WIN32
+		const int maxTotalFilePath = 250;
+#else
+		const int maxTotalFilePath = 4000;
+#endif
 	};
 
 	template<ParamName N>

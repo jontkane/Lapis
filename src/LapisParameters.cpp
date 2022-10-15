@@ -220,6 +220,12 @@ namespace lapis {
 		_runString.clear();
 	}
 
+	const std::string& Parameter<ParamName::name>::getName()
+	{
+		prepareForRun();
+		return _runString;
+	}
+
 	Parameter<ParamName::las>::Parameter() {
 		_spec.fileFilter = std::make_unique<nfdnfilteritem_t>(L"LAS Files", L"las,laz");
 		_spec.name = "Laz";
@@ -284,6 +290,10 @@ namespace lapis {
 			_fileExtents.emplace_back(v.filename,e);
 		}
 		log.logMessage(std::to_string(_fileExtents.size()) + " Las Files Found");
+		if (_fileExtents.size() == 0) {
+			d.needAbort = true;
+			log.logMessage("Aborting");
+		}
 	}
 	void Parameter<ParamName::las>::cleanAfterRun() {
 		_fileExtents.clear();
@@ -373,7 +383,6 @@ namespace lapis {
 		CoordRef crsOver = demOverride.getCurrentCrs();
 		_fileAligns = iterateOverFileSpecifiers(_spec.getFileSpecsSet(), &tryDtmFile, crsOver, crsOver.getZUnits());
 		log.logMessage(std::to_string(_fileAligns.size()) + " Dem Files Found");
-
 	}
 	void Parameter<ParamName::dem>::cleanAfterRun() {
 		_fileAligns.clear();
@@ -414,6 +423,24 @@ namespace lapis {
 	void Parameter<ParamName::output>::updateUnits() {}
 	void Parameter<ParamName::output>::prepareForRun() {
 		_path = _buffer.data();
+		LapisData& d = LapisData::getDataObject();
+		auto& nameParam = d._getRawParam<ParamName::name>();
+		size_t maxFileLength = d.maxLapisFileName + _path.string().size() + nameParam.getName().size();
+		LapisLogger& log = LapisLogger::getLogger();
+		if (maxFileLength > d.maxTotalFilePath) {
+			log.logMessage("Total file path is too long");
+			log.logMessage("Aborting");
+			d.needAbort = true;
+		}
+		namespace fs = std::filesystem;
+		try {
+			fs::create_directory(_path);
+		}
+		catch (fs::filesystem_error e) {
+			log.logMessage("Unable to create output directory");
+			log.logMessage("Aborting");
+			d.needAbort = true;
+		}
 	}
 	void Parameter<ParamName::output>::cleanAfterRun() {
 		_path.clear();
@@ -848,16 +875,24 @@ namespace lapis {
 		log.setProgress(RunProgress::settingUp);
 
 		Extent e = las.getFullExtent();
-		coord_t xres = std::stod(_xresBuffer.data());
-		coord_t yres = std::stod(_yresBuffer.data());
-		coord_t xorigin = std::stod(_xoriginBuffer.data());
-		coord_t yorigin = std::stod(_yoriginBuffer.data());
+
+		coord_t xres = getValueWithError(_xresBuffer, "cellsize");
+		coord_t yres = getValueWithError(_yresBuffer, "cellsize");
+		coord_t xorigin = getValueWithError(_xoriginBuffer, "origin");
+		coord_t yorigin = getValueWithError(_yoriginBuffer, "origin");
 		const Unit& src = d.getCurrentUnits();
 		Unit dst = e.crs().getXYUnits();
 		xres = convertUnits(xres, src, dst);
 		yres = convertUnits(yres, src, dst);
 		xorigin = convertUnits(xorigin, src, dst);
 		yorigin = convertUnits(yorigin, src, dst);
+
+		if (xres <= 0 || yres <= 0) {
+			log.logMessage("Celsize must be positive");
+			log.logMessage("Aborting");
+			d.needAbort = true;
+			xres = 30; yres = 30; //just so this function can complete without further errors before LapisData handles the abort
+		}
 
 		_align.reset();
 		_align = std::make_shared<Alignment>(e, xorigin, yorigin, xres, yres);
@@ -876,7 +911,6 @@ namespace lapis {
 		_align.reset();
 		_nLaz.reset();
 	}
-
 	bool Parameter<ParamName::alignment>::isDebug() const
 	{
 		return _debugBool;
@@ -937,7 +971,10 @@ namespace lapis {
 		updateUnitsBuffer(_csmCellsizeBuffer);
 	}
 	void Parameter<ParamName::csmOptions>::importFromBoost() {
-		//TODO: log the errors
+		LapisLogger& log = LapisLogger::getLogger();
+		if (_smooth % 2 == 0 || _smooth <= 0) {
+			log.logMessage("Smooth factor must be a postive, odd integer");
+		}
 		if (_smooth % 2 == 0) {
 			_smooth--;
 		}
@@ -960,9 +997,23 @@ namespace lapis {
 
 		auto& d = LapisData::getDataObject();
 		auto& alignParam = d._getRawParam<ParamName::alignment>();
+		auto& log = LapisLogger::getLogger();
 		
-		_footprintDiamCache = std::stod(_footprintDiamBuffer.data());
-		coord_t cellsize = std::stod(_csmCellsizeBuffer.data());
+		_footprintDiamCache = getValueWithError(_footprintDiamBuffer, "footprint");
+		coord_t cellsize = getValueWithError(_csmCellsizeBuffer, "csm cellsize");
+
+		if (_footprintDiamCache < 0) {
+			log.logMessage("Pulse diameter must be non-negative");
+			log.logMessage("Aborting");
+			d.needAbort = true;
+		}
+		if (cellsize <= 0) {
+			log.logMessage("CSM Cellsize must be positive");
+			log.logMessage("Aborting");
+			d.needAbort = true;
+			cellsize = 1;
+		}
+
 		const Alignment& metricAlign = alignParam.getFullAlignment();
 		const Unit& u = d.getCurrentUnits();
 		cellsize = convertUnits(cellsize, u, metricAlign.crs().getXYUnits());
@@ -1052,7 +1103,9 @@ namespace lapis {
 				try {
 					numericBreaks.insert(std::stod(_strataBuffers[i].data()));
 				}
-				catch (std::invalid_argument e) { /*TODO: log the error*/ }
+				catch (std::invalid_argument e) { 
+					LapisLogger::getLogger().logMessage("Unable to interpret " + std::string(_strataBuffers[i].data()) + " as a number");
+				}
 			}
 			_strataBuffers.clear();
 			for (double v : numericBreaks) {
@@ -1104,7 +1157,7 @@ namespace lapis {
 				numericStrata.push_back(std::stod(temp));
 			}
 			catch (std::invalid_argument e) {
-				//TODO: log the error
+				LapisLogger::getLogger().logMessage("Unable to interpret " + temp + " as a number");
 				numericStrata.clear();
 				break;
 			}
@@ -1120,10 +1173,14 @@ namespace lapis {
 		_strataBoost.clear();
 	}
 	void Parameter<ParamName::metricOptions>::prepareForRun() {
-		_canopyCache = std::stod(_canopyBuffer.data());
+		LapisLogger& log = LapisLogger::getLogger();
+		_canopyCache = getValueWithError(_canopyBuffer, "canopy cutoff");
 		_strataCache.resize(_strataBuffers.size());
 		for (size_t i = 0; i < _strataCache.size(); ++i) {
 			_strataCache[i] = std::stod(_strataBuffers[i].data());
+		}
+		if (_canopyCache < 0) {
+			log.logMessage("Canopy cutoff is negative. Is this intentional?");
 		}
 	}
 	void Parameter<ParamName::metricOptions>::cleanAfterRun() {
@@ -1313,7 +1370,7 @@ namespace lapis {
 			_classBoost = _classBoost.substr(1, _classBoost.size());
 		}
 		else {
-			//TODO: log error
+			LapisLogger::getLogger().logMessage("Incorrect formatting for class filter");
 			_classBoost.clear();
 			return;
 		}
@@ -1324,7 +1381,7 @@ namespace lapis {
 		while (std::getline(tokenizer, temp, ',')) {
 			int cl = std::stoi(temp);
 			if (cl > _classChecks.size() || cl < 0) {
-				//TODO: log error
+				LapisLogger::getLogger().logMessage("Class values must be between 0 and 255");
 			}
 			else {
 				set.insert(cl);
@@ -1357,8 +1414,15 @@ namespace lapis {
 			return;
 		}
 
-		_minhtCache = std::stod(_minhtBuffer.data());
-		_maxhtCache = std::stod(_maxhtBuffer.data());
+		_minhtCache = getValueWithError(_minhtBuffer, "min height");
+		_maxhtCache = getValueWithError(_maxhtBuffer, "max height");
+
+		if (_minhtCache > _maxhtCache) {
+			LapisLogger& log = LapisLogger::getLogger();
+			log.logMessage("Low outlier must be less than high outlier");
+			log.logMessage("Aborting");
+			LapisData::getDataObject().needAbort = true;
+		}
 
 		if (_filterWithheldCheck) {
 			_filters.emplace_back(new LasFilterWithheld());
@@ -1549,6 +1613,7 @@ namespace lapis {
 	void Parameter<ParamName::computerOptions>::importFromBoost() {
 		if (_threadBoost > 0) {
 			int x = _threadBoost < 999 ? _threadBoost : 999;
+			x = x > 0 ? x : 1;
 			copyToBuffer(_threadBuffer, x);
 			_threadBoost = 0;
 		}
@@ -1682,5 +1747,18 @@ namespace lapis {
 			data.insert({ file.string(), a });
 		}
 		catch (...) {}
+	}
+	coord_t getValueWithError(const ParamBase::FloatBuffer& buff, const std::string& name) {
+		LapisLogger& log = LapisLogger::getLogger();
+		coord_t out = 30;
+		try {
+			out = std::stod(buff.data());
+		}
+		catch (std::invalid_argument e) {
+			log.logMessage("Error reading value of " + name);
+			log.logMessage("Aborting");
+			LapisData::getDataObject().needAbort = true;
+		}
+		return out;
 	}
 }

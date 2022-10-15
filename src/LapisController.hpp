@@ -112,7 +112,7 @@ namespace lapis {
 
 		std::unique_ptr<LapisPrivate> pr;
 
-		std::atomic_bool _isRunning = false;
+		mutable std::atomic_bool _isRunning = false;
 
 		LapisData* data;
 	};
@@ -125,29 +125,35 @@ namespace lapis {
 
 	template<class T>
 	void LapisController::writeRasterWithFullName(const fs::path& dir, const std::string& baseName, Raster<T>& r, OutputUnitLabel u) const {
-		fs::create_directories(dir);
-		std::string unitString;
-		using oul = OutputUnitLabel;
-		if (u == oul::Default) {
-			Unit outUnit = data->metricAlign()->crs().getZUnits();
-			std::regex meterregex{ ".*met.*",std::regex::icase };
-			std::regex footregex{ ".*f(o|e)(o|e)t.*",std::regex::icase };
-			if (std::regex_match(outUnit.name, meterregex)) {
-				unitString = "_Meters";
+		try {
+			fs::create_directories(dir);
+			std::string unitString;
+			using oul = OutputUnitLabel;
+			if (u == oul::Default) {
+				Unit outUnit = data->metricAlign()->crs().getZUnits();
+				std::regex meterregex{ ".*met.*",std::regex::icase };
+				std::regex footregex{ ".*f(o|e)(o|e)t.*",std::regex::icase };
+				if (std::regex_match(outUnit.name, meterregex)) {
+					unitString = "_Meters";
+				}
+				else if (std::regex_match(outUnit.name, footregex)) {
+					unitString = "_Feet";
+				}
 			}
-			else if (std::regex_match(outUnit.name, footregex)) {
-				unitString = "_Feet";
+			else if (u == oul::Percent) {
+				unitString = "_Percent";
 			}
+			else if (u == oul::Radian) {
+				unitString = "_Radians";
+			}
+			std::string runName = data->name().size() ? data->name() + "_" : "";
+			fs::path fullPath = dir / (runName + baseName + unitString + ".tif");
+			r.writeRaster(fullPath.string());
 		}
-		else if (u == oul::Percent) {
-			unitString = "_Percent";
+		catch (InvalidRasterFileException e) {
+			LapisLogger::getLogger().logMessage("Error writing " + baseName);
 		}
-		else if (u == oul::Radian) {
-			unitString = "_Radians";
-		}
-		std::string runName = data->name().size() ? data->name() + "_" : "";
-		fs::path fullPath = dir / (runName + baseName + unitString + ".tif");
-		r.writeRaster(fullPath.string());
+		LapisLogger::getLogger().incrementTask();
 	}
 }
 

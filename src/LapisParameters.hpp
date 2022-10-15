@@ -41,7 +41,7 @@ namespace lapis {
 		linearUnitDefs::unkLinear,
 		linearUnitDefs::meter,
 		linearUnitDefs::foot,
-		linearUnitDefs::surveyFoot};
+		linearUnitDefs::surveyFoot };
 
 		const inline static std::vector<std::string> unitPluralNames = {
 			"Units",
@@ -121,6 +121,8 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
+		const std::string& getName();
+
 	private:
 		std::string _nameCmd = "name";
 		std::string _nameBoost;
@@ -149,7 +151,7 @@ namespace lapis {
 	};
 
 	void lasDemUnifiedGui(LasDemSpecifics& spec);
-	
+
 	template<>
 	class Parameter<ParamName::las> : public ParamBase {
 		friend class LapisData;
@@ -670,6 +672,8 @@ namespace lapis {
 	//otherwise, logs an error and does nothing
 	void tryDtmFile(const std::filesystem::path& file, std::set<DemFileAlignment>& data,
 		const CoordRef& crs, const Unit& u);
+
+	coord_t getValueWithError(const ParamBase::FloatBuffer& buff, const std::string& name);
 }
 
 #endif

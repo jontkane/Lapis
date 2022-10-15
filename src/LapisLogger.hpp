@@ -16,7 +16,9 @@ namespace lapis {
 		csmTiles,
 		writeCsmMetrics,
 		cleanUp,
-		finished
+		finished,
+		runAborted,
+		canceling
 	};
 
 
@@ -47,7 +49,9 @@ namespace lapis {
 			{RunProgress::csmTiles,"Processing CSM Tiles"},
 			{RunProgress::writeCsmMetrics,"Writing CSM Metrics"},
 			{RunProgress::cleanUp,"Final Cleanup"},
-			{RunProgress::finished,"Done!"}
+			{RunProgress::finished,"Done!"},
+			{RunProgress::runAborted,"Aborted"},
+			{RunProgress::canceling,"Canceling"}
 		};
 		inline static std::unordered_map<RunProgress, std::string> incrementMessage = {
 			{RunProgress::lasFiles,"Las File Finished: "},

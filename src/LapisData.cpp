@@ -8,7 +8,7 @@ namespace lapis {
 		static LapisData d;
 		return d;
 	}
-	LapisData::LapisData()
+	LapisData::LapisData() : needAbort(false)
 	{
 		CPLSetErrorHandler(LapisData::silenceGDALErrors);
 
@@ -53,6 +53,9 @@ namespace lapis {
 	{
 		for (size_t i = 0; i < _params.size(); ++i) {
 			_params[i]->prepareForRun();
+			if (needAbort) {
+				return;
+			}
 		}
 		_cellMuts = std::make_unique<std::vector<std::mutex>>(_cellMutCount);
 	}
@@ -63,6 +66,7 @@ namespace lapis {
 			_params[i]->cleanAfterRun();
 		}
 		_cellMuts.reset();
+		needAbort = false;
 	}
 
 	void LapisData::resetObject() {
@@ -74,6 +78,7 @@ namespace lapis {
 		for (size_t i = 0; i < _params.size(); ++i) {
 			_params[i]->importFromBoost();
 		}
+		needAbort = false;
 	}
 
 	std::shared_ptr<Alignment> LapisData::metricAlign()
@@ -367,6 +372,9 @@ namespace lapis {
 			return ParseResults::validOpts;
 		}
 		catch (po::error e) {
+			LapisLogger& log = LapisLogger::getLogger();
+			log.logMessage("Error in ini file " + path);
+			log.logMessage(e.what());
 			return ParseResults::invalidOpts;
 		}
 	}
