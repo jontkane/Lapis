@@ -58,6 +58,27 @@ namespace lapis {
 			}
 		}
 		_cellMuts = std::make_unique<std::vector<std::mutex>>(_cellMutCount);
+
+		LapisLogger& log = LapisLogger::getLogger();
+
+		double mem = estimateMemory();
+		mem = std::round(mem * 100.) / 100.;
+		std::ostringstream message;
+		message.precision(1);
+		message << std::fixed;
+		message << "Estimated memory usage: " << mem << " GB";
+		log.logMessage(message.str());
+
+		double hdd = estimateHardDrive();
+		message.str("");
+		message << "Estimated HDD space needed: " << hdd << " GB";
+		log.logMessage(message.str());
+
+		double avail = static_cast<double>(std::filesystem::space(outFolder()).available);
+		avail /= 1024. * 1024. * 1024.;
+		message.str("");
+		message << "Hard drive space available: " << avail << " GB";
+		log.logMessage(message.str());
 	}
 
 	void LapisData::cleanAfterRun()
@@ -397,5 +418,122 @@ namespace lapis {
 				_params[i]->printToIni(out);
 		}
 		return out;
+	}
+
+	double LapisData::estimateMemory()
+	{
+		cell_t metricNCell = metricAlign()->ncell();
+		double metricMem = 0;
+		metricMem += sizeof(int) * metricNCell; //nlaz
+		metricMem += allReturnPointMetrics().size() * sizeof(metric_t) * metricNCell;
+		metricMem += firstReturnPointMetrics().size() * sizeof(metric_t) * metricNCell;
+		metricMem += allReturnStratumMetrics().size() * (strataBreaks().size() + 1) * sizeof(metric_t) * metricNCell;
+		metricMem += firstReturnStratumMetrics().size() * (strataBreaks().size() + 1) * sizeof(metric_t) * metricNCell;
+		metricMem += csmMetrics().size() * sizeof(metric_t) * metricNCell;
+		metricMem += topoMetrics().size() * sizeof(metric_t) * metricNCell;
+		if (doTopo())
+			metricMem += sizeof(coord_t) * metricNCell * 2; //elevation numerator and denominator
+		if (doAllReturnMetrics())
+			metricMem += sizeof(PointMetricCalculator) * metricNCell;
+		if (doFirstReturnMetrics())
+			metricMem += sizeof(PointMetricCalculator) * metricNCell;
+
+		double perThread = 0;
+		double meanPointsPerTile = 0;
+		double meanArea = 0;
+		for (auto& l : sortedLasList()) {
+			meanPointsPerTile += l.ext.nPoints();
+			meanArea += (l.ext.ymax() - l.ext.ymin()) * (l.ext.xmax() - l.ext.xmin());
+		}
+		meanPointsPerTile /= sortedLasList().size();
+		meanArea /= sortedLasList().size();
+		perThread += sizeof(LasPoint) * meanPointsPerTile * 2; //while figuring out which points pass filters, a copy of the data is made
+
+		coord_t demCellArea = std::numeric_limits<coord_t>::max();
+		for (auto& d : demList()) {
+			demCellArea = std::min(demCellArea, d.align.xres() * d.align.yres());
+		}
+		perThread += sizeof(coord_t) * meanArea / demCellArea;
+
+		coord_t csmCellArea = csmAlign()->xres() * csmAlign()->yres();
+		perThread += meanArea / csmCellArea * sizeof(csm_t);
+
+		if (doTopo()) {
+			perThread += meanArea / csmCellArea * sizeof(coord_t); //temporary csm-scale elevation raster
+			perThread += sizeof(coord_t) * metricNCell * 2; //inputs to elevation numerator and denominator
+		}
+
+		if(doFineInt()) {
+			perThread += meanArea / csmCellArea * sizeof(intensity_t) * 2;
+		}
+
+		double sparseHistEst = convertUnits(50, linearUnitDefs::meter, metricAlign()->crs().getXYUnits()) / binSize() * sizeof(int);
+		sparseHistEst *= meanArea / (metricAlign()->xres() * metricAlign()->yres());
+		perThread += sparseHistEst;
+
+		perThread *= 1.1; //there's a ton of ephemeral memory usage and difficult-to-estimate stuff so I'll just inflate by 10% to be safe
+		return (perThread * nThread() + metricMem) / 1024. / 1024. / 1024.;
+	}
+	double LapisData::estimateHardDrive()
+	{
+		cell_t metricNCell = 0;
+		cell_t csmNCell = 0;
+
+		//essentially the same logic as cellsFromExtent but doesn't allocate the actual list of cells
+		auto nCellsInOverlap = [&](const Alignment& a, const Extent& e)->size_t {
+			if (!a.overlaps(e)) {
+				return 0;
+			}
+			Extent alignE = a.alignExtent(e, SnapType::out);
+			alignE = crop(alignE, a);
+
+			//Bringing the extent in slightly so you don't have to deal with the edge of the extent aligning with the edges of this object's cells.
+			alignE = Extent(alignE.xmin() + 0.25 * a.xres(), alignE.xmax() - 0.25 * a.xres(),
+				alignE.ymin() + 0.25 * a.yres(), alignE.ymax() - 0.25 * a.yres());
+
+			//The mins and maxes are *inclusive*
+			size_t mincol = a.colFromX(alignE.xmin());
+			size_t maxcol = a.colFromX(alignE.xmax());
+			size_t minrow = a.rowFromY(alignE.ymax());
+			size_t maxrow = a.rowFromY(alignE.ymin());
+			return (maxcol - mincol + 1) * (maxrow - minrow + 1);
+		};
+
+		//tifs are good at compressing large blocks of nodata so I'm going to pretend nodata has no hard drive usage
+		//I'm wildly overestimating everywhere else so it should be fine
+		for (auto& l : sortedLasList()) {
+			metricNCell += nCellsInOverlap(*metricAlign(), l.ext);
+			csmNCell += nCellsInOverlap(*csmAlign(), l.ext);
+		}
+
+		double usage = 0;
+		if (doCsm()) {
+			usage += csmNCell * sizeof(csm_t) * 2;
+			usage += metricNCell * sizeof(metric_t) * csmMetrics().size();
+		}
+		if (doAllReturnMetrics()) {
+			usage += metricNCell * sizeof(metric_t) * allReturnPointMetrics().size();
+			usage += metricNCell * sizeof(metric_t) * allReturnStratumMetrics().size() * (strataBreaks().size() + 1);
+		}
+		if (doFirstReturnMetrics()) {
+			usage += metricNCell * sizeof(metric_t) * firstReturnPointMetrics().size();
+			usage += metricNCell * sizeof(metric_t) * firstReturnStratumMetrics().size() * (strataBreaks().size() + 1);
+		}
+
+		if (doTopo()) {
+			usage += metricNCell * sizeof(metric_t) * (topoMetrics().size() + 1);
+		}
+		
+		if (doFineInt()) {
+			usage += csmNCell * sizeof(intensity_t) * 3;
+		}
+		if (doTaos()) {
+			usage += csmNCell * (sizeof(csm_t) + 2 * sizeof(taoid_t));
+
+			//this estimate is a bit of hack and way overestimating, to get at the size of the high point polygons.
+			//estimating 3% of points are TAOs (empirical 1%) and each TAO uses 200 bytes (empirical 177)
+			usage += csmNCell * 0.03 * 200;
+		}
+		return usage / 1024. / 1024. / 1024.;
 	}
 }

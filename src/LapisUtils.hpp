@@ -8,7 +8,7 @@ namespace lapis {
 
 	struct LasFileExtent {
 		std::string filename;
-		Extent ext;
+		LasExtent ext;
 	};
 	struct DemFileAlignment {
 		std::string filename;

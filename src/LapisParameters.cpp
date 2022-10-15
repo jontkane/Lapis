@@ -286,7 +286,7 @@ namespace lapis {
 		}
 		
 		for (auto& v : s) {
-			Extent e = QuadExtent(v.ext, outCrs).outerExtent();
+			LasExtent e = { QuadExtent(v.ext, outCrs).outerExtent(), v.ext.nPoints() };
 			_fileExtents.emplace_back(v.filename,e);
 		}
 		log.logMessage(std::to_string(_fileExtents.size()) + " Las Files Found");
@@ -1715,7 +1715,7 @@ namespace lapis {
 			return;
 		}
 		try {
-			Extent e{ file.string() };
+			LasExtent e{ file.string() };
 			if (!crs.isEmpty()) {
 				e.defineCRS(crs);
 			}

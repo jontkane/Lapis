@@ -15,6 +15,7 @@ namespace lapis {
 		LasExtent() : Extent(), _nPoints(0) {}
 		LasExtent(const std::string& s);
 		LasExtent(const LasIO& las);
+		LasExtent(const Extent& e, std::uint64_t nPoints) : Extent(e), _nPoints(nPoints) {}
 
 		virtual ~LasExtent() = default;
 

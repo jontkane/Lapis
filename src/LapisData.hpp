@@ -101,6 +101,10 @@ namespace lapis {
 
 		static void silenceGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg) {}
 
+		double estimateMemory();
+
+		double estimateHardDrive();
+
 		bool needAbort;
 
 

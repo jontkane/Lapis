@@ -54,7 +54,7 @@ namespace lapis {
 		void returnCount(Raster<metric_t>& r, cell_t cell);
 		void canopyCover(Raster<metric_t>& r, cell_t cell);
 
-		//these are currently classes as "advanced" metrics. Grouped separately for clarity
+		//these are currently classed as "advanced" metrics. Grouped separately for clarity
 		void coverAboveMean(Raster<metric_t>& r, cell_t cell);
 		void canopyReliefRatio(Raster<metric_t>& r, cell_t cell);
 		void skewnessCanopy(Raster<metric_t>& r, cell_t cell);

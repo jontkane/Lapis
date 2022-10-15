@@ -8,7 +8,7 @@ namespace lapis {
 	LidarPointVector LasReader::getPoints(size_t n)
 	{
 		if (_currentPoint >= _nPoints) {
-			return CoordVector3D<LasPoint>();
+			return LidarPointVector();
 		}
 		size_t maxCount = std::min(n, _nPoints - _currentPoint);
 		LidarPointVector points{ _crs };
@@ -41,7 +41,8 @@ namespace lapis {
 				break;
 			}
 		}
-		_tmp.clear(); //you could deallocate here and nothing would break but it seems uneccesary
+		_tmp.clear();
+		_tmp.shrink_to_fit();
 
 		LidarPointVector out{ _crs };
 		out.reserve(points.size());

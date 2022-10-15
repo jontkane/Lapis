@@ -99,6 +99,7 @@ namespace lapis {
 		rowcol_t maxcol = colFromX(alignE.xmax());
 		rowcol_t minrow = rowFromY(alignE.ymax());
 		rowcol_t maxrow = rowFromY(alignE.ymin());
+		out.reserve((size_t)(maxcol - mincol + 1) * (size_t)(maxrow - minrow + 1));
 		for (rowcol_t r = minrow; r <= maxrow; ++r) {
 			for (rowcol_t c = mincol; c <= maxcol; ++c) {
 				out.push_back(cellFromRowCol(r, c));

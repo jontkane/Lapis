@@ -11,6 +11,7 @@
 #include<unordered_set>
 #include<queue>
 #include<unordered_map>
+#include<sstream>
 
 #define BOOST_ALL_DYN_LINK
 
