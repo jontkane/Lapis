@@ -14,4 +14,4 @@ mkdir build
 cd build
 cmake ..
 
-If all went well, there should now be a file in the build directory called lapis.sln. This is the solution for lapis.
+If all went well, there should now be a file in the build directory called lapis.sln. This is the solution for lapis. You can open it with visual studio and compile it. Note that the anaconda distribution of lazperf will not work with debug compilations of lapis; if you install with anaconda as suggested above, only release mode compilations will work.
