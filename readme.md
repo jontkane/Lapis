@@ -6,9 +6,9 @@ Lapis is an open-source program optimized for processing aerial lidar for forest
 
 Lapis is currently in alpha. It should compile (if cmake cooperates), and has been verified to run on a handful of lidar acquisitions, but I'm sure there are plenty of corner cases that will still cause it to crash. Furthermore, it's far from feature-complete. The following broad features are planned but not yet implemented:
 
-Increased customization for the canopy surface model, ground model, and tree segmentation algorithms.
-Metadata output documenting the output produced by a run.
-Features to check for common problems in input data before the user wastes time on a doomed run.
+- Increased customization for the canopy surface model, ground model, and tree segmentation algorithms.
+- Metadata output documenting the output produced by a run.
+- Features to check for common problems in input data before the user wastes time on a doomed run.
 
 
 # Building Lapis
