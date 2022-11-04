@@ -25,6 +25,7 @@ namespace lapis {
 		void prepareParamsNoSlowStuff(std::vector<std::string> args) {
 			args.push_back("--debug-no-alignment");
 			args.push_back("--debug-no-alloc-raster");
+			args.push_back("--output=debug-test");
 			prepareParams(args);
 		}
 	};
@@ -68,7 +69,7 @@ namespace lapis {
 
 	TEST_F(LapisDataTest, nLazRaster) {
 		std::string testFolder = LAPISTESTFILES;
-		prepareParams({ "--debug-no-alloc-raster", "--las=" + testFolder + "/testlaz14.laz", "--cellsize=0.1"});
+		prepareParams({ "--debug-no-alloc-raster", "--las=" + testFolder + "/testlaz14.laz", "--cellsize=0.1","--output=debug-test"});
 		auto& r1 = *data().nLazRaster();
 		EXPECT_EQ(*data().metricAlign(), (Alignment)r1);
 		bool anyHasValue = false;
@@ -81,7 +82,7 @@ namespace lapis {
 		EXPECT_TRUE(anyHasValue);
 
 		prepareParams({ "--debug-no-alloc-raster","--las=" + testFolder + "/testlaz14.laz",
-			"--las=" + testFolder + "/testlaznormalized.laz","--cellsize=0.1" });
+			"--las=" + testFolder + "/testlaznormalized.laz","--cellsize=0.1","--output=debug-test"});
 		auto& r2 = *data().nLazRaster();
 		EXPECT_EQ((Alignment)r1, Alignment(r2));
 		for (cell_t cell = 0; cell < r2.ncell(); ++cell) {
@@ -97,7 +98,7 @@ namespace lapis {
 
 	TEST_F(LapisDataTest, metricRasters) {
 		std::string debugParam = "--debug-no-alignment";
-		prepareParams({ debugParam, "--strata=1,2,3"});
+		prepareParams({ debugParam, "--strata=1,2,3","--output=debug-test"});
 
 		const Alignment& a = *data().metricAlign();
 		
@@ -211,7 +212,7 @@ namespace lapis {
 		std::string debugParam = "--debug-no-alloc-raster";
 
 		std::string testFileFolder = LAPISTESTFILES;
-		prepareParams({ debugParam, "--las=" + testFileFolder });
+		prepareParams({ debugParam, "--las=" + testFileFolder, "--output=debug-test"});
 		const auto& files = data().sortedLasList();
 
 		EXPECT_EQ(files.size(), 5);
@@ -222,7 +223,8 @@ namespace lapis {
 		coord_t defaultCellSize = data().metricAlign()->xres();
 		coord_t defaultOrigin = data().metricAlign()->xOrigin();
 
-		prepareParams({ debugParam, "--las=" + testFileFolder + "/testlaz10.laz","--las=" + testFileFolder + "/testlaz14.laz", "--las-crs=2286","--las-units=m"});
+		prepareParams({ debugParam, "--las=" + testFileFolder + "/testlaz10.laz",
+			"--las=" + testFileFolder + "/testlaz14.laz", "--las-crs=2286","--las-units=m", "--output=debug-test" });
 		const auto& filestwo = data().sortedLasList();
 		EXPECT_EQ(filestwo.size(), 2);
 		crs = CoordRef("2286", linearUnitDefs::meter);
@@ -250,7 +252,8 @@ namespace lapis {
 		EXPECT_NEAR(convertUnits(defaultOrigin, linearUnitDefs::meter, crs.getXYUnits()), roundOriginToZero(metricAlign.yOrigin(),metricAlign.yres()), 0.01);
 
 		Alignment fileAlign{ testFileFolder + "/testRaster.tif" };
-		prepareParams({ debugParam, "--las=" + testFileFolder + "/testlaz10.laz", "--alignment=" + testFileFolder + "/testRaster.tif" });
+		prepareParams({ debugParam, "--las=" + testFileFolder + "/testlaz10.laz",
+			"--alignment=" + testFileFolder + "/testRaster.tif", "--output=debug-test" });
 		metricAlign = *data().metricAlign();
 		EXPECT_TRUE(fileAlign.crs().isConsistent(metricAlign.crs()));
 		EXPECT_NEAR(fileAlign.xres(), metricAlign.xres(), 0.000001);
@@ -259,7 +262,8 @@ namespace lapis {
 		EXPECT_NEAR(fileAlign.yOrigin(), roundOriginToZero(metricAlign.yOrigin(),metricAlign.yres()), 0.0001);
 
 
-		prepareParams({ debugParam, "--las=" + testFileFolder + "/testlaz10.laz", "--out-crs=2286", "--user-units=m","--cellsize=20","--xorigin=10","--yorigin=5" });
+		prepareParams({ debugParam, "--las=" + testFileFolder + "/testlaz10.laz",
+			"--out-crs=2286", "--user-units=m","--cellsize=20","--xorigin=10","--yorigin=5", "--output=debug-test" });
 		metricAlign = *data().metricAlign();
 		EXPECT_TRUE(metricAlign.crs().isConsistentHoriz(CoordRef("2286")));
 		EXPECT_NEAR(convertUnits(20, linearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
@@ -267,7 +271,7 @@ namespace lapis {
 		EXPECT_NEAR(convertUnits(10, linearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xOrigin(), 0.0001);
 		EXPECT_NEAR(convertUnits(5, linearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yOrigin(), 0.0001);
 
-		prepareParams({ debugParam, "--las=" + testFileFolder + "/testlaz10.laz", "--out-crs=2286", "--user-units=m","--yres=9","--xres=7"});
+		prepareParams({ debugParam, "--las=" + testFileFolder + "/testlaz10.laz", "--out-crs=2286", "--user-units=m","--yres=9","--xres=7", "--output=debug-test" });
 		metricAlign = *data().metricAlign();
 		EXPECT_NEAR(convertUnits(7, linearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
 		EXPECT_NEAR(convertUnits(9, linearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yres(), 0.0001);
@@ -320,7 +324,7 @@ namespace lapis {
 
 	TEST_F(LapisDataTest, output) {
 		std::string testOutput = "C:/";
-		prepareParamsNoSlowStuff({ "-O", testOutput });
+		prepareParams({ "-O", testOutput,"--debug-no-alloc-raster","--debug-no-alignment"});
 		EXPECT_EQ(testOutput, data().outFolder());
 	}
 

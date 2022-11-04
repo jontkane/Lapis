@@ -74,11 +74,13 @@ namespace lapis {
 		message << "Estimated HDD space needed: " << hdd << " GB";
 		log.logMessage(message.str());
 
-		double avail = static_cast<double>(std::filesystem::space(outFolder()).available);
-		avail /= 1024. * 1024. * 1024.;
-		message.str("");
-		message << "Hard drive space available: " << avail << " GB";
-		log.logMessage(message.str());
+		if (std::filesystem::is_directory(outFolder())) { //this should always be true unless a specific debug parameter is passed
+			double avail = static_cast<double>(std::filesystem::space(outFolder()).available);
+				avail /= 1024. * 1024. * 1024.;
+				message.str("");
+				message << "Hard drive space available: " << avail << " GB";
+				log.logMessage(message.str());
+		}
 	}
 
 	void LapisData::cleanAfterRun()
@@ -535,5 +537,186 @@ namespace lapis {
 			usage += csmNCell * 0.03 * 200;
 		}
 		return usage / 1024. / 1024. / 1024.;
+	}
+
+	LapisData::DataIssues LapisData::checkForDataIssues() {
+		LapisLogger& log = LapisLogger::getLogger();
+		DataIssues out;
+
+		_failedLas.clear();
+		std::set<LasFileExtent> lasSet = iterateOverFileSpecifiers(_getRawParam<ParamName::las>()._spec.getFileSpecsSet(),
+			tryLasFile, CoordRef(), Unit());
+
+		out.failedLas = _failedLas;
+
+		for (auto& v : lasSet) {
+			out.successfulLas.emplace_back(v.filename);
+			size_t idx = out.successfulLas.size() - 1;
+
+			//error checking here is more out of paranoia than an expectation of issues; all of these files opened successfully just a few lines earlier
+			try {
+				LasIO l{ v.filename };
+				uint16_t year = l.header.FileCreationYear;
+				CoordRef crs{ v.filename };
+				out.byFileYear.try_emplace(year);
+				out.byFileYear.at(year).insert(idx);
+				out.byCrs.try_emplace(crs);
+				out.byCrs.at(crs).insert(idx);
+			}
+			catch (InvalidLasFileException e) {
+				out.byFileYear.try_emplace(0);
+				out.byFileYear.at(0).insert(idx);
+				out.byCrs.try_emplace(CoordRef());
+				out.byCrs.at(CoordRef()).insert(idx);
+			}
+			catch (UnableToDeduceCRSException e) {
+				out.byFileYear.try_emplace(0);
+				out.byFileYear.at(0).insert(idx);
+				out.byCrs.try_emplace(CoordRef());
+				out.byCrs.at(CoordRef()).insert(idx);
+			}
+		}
+
+		CoordRef demOver = _getRawParam<ParamName::demOverride>().getCurrentCrs();
+		std::set<DemFileAlignment> demSet = iterateOverFileSpecifiers(_getRawParam<ParamName::dem>()._spec.getFileSpecsSet(),
+			tryDtmFile, demOver, demOver.getZUnits());
+		size_t idx = -1;
+		for (auto& d : demSet) {
+			++idx;
+			out.successfulDem.push_back(d.filename);
+			out.demByCrs.try_emplace(d.align.crs());
+			out.demByCrs.at(d.align.crs()).insert(idx);
+		}
+
+		_checkLasDemOverlap(out, lasSet, demSet);
+
+		if (out.successfulLas.size()) {
+			_checkSampleLas(out, out.successfulLas[0], demSet);
+		}
+		return out;
+	}
+
+	void LapisData::_checkLasDemOverlap(DataIssues& di, const std::set<LasFileExtent>& las, const std::set<DemFileAlignment>& dem)
+	{
+
+		CoordRef outCrs = _getRawParam<ParamName::alignment>().getCurrentOutCrs();
+		CoordRef lasOverCrs = _getRawParam<ParamName::lasOverride>().getCurrentCrs();
+		CoordRef demOverCrs = _getRawParam<ParamName::demOverride>().getCurrentCrs();
+
+		//If there are multiple las CRSes present, and some of them are undefined, trying to figure out the output alignment is nonsense
+		if (lasOverCrs.isEmpty() && di.byCrs.size() > 1 && di.byCrs.contains(CoordRef())) {
+			return;
+		}
+		if (las.size() == 0) {
+			return;
+		}
+		if (dem.size() == 0) {
+			return;
+		}
+
+		std::vector<Extent> lasExtents;
+		for (auto& e : las) {
+			lasExtents.push_back(e.ext);
+			if (!lasOverCrs.isEmpty()) {
+				lasExtents[lasExtents.size() - 1].defineCRS(lasOverCrs);
+			}
+		}
+
+		std::vector<Extent> demExtents;
+		for (auto& e : dem) {
+			demExtents.push_back(e.align);
+			if (!demOverCrs.isEmpty()) {
+				demExtents[demExtents.size() - 1].defineCRS(demOverCrs);
+			}
+		}
+
+		if (outCrs.isEmpty()) {
+			outCrs = lasExtents[0].crs();
+		}
+
+		
+		lasExtents[0] = QuadExtent(lasExtents[0], outCrs).outerExtent();
+		Extent fullExtent = lasExtents[0];
+		for (size_t i = 1; i < lasExtents.size(); ++i) {
+			lasExtents[i] = QuadExtent(lasExtents[i], outCrs).outerExtent();
+			fullExtent = extend(fullExtent, lasExtents[i]);
+		}
+		coord_t cellsize = convertUnits(30, linearUnitDefs::meter, outCrs.getXYUnits());
+		Alignment fullAlign = Alignment(fullExtent, 0, 0, cellsize, cellsize);
+		Raster<bool> lasCovers{ fullAlign };
+		Raster<bool> demCovers{ fullAlign };
+
+		for (auto& e : lasExtents) {
+			Extent projE = QuadExtent(e, lasCovers.crs()).outerExtent();
+			for (auto& cell : fullAlign.cellsFromExtent(projE)) {
+				lasCovers[cell].value() = true;
+			}
+		}
+		for (auto& e : demExtents) {
+			Extent projE = QuadExtent(e, lasCovers.crs()).outerExtent();
+			for (auto& cell : fullAlign.cellsFromExtent(projE)) {
+				demCovers[cell].value() = true;
+			}
+		}
+
+		for (cell_t cell = 0; cell < fullAlign.ncell(); ++cell) {
+			if (lasCovers[cell].value()) {
+				di.cellsInLas++;
+				if (demCovers[cell].value()) {
+					di.cellsInDem++;
+				}
+			}
+		}
+
+
+		for (size_t i = 0; i < lasExtents.size(); ++i) {
+			Extent& thisExtent = lasExtents[i];
+			di.totalArea += (thisExtent.ymax() - thisExtent.ymin()) * (thisExtent.xmax() - thisExtent.xmin());
+			for (size_t j = i + 1; j < lasExtents.size(); ++j) {
+				Extent& compareExtent = lasExtents[j];
+				if (thisExtent.overlaps(compareExtent)) {
+					Extent cr = crop(thisExtent, compareExtent);
+					di.overlapArea += (cr.ymax() - cr.ymin()) * (cr.xmax() - cr.xmin());
+				}
+			}
+		}
+	}
+
+	void LapisData::_checkSampleLas(DataIssues& di, const std::string& filename, const std::set<DemFileAlignment>& demSet) {
+		auto& filterParam = _getRawParam<ParamName::filterOptions>();
+		filterParam.prepareForRun();
+		auto& filtersVec = filters();
+		coord_t min_ht = minHt();
+		coord_t max_ht = maxHt();
+
+		LasReader sampleLas{ filename };
+		for (auto& filter : filtersVec) {
+			sampleLas.addFilter(filter);
+		}
+		di.pointsInSample = sampleLas.nPoints();
+		di.pointsAfterFilters = sampleLas.getPoints(di.pointsInSample).size();
+
+		sampleLas = LasReader{ di.successfulLas[0] };
+		CoordRef lasOverCrs = _getRawParam<ParamName::lasOverride>().getCurrentCrs();
+		if (!lasOverCrs.isEmpty()) {
+			sampleLas.defineCRS(lasOverCrs);
+		}
+		for (auto& filter : filtersVec) {
+			sampleLas.addFilter(filter);
+		}
+		sampleLas.setHeightLimits(min_ht, max_ht, getCurrentUnits());
+		CoordRef demOverCrs = _getRawParam<ParamName::demOverride>().getCurrentCrs();
+		for (auto& dem : demSet) {
+			sampleLas.addDEM(dem.filename, demOverCrs, demOverCrs.getZUnits());
+		}
+		di.pointsAfterDem = sampleLas.getPoints(di.pointsInSample).size();
+
+
+		filterParam.cleanAfterRun();
+	}
+
+	void LapisData::reportFailedLas(const std::string& s)
+	{
+		_failedLas.push_back(s);
 	}
 }

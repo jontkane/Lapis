@@ -433,6 +433,9 @@ namespace lapis {
 			d.needAbort = true;
 		}
 		namespace fs = std::filesystem;
+		if (fs::is_directory(_path) || _path == "debug-test") { //so the tests can feed a dummy value that doesn't trip the error detection
+			return;
+		}
 		try {
 			fs::create_directory(_path);
 		}
@@ -1726,6 +1729,8 @@ namespace lapis {
 		}
 		catch (...) {
 			log.logMessage("Error reading " + file.string());
+			LapisData::getDataObject().reportFailedLas(file.string());
+
 		}
 	}
 

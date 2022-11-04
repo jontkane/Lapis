@@ -30,6 +30,8 @@ namespace lapis {
 		
 		const std::string getSingleLineWKT() const;
 
+		const std::string getShortName() const;
+
 		//returns whether or not this projection is defined
 		bool isEmpty() const;
 
@@ -86,6 +88,15 @@ namespace lapis {
 		void _crsFromRaster(const std::string& s);
 		void _crsFromVector(const std::string& s);
 		Unit _inferZUnits();
+	};
+
+	class CoordRefComparator {
+	public:
+		bool operator()(const CoordRef& a, const CoordRef& b) const;
+	};
+	class CoordRefHasher {
+	public:
+		size_t operator()(const CoordRef& a) const;
 	};
 }
 

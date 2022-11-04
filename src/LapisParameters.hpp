@@ -663,8 +663,8 @@ namespace lapis {
 	std::set<T> iterateOverFileSpecifiers(const std::set<std::string>& specifiers, fileSpecOpen<T> openFunc,
 		const CoordRef& crs, const Unit& u);
 
-	// attempts to open the given file as a las / laz file.If it succeeds, adds the given file to data
-	//otherwise, logs an error and does nothing
+	//attempts to open the given file as a las / laz file. If it succeeds, adds the given file to data
+	//otherwise, reports the error to the logger and adds it to LapisData::reportFailedLas()
 	void tryLasFile(const std::filesystem::path& file, std::set<LasFileExtent>& data,
 		const CoordRef& crs, const Unit& u);
 

@@ -221,7 +221,7 @@ namespace lapis {
 		}
 
 		coord_t previousvalue = std::numeric_limits<coord_t>::lowest(); //the estimated value of the last valid point, in case the quantile point is the first in its bin
-		metric_t needed = (_canopyCount-1) * q; //the quantile is the value that exceeds exactly this many points (slightly shifted when needed isn't an integer)
+		metric_t needed = (_canopyCount - 1) * q; //the quantile is the value that exceeds exactly this many points (slightly shifted when needed isn't an integer)
 		size_t binIdx = -1;
 		while (true) {
 			binIdx++;

@@ -68,6 +68,14 @@ namespace lapis {
 		return out;
 	}
 
+	const std::string CoordRef::getShortName() const
+	{
+		if (isEmpty()) {
+			return "Unknown";
+		}
+		return proj_get_name(getPtr());
+	}
+
 	bool CoordRef::isEmpty() const {
 		return _p.ptr() == nullptr;
 	}
@@ -173,7 +181,6 @@ namespace lapis {
 
 	//returns the Z units of the CRS
 	//If there's no vertical datum, it returns a Unit object which is unknown, but has the same convfactor as the horizontal units
-
 	const Unit& CoordRef::getZUnits() const {
 		return _zUnits;
 	}
@@ -411,6 +418,16 @@ namespace lapis {
 			&convFactor, &unitName,
 			nullptr, nullptr);
 		return Unit(std::string(unitName), convFactor, unitType::linear, unitStatus::statedInCRS);
+	}
+
+	bool CoordRefComparator::operator()(const CoordRef& a, const CoordRef& b) const
+	{
+		return a.isConsistent(b);
+	}
+
+	size_t CoordRefHasher::operator()(const CoordRef& a) const
+	{
+		return std::hash<std::string>()(a.getCompleteWKT() + a.getZUnits().name);
 	}
 
 }

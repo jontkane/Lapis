@@ -18,6 +18,8 @@ namespace lapis {
 		static LapisGuiObjects& getGuiObjects();
 		bool isRunning();
 
+		bool displayDataIssuesWindow = false;
+
 	private:
 		LapisGuiObjects() = default;
 	};
@@ -31,6 +33,8 @@ namespace lapis {
 	void processingOptions();
 
 	void displayLog();
+
+	void dataIssuesWindow();
 
 	ImVec2 getRegionSize(int i);
 

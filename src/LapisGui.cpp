@@ -150,11 +150,11 @@ namespace lapis {
 		}
 
 		ImGui::SameLine();
-		if (ImGui::Button("Check Parameters for Issues")) {}
-		ImGui::SameLine();
-		if (ImGui::Button("Check Data for Issues")) {};
+		if (ImGui::Button("Check Data for Issues")) {
+			lgo.displayDataIssuesWindow = true;
+		};
 		displayLog();
-
+		dataIssuesWindow();
 	}
 
 	void processingOptions()
@@ -228,6 +228,157 @@ namespace lapis {
 		auto& log = LapisLogger::getLogger();
 		log.renderGui();
 		ImGui::EndChild();
+	}
+
+	void dataIssuesWindow() {
+		LapisGuiObjects& lgo = LapisGuiObjects::getGuiObjects();
+		if (!lgo.displayDataIssuesWindow) {
+			return;
+		}
+		ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize;
+		ImGui::SetNextWindowSize(ImVec2(600, 400));
+		ImGui::SetNextWindowPos(ImVec2(10, 50));
+		if (!ImGui::Begin("##dataissueswindow", &lgo.displayDataIssuesWindow, flags)) {
+			ImGui::End();
+			return;
+		}
+
+		static std::unique_ptr<LapisData::DataIssues> dataIssues;
+
+		static bool threadWorking = false;
+		auto threadFunc = [&]() {
+			dataIssues = std::make_unique<LapisData::DataIssues>(LapisData::getDataObject().checkForDataIssues());
+			threadWorking = false;
+		};
+
+		std::thread calcIssuesThread;
+		if (!threadWorking && !dataIssues) {
+			threadWorking = true;
+			calcIssuesThread = std::thread(threadFunc);
+			calcIssuesThread.detach();
+		}
+		if (threadWorking) {
+			ImGui::Text("Working...");
+			ImGui::Text("This may take a few minutes.");
+		}
+		else {
+			int issueCount = 0;
+			LapisData::DataIssues& di = *dataIssues;
+			ImGuiWindowFlags childflags = ImGuiWindowFlags_HorizontalScrollbar;
+			ImGui::BeginChild("##dataissueschild", { ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y * 0.9f }, false, childflags);
+			if (di.failedLas.size() > 0) {
+				static bool showFailedLas = false;
+				issueCount++;
+				ImGui::Text((std::to_string(di.failedLas.size()) + " las/laz files failed to read.").c_str());
+				ImGui::SameLine();
+				if (!showFailedLas) {
+					if (ImGui::Button("Show##failedlas")) {
+						showFailedLas = true;
+					}
+				}
+				else {
+					if (ImGui::Button("Hide##failedlas")) {
+						showFailedLas = false;
+					}
+					for (size_t i = 0; i < di.failedLas.size(); ++i) {
+						ImGui::Text("\t");
+						ImGui::SameLine();
+						ImGui::Text(di.failedLas[i].c_str());
+					}
+				}
+				ImGui::Text("\n\n");
+			}
+
+			if (di.successfulLas.size() == 0) {
+				ImGui::Text("No las/laz files found\n\n");
+				issueCount++;
+			}
+
+			if (di.successfulDem.size() == 0) {
+				ImGui::Text("No dem files successfully read\n\n");
+				issueCount++;
+			}
+
+			if (di.byFileYear.size() > 1) {
+				ImGui::Text("Not all las files were created in the same year.\nProcessing multiple acquisitions in one run may cause problems.\nProceed cautiously.\n\n");
+				issueCount++;
+			}
+
+			if (di.byCrs.size() > 1) {
+				ImGui::Text("The las files contain multiple\nCoordinate Reference Systems.\nProcessing multiple acquisitions in one run may cause problems.\nProceed cautiously.\n\n");
+				issueCount++;
+			}
+
+			int percentInDem = (int)((double)di.cellsInDem / (double)di.cellsInLas * 100.);
+			if (di.cellsInDem > 0 && percentInDem < 100) {
+				issueCount++;
+				std::string message = "Only " + std::to_string(percentInDem) + "% of las bounding boxes covered by dems.\n"
+					"If this value is close to 100%, it may be an artifact and not an issue.\n\n";
+				ImGui::TextUnformatted(message.c_str());
+			}
+
+			if (di.byCrs.contains(CoordRef())) {
+				ImGui::Text("Some las files don't have their CRS specified in their header.\n\n");
+				issueCount++;
+			}
+
+			for (auto& v : di.byCrs) {
+				if (v.first.getZUnits().status == unitStatus::inferredFromCRS) {
+					std::string msg = v.first.getShortName() + " in las file does not specify Z units.\nGuessing " + v.first.getZUnits().name + "\n\n";
+					ImGui::Text(msg.c_str());
+					issueCount++;
+				}
+			}
+
+			for (auto& v : di.demByCrs) {
+				if (v.first.getZUnits().status == unitStatus::inferredFromCRS) {
+					std::string msg = v.first.getShortName() + " in DEM does not specify Z units.\nGuessing " + v.first.getZUnits().name + "\n\n";
+					ImGui::Text(msg.c_str());
+					issueCount++;
+				}
+			}
+
+			if (di.totalArea > 0 && di.overlapArea > 0.01 * di.totalArea) {
+				int percent = (int)(di.overlapArea / di.totalArea * 100.);
+				std::string msg = std::to_string(percent) + "% of area is covered by the extent of multiple las files.\n"
+					"If points are duplicated, that can produce bad metrics.\n"
+					"If this value is close to 0%, it may be an artifact and not an issue.\n\n";
+				ImGui::TextUnformatted(msg.c_str());
+				issueCount++;
+			}
+
+			if (di.pointsInSample) {
+				int percentAfterFilters = (int)((double)di.pointsAfterFilters / (double)di.pointsInSample * 100.);
+				int percentAfterDem = (int)((double)di.pointsAfterDem / (double)di.pointsInSample * 100.);
+
+				if (percentAfterDem < 100) {
+					ImGui::Text("In a sample las file,\n");
+					std::string demMsg = std::to_string(percentAfterDem) + "% of points passed filters";
+					ImGui::TextUnformatted(demMsg.c_str());
+					ImGui::Text("If this number is unexpectedly low, it may be an issue with your DEMs");
+					std::string filterMsg = "(" + std::to_string(percentAfterFilters) + "% of points passed filters ignoring the DEM)";
+					ImGui::TextUnformatted(filterMsg.c_str());
+				}
+			}
+
+			//TODO:
+			/*feet outside of us
+			improbable units based on coarse dem*/
+
+			if (issueCount == 0) {
+				ImGui::Text("No issues detected.");
+			}
+		}
+
+
+		ImGui::EndChild();
+		
+
+		if (ImGui::Button("Okay")) {
+			lgo.displayDataIssuesWindow = false;
+			dataIssues.reset();
+		}
+		ImGui::End();
 	}
 
 }

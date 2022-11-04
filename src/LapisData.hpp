@@ -105,7 +105,32 @@ namespace lapis {
 
 		double estimateHardDrive();
 
+		struct DataIssues {
+			std::vector<std::string> failedLas;
+			std::vector<std::string> successfulLas;
+			std::map<uint16_t, std::set<size_t>> byFileYear;
+			using CrsToIdx = std::unordered_map<CoordRef, std::set<size_t>, CoordRefHasher, CoordRefComparator>;
+			CrsToIdx byCrs;
+
+			std::vector<std::string> successfulDem;
+			CrsToIdx demByCrs;
+
+			cell_t cellsInLas = 0;
+			cell_t cellsInDem = 0;
+
+			coord_t totalArea = 0;
+			coord_t overlapArea = 0;
+
+			size_t pointsInSample = 0;
+			size_t pointsAfterFilters = 0;
+			size_t pointsAfterDem = 0;
+		};
+
+		DataIssues checkForDataIssues();
+
 		bool needAbort;
+
+		void reportFailedLas(const std::string& s);
 
 
 	private:
@@ -131,6 +156,12 @@ namespace lapis {
 		size_t _cellMutCount = 10000;
 		std::unique_ptr<std::vector<std::mutex>> _cellMuts;
 		std::mutex _globalMut;
+
+		std::vector<std::string> _failedLas;
+
+		void _checkLasDemOverlap(DataIssues& di, const std::set<LasFileExtent>& las, const std::set<DemFileAlignment>& dem);
+
+		void _checkSampleLas(DataIssues& di, const std::string& filename, const std::set<DemFileAlignment>& demSet);
 
 		const int maxLapisFileName = 75;
 #ifdef _WIN32

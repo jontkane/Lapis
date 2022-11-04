@@ -59,11 +59,12 @@ namespace lapis {
 			throw lapis::InvalidLasFileException("Unsupported LAS format");
 		}
 
-		constexpr std::streamsize skipToHeaderSize = 32ll //System identifier
+		constexpr std::streamsize skipToYear = 32ll //System identifier
 			+ 32ll //Generating software
-			+ 2ll //File creation day of year
-			+ 2ll; //File creation year
-		ifs.seekg(skipToHeaderSize, std::ios_base::cur);
+			+ 2ll; //File creation day of year
+		
+		ifs.seekg(skipToYear, std::ios_base::cur);
+		_readBytes(&header.FileCreationYear); //File creation year
 		_readBytes(&header.HeaderSize); //Header Size
 		_readBytes(&header.OffsetToPointData); //Offset to point data
 		_readBytes(&header.NumberOfVLRs); //Number of Variable Length Records

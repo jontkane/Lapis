@@ -26,7 +26,7 @@ namespace lapis {
 		//char SystemIdentifier[32];
 		//char GeneratingSoftware[32];
 		//uint16_t FileCreationDayOfYear;
-		//uint16_t FileCreationYear;
+		uint16_t FileCreationYear = 0;
 		uint16_t HeaderSize = 0;
 		uint32_t OffsetToPointData = 0;
 		uint32_t NumberOfVLRs = 0;

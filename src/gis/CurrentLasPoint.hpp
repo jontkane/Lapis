@@ -10,6 +10,7 @@ namespace lapis {
 		// this class is a more sophisticated wrapper around a laszip_POINTER
 		class CurrentLasPoint : public LasExtent {
 		public:
+#pragma warning(suppress : 26495)
 			CurrentLasPoint() = default;
 			CurrentLasPoint(const std::string& file);
 			CurrentLasPoint(const CurrentLasPoint&) = delete;
