@@ -1,4 +1,6 @@
 #pragma once
+#ifndef LP_GIS_PCH
+#define LP_GIS_PCH
 
 //std
 #include<unordered_set>
@@ -56,4 +58,4 @@
 //xtl
 #include<xtl/xoptional_sequence.hpp>
 
-
+#endif

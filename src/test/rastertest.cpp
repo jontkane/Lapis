@@ -13,7 +13,7 @@ namespace lapis {
 
 			//the only way to actually set the values for testing is to use the functions that we're testing here, so this is also an implicit test of operator[]
 			for (cell_t cell = 0; cell < a.ncell(); ++cell) {
-				r[cell].value() = cell;
+				r[cell].value() = (int)cell;
 				r[cell].has_value() = (cell % 2 == 0);
 			}
 		}
@@ -63,7 +63,7 @@ namespace lapis {
 			EXPECT_EQ(r.atCell(cell).value(), 100);
 			EXPECT_EQ(r.atCell(cell).has_value(), cell % 2 != 0);
 
-			v.value() = cell;
+			v.value() = (int)cell;
 			v.has_value() = !v.has_value();
 		}
 
@@ -84,7 +84,7 @@ namespace lapis {
 			EXPECT_EQ(r.atCellUnsafe(cell).value(), 100);
 			EXPECT_EQ(r.atCellUnsafe(cell).has_value(), cell % 2 != 0);
 
-			v.value() = cell;
+			v.value() = (int)cell;
 			v.has_value() = !v.has_value();
 		}
 	}
@@ -103,7 +103,7 @@ namespace lapis {
 				EXPECT_EQ(r.atRC(row,col).value(), 100);
 				EXPECT_EQ(r.atRC(row,col).has_value(), cell % 2 != 0);
 
-				v.value() = cell;
+				v.value() = (int)cell;
 				v.has_value() = !v.has_value();
 			}
 		}
@@ -128,7 +128,7 @@ namespace lapis {
 				EXPECT_EQ(r.atRCUnsafe(row, col).value(), 100);
 				EXPECT_EQ(r.atRCUnsafe(row, col).has_value(), cell % 2 != 0);
 
-				v.value() = cell;
+				v.value() = (int)cell;
 				v.has_value() = !v.has_value();
 			}
 		}
@@ -148,7 +148,7 @@ namespace lapis {
 				EXPECT_EQ(r.atXY(x, y).value(), 100);
 				EXPECT_EQ(r.atXY(x, y).has_value(), cell % 2 != 0);
 
-				v.value() = cell;
+				v.value() = (int)cell;
 				v.has_value() = !v.has_value();
 			}
 		}
@@ -173,7 +173,7 @@ namespace lapis {
 				EXPECT_EQ(r.atXYUnsafe(x, y).value(), 100);
 				EXPECT_EQ(r.atXYUnsafe(x, y).has_value(), cell % 2 != 0);
 
-				v.value() = cell;
+				v.value() = (int)cell;
 				v.has_value() = !v.has_value();
 			}
 		}

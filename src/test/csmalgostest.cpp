@@ -22,7 +22,7 @@ namespace lapis {
 		for (cell_t cell = 0; cell < r.ncell(); ++cell) {
 			auto v = r[cell];
 			v.has_value() = hasValue[cell];
-			v.value() = cell;
+			v.value() = (int)cell;
 		}
 		Raster<double> out = smoothAndFill(r, 3, 6, {});
 		for (cell_t cell = 0; cell < r.ncell(); ++cell) {

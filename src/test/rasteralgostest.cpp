@@ -13,7 +13,7 @@ namespace lapis {
 			a = Alignment(Extent(0, 4, 0, 4), 2, 2);
 			r = Raster<double>(Alignment(Extent(0, 4, 0, 4), 4, 4));
 			for (cell_t cell = 0; cell < r.ncell(); ++cell) {
-				r[cell].value() = cell;
+				r[cell].value() = (int)cell;
 				r[cell].has_value() = true;
 			}
 			r[0].has_value() = false;

@@ -1,4 +1,6 @@
 #pragma once
+#ifndef LP_APP_PCH
+#define LP_APP_PCH
 
 //std
 #include<iostream>
@@ -37,3 +39,5 @@
 #include"gis/Unit.hpp"
 #include"gis/LasReader.hpp"
 #include"gis/RasterAlgos.hpp"
+
+#endif

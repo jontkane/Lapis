@@ -7,8 +7,7 @@ namespace lapis {
 
 
 	bool operator<(const DemFileAlignment& a, const DemFileAlignment& b) {
-		if (a.filename == b.filename) return false; //this ensures that entries with duplicate filenames don't both get added into a set
-		return true;
+		return a.filename < b.filename;
 	}
 
 	bool operator<(const LasFileExtent& a, const LasFileExtent& b) {
