@@ -1,12 +1,14 @@
-Install cmake and anaconda
+This is intended to be instructions for those who wish to use Lapis before published binaries exist. The instructions here aren't optimal for developing Lapis, but should produce a usable exe for you to process lidar with. Unfortunately, some degree of knowledge of how to use a command prompt is necessary; these instructions are likely most useful to those who have some coding experience but are not familiar with building C++ code. If you are a developer, all of Lapis' dependencies that aren't directly embedded into the repository are available on both conan and vcpkg. Conda provides the bare minimum needed to run Lapis in a relatively easy manner, and is thus recommended for non-developers.
 
-In the anaconda shell:
+Install the following programs: visual studio, cmake, and anaconda. Add the folder with the cmake executable to your system path environment variable.
+
+Open the anaconda shell and run the following commands:
 
 conda create -n lapis-conda
 conda activate lapis-conda
-conda install -c conda-forge boost gdal proj geotiff libtiff xtl laz-perf gtest glfw
+conda install -c conda-forge boost gdal proj geotiff xtl gtest glfw
 
-Add the folder with all the newly-installed DLLs to the PATH environment variable. By default, that's C:\users\yourusername\anaconda3\envs\lapis\library\bin. Not only will this let Lapis find the needed DLLs, this will be enough of a hint for cmake to find the installed packages.
+Add the folder with all the DLLs you just installed to your system path environment variable. By default, that's C:\users\yourusername\anaconda3\envs\lapis\library\bin. This will allow Lapis to find those DLLs, and also provide enough a hint for cmake to find the files that it needs.
 
 In a fresh cmd prompt, navigate to the folder you cloned Lapis into. Then run:
 
@@ -14,4 +16,4 @@ mkdir build
 cd build
 cmake ..
 
-If all went well, there should now be a file in the build directory called lapis.sln. This is the solution for lapis. You can open it with visual studio and compile it. Note that the anaconda distribution of lazperf will not work with debug compilations of lapis; if you install with anaconda as suggested above, only release mode compilations will work.
+If all went well, there should now be a folder named build in the Lapis folder, which contains a file called Lapis.sln. Open that file in Visual Studio. Change the dropdown box at the top from "Debug" to "Release". (While conda is a fast and convenient way to acquire the dependencies, it only installs the files necessary for a release configuration). On the right side of the screen, you should see a list of projects, one of which is called "Lapis". Right click that one and select build. If all goes well, this should generate the "Lapis.exe" executable somewhere in the build subfolder. That is the Lapis program. 

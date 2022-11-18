@@ -1,0 +1,3 @@
+[submodule "src/lazperf"]
+	path = src/lazperf
+	url = https://github.com/hobuinc/laz-perf
