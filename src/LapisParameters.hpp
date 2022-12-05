@@ -19,11 +19,13 @@ namespace lapis {
 		demOverride,
 		outUnits,
 		alignment,
-		csmOptions,
-		metricOptions,
-		filterOptions,
-		optionalMetrics,
+		filters,
 		computerOptions,
+		whichProducts,
+		csmOptions,
+		pointMetricOptions,
+		taoOptions,
+		fineIntOptions,
 
 		_Count_NotAParam //this element's value will be equal to the cardinality of the enum class
 	};
@@ -450,6 +452,7 @@ namespace lapis {
 		std::string _footprintDiamCmd = "footprint";
 		std::string _smoothCmd = "smooth";
 		std::string _csmCellsizeCmd = "csm-cellsize";
+		std::string _skipMetricsCmd = "skip-csm-metrics";
 
 		coord_t _footprintDiamBoost;
 		coord_t _csmCellsizeBoost;
@@ -463,10 +466,14 @@ namespace lapis {
 
 		coord_t _footprintDiamCache;
 		std::shared_ptr<Alignment> _csmAlign;
+
+		std::vector<CSMMetric> _csmMetrics;
+		bool _doCsmMetrics = true;
+		bool _skipCsmMetricsBoost = false;
 	};
 
 	template<>
-	class Parameter<ParamName::metricOptions> : public ParamBase {
+	class Parameter<ParamName::pointMetricOptions> : public ParamBase {
 		friend class LapisData;
 	public:
 
@@ -486,11 +493,12 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
-		const std::vector<coord_t>& getStrataBreaks();
-
 	private:
 		std::string _canopyCmd = "canopy";
 		std::string _strataCmd = "strata";
+		std::string _advPointCmd = "adv-point";
+		std::string _skipAllReturnsCmd = "skip-all-returns";
+		std::string _skipFirstReturnsCmd = "skip-first-returns";
 
 		std::vector<FloatBuffer> _strataBuffers;
 		FloatBuffer _canopyBuffer = FloatBuffer{ 0 };
@@ -502,10 +510,31 @@ namespace lapis {
 
 		coord_t _canopyCache;
 		std::vector<coord_t> _strataCache;
+
+		struct WhichReturns {
+			static constexpr int all = 1;
+			static constexpr int first = 2;
+			static constexpr int both = 3;
+		};
+
+		bool _skipAllReturnBoost = false;
+		bool _skipFirstReturnBoost = false;
+		int _whichReturnsRadio = WhichReturns::both;
+
+		int _advPointRadio = 0;
+		bool _advPointBoost = false;
+
+		std::vector<PointMetricRaster> _allReturnPointMetrics;
+		std::vector<PointMetricRaster> _firstReturnPointMetrics;
+		std::vector<StratumMetricRasters> _allReturnStratumMetrics;
+		std::vector<StratumMetricRasters> _firstReturnStratumMetrics;
+
+		std::shared_ptr<Raster<PointMetricCalculator>> _allReturnCalculators;
+		std::shared_ptr<Raster<PointMetricCalculator>> _firstReturnCalculators;
 	};
 
 	template<>
-	class Parameter<ParamName::filterOptions> : public ParamBase {
+	class Parameter<ParamName::filters> : public ParamBase {
 		friend class LapisData;
 	public:
 
@@ -575,7 +604,7 @@ namespace lapis {
 	};
 
 	template<>
-	class Parameter<ParamName::optionalMetrics> : public ParamBase {
+	class Parameter<ParamName::whichProducts> : public ParamBase {
 		friend class LapisData;
 	public:
 
@@ -595,25 +624,33 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
+		bool isDebug() const;
+
 	private:
+		std::string _skipCsmCmd = "skip-csm";
+		std::string _skipPointCmd = "skip-point-metrics";
+		std::string _skipTaoCmd = "skip-tao";
+		std::string _skipTopoCmd = "skip-topo";
 		std::string _fineIntCmd = "fine-int";
-		std::string _advPointCmd = "adv-point";
 		std::string _debugNoAllocRaster = "debug-no-alloc-raster";
 
 		bool _fineIntCheck = false;
-		bool _advPointCheck = false;
 
-		std::vector<PointMetricRaster> _allReturnPointMetrics;
-		std::vector<PointMetricRaster> _firstReturnPointMetrics;
-		std::vector<StratumMetricRasters> _allReturnStratumMetrics;
-		std::vector<StratumMetricRasters> _firstReturnStratumMetrics;
-		std::vector<CSMMetric> _csmMetrics;
+		bool _doTaoCheck = true;
+		bool _skipTaoBoost = false;
+
+		bool _doCsmCheck = true;
+		bool _skipCsmBoost = false;
+
+		bool _doPointCheck = true;
+		bool _skipPointBoost = false;
+
+		bool _doTopoCheck = true;
+		bool _skipTopoBoost = false;
+
 		std::vector<TopoMetric> _topoMetrics;
 		std::shared_ptr<Raster<coord_t>> _elevNumerator;
 		std::shared_ptr<Raster<coord_t>> _elevDenominator;
-
-		std::shared_ptr<Raster<PointMetricCalculator>> _allReturnCalculators;
-		std::shared_ptr<Raster<PointMetricCalculator>> _firstReturnCalculators;
 
 		bool _debugBool;
 	};
@@ -650,6 +687,114 @@ namespace lapis {
 		FloatBuffer _threadBuffer = FloatBuffer{ 0 };
 
 		int _threadCache;
+	};
+
+	namespace IdAlgo {
+		enum {
+			highPoint,
+		};
+	}
+	namespace SegAlgo {
+		enum {
+			watershed,
+		};
+	}
+
+	template<>
+	class Parameter<ParamName::taoOptions> : public ParamBase {
+		friend class LapisData;
+	public:
+		Parameter();
+
+		void addToCmd(po::options_description& visible,
+			po::options_description& hidden) override;
+
+		std::ostream& printToIni(std::ostream& o) override;
+
+		ParamCategory getCategory() const override;
+
+		void renderGui() override;
+
+		void importFromBoost() override;
+		void updateUnits() override;
+
+		void prepareForRun() override;
+		void cleanAfterRun() override;
+
+	private:
+
+		std::string _idAlgoCmd = "id-algo";
+		std::string _segAlgoCmd = "seg-algo";
+		std::string _minHtCmd = "min-tao-ht";
+		std::string _minDistCmd = "min-tao-dist";
+
+		std::string _idAlgoBoost;
+		std::string _segAlgoBoost;
+		coord_t _minHtBoost;
+		coord_t _minDistBoost;
+
+		int _idAlgoRadio = IdAlgo::highPoint;
+		int _segAlgoRadio = SegAlgo::watershed;
+
+		static constexpr int SAME = 0;
+		static constexpr int NOT_SAME = 1;
+		int _sameMinHtRadio = SAME;
+		FloatBuffer _minHtBuffer = FloatBuffer{ 0 };
+
+
+		FloatBuffer _minDistBuffer = FloatBuffer{ 0 };
+
+		coord_t _minHtCache;
+		coord_t _minDistCache;
+
+		//this is related to the behavior of minht; when importFromBoost is called as part of initial setup, that shouldn't change the _sameMinHt flag
+		//but any future calls to importFromBoost should change that flag.
+		bool _initialSetup = true;
+	};
+
+	template<>
+	class Parameter<ParamName::fineIntOptions> : public ParamBase {
+		friend class LapisData;
+	public:
+		Parameter();
+
+		void addToCmd(po::options_description& visible,
+			po::options_description& hidden) override;
+
+		std::ostream& printToIni(std::ostream& o) override;
+
+		ParamCategory getCategory() const override;
+
+		void renderGui() override;
+
+		void importFromBoost() override;
+		void updateUnits() override;
+
+		void prepareForRun() override;
+		void cleanAfterRun() override;
+
+	private:
+		std::string _cellsizeCmd = "fine-int-cellsize";
+		std::string _noCutoffCmd = "fine-int-no-cutoff";
+		std::string _cutoffCmd = "fine-int-cutoff";
+
+		static constexpr int SAME = 0;
+		static constexpr int NOT_SAME = 1;
+
+		bool _initialSetup = true;
+
+		int _cellsizeSameAsCsmRadio = SAME;
+		coord_t _cellsizeBoost = 1;
+		FloatBuffer _cellsizeBuffer = FloatBuffer{ 0 };
+
+		bool _cutoffCheck = true;
+		bool _noCutoffBoost = false;
+		int _cutoffSameAsPointRadio = SAME;
+		FloatBuffer _cutoffBuffer = FloatBuffer{ 0 };
+		coord_t _cutoffBoost = 2;
+		coord_t _cutoffCache = 2;
+
+		std::shared_ptr<Alignment> _fineIntAlign;
 	};
 
 	const Unit& getCurrentUnits();

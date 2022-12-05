@@ -33,12 +33,16 @@ namespace lapis {
 		const Unit& getPrevUnits() const;
 		void importBoostAndUpdateUnits();
 
+		void updateUnits();
+
 		void prepareForRun();
 		void cleanAfterRun();
 		void resetObject();
 
 		std::shared_ptr<Alignment> metricAlign();
 		std::shared_ptr<Alignment> csmAlign();
+
+		std::shared_ptr<Alignment> fineIntAlign();
 
 		
 		shared_raster<int> nLazRaster();
@@ -74,21 +78,27 @@ namespace lapis {
 
 		int nThread();
 		coord_t binSize();
-		size_t csmFileSize();
+		size_t tileFileSize();
 
 		coord_t canopyCutoff();
+		coord_t minTaoHt();
+		coord_t minTaoDist();
 		const std::vector<coord_t>& strataBreaks();
 
 		const std::filesystem::path& outFolder();
 		const std::string& name();
 
+		coord_t fineIntCanopyCutoff();
+
+		bool doPointMetrics();
 		bool doFirstReturnMetrics();
 		bool doAllReturnMetrics();
 		bool doCsm();
 		bool doTaos();
 		bool doFineInt();
 		bool doTopo();
-		bool doAdvPointMetrics();
+
+		bool isDebugNoAlloc();
 
 		enum class ParseResults {
 			invalidOpts, helpPrinted, validOpts, guiRequested
@@ -100,6 +110,8 @@ namespace lapis {
 		std::ostream& writeOptions(std::ostream& out, ParamCategory cat);
 
 		static void silenceGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg) {}
+		static void logGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg);
+		static void logProjErrors(void* v, int i, const char* c);
 
 		double estimateMemory();
 

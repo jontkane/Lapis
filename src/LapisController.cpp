@@ -49,6 +49,15 @@ namespace lapis {
 		size_t soFar = 0;
 		auto pointMetricThreadFunc = [&] {pointMetricThread(soFar); };
 
+		cell_t targetNCell = data->tileFileSize() / std::max(sizeof(csm_t), sizeof(intensity_t));
+		rowcol_t targetNRowCol = (rowcol_t)std::sqrt(targetNCell);
+		std::shared_ptr<Alignment> csmAlign = data->csmAlign();
+		std::shared_ptr<Alignment> fineIntAlign = data->fineIntAlign();
+		coord_t tileRes = targetNRowCol * std::min(csmAlign->xres(), fineIntAlign->xres());
+		Alignment layoutAlign{ *csmAlign,0,0,tileRes,tileRes };
+		layoutAlign = extend(layoutAlign, *fineIntAlign);
+		_layout = Raster<bool>{ layoutAlign };
+
 		log.setProgress(RunProgress::lasFiles, (int)data->sortedLasList().size());
 
 		std::vector<std::thread> threads;
@@ -64,73 +73,80 @@ namespace lapis {
 			data->firstReturnPointMetrics().size() +
 			data->allReturnStratumMetrics().size() * (data->strataBreaks().size() + 1) +
 			data->firstReturnStratumMetrics().size() * (data->strataBreaks().size() + 1) +
-			data->topoMetrics().size() + 1; //+1 is elevation
+			(data->doTopo()? data->topoMetrics().size() + 1 : 0); //+1 is elevation
 		log.setProgress(RunProgress::writeMetrics, (int)pointMetricCount);
-		for (auto& metric : data->allReturnPointMetrics()) {
-			writeRasterWithFullName(getPointMetricDir(), metric.name, metric.rast, metric.unit);
-			LAPIS_CHECK_ABORT_AND_DEALLOC;
-		}
-		for (auto& metric : data->firstReturnPointMetrics()) {
-			writeRasterWithFullName(getFRPointMetricDir(), metric.name, metric.rast, metric.unit);
-			LAPIS_CHECK_ABORT_AND_DEALLOC;
-		}
 
-		for (auto& metric : data->allReturnStratumMetrics()) {
-			for (size_t i = 0; i < metric.stratumNames.size(); ++i) {
-				writeRasterWithFullName(getStratumDir(), metric.baseName + metric.stratumNames[i], metric.rasters[i], metric.unit);
+		if (data->doPointMetrics()) {
+			for (auto& metric : data->allReturnPointMetrics()) {
+				writeRasterWithFullName(getPointMetricDir(), metric.name, metric.rast, metric.unit);
+				log.incrementTask();
 				LAPIS_CHECK_ABORT_AND_DEALLOC;
 			}
-		}
-		for (auto& metric : data->firstReturnStratumMetrics()) {
-			for (size_t i = 0; i < metric.stratumNames.size(); ++i) {
-				writeRasterWithFullName(getFRStratumDir(), metric.baseName + metric.stratumNames[i], metric.rasters[i], metric.unit);
+			for (auto& metric : data->firstReturnPointMetrics()) {
+				writeRasterWithFullName(getFRPointMetricDir(), metric.name, metric.rast, metric.unit);
+				log.incrementTask();
 				LAPIS_CHECK_ABORT_AND_DEALLOC;
+			}
+
+
+			for (auto& metric : data->allReturnStratumMetrics()) {
+				for (size_t i = 0; i < metric.stratumNames.size(); ++i) {
+					writeRasterWithFullName(getStratumDir(), metric.baseName + metric.stratumNames[i], metric.rasters[i], metric.unit);
+					log.incrementTask();
+					LAPIS_CHECK_ABORT_AND_DEALLOC;
+				}
+			}
+			for (auto& metric : data->firstReturnStratumMetrics()) {
+				for (size_t i = 0; i < metric.stratumNames.size(); ++i) {
+					writeRasterWithFullName(getFRStratumDir(), metric.baseName + metric.stratumNames[i], metric.rasters[i], metric.unit);
+					log.incrementTask();
+					LAPIS_CHECK_ABORT_AND_DEALLOC;
+				}
 			}
 		}
 		
-		calculateAndWriteTopo();
-		LAPIS_CHECK_ABORT_AND_DEALLOC;
-
-		cell_t targetNCell = data->csmFileSize() / sizeof(csm_t);
-		rowcol_t targetNRowCol = (rowcol_t)std::sqrt(targetNCell);
-		std::shared_ptr<Alignment> csmAlign = data->csmAlign();
-		coord_t tileRes = targetNRowCol * csmAlign->xres();
-		Alignment layout{ *csmAlign,0,0,tileRes,tileRes };
-
-		log.setProgress(RunProgress::csmTiles, (int)layout.ncell());
-
+		if (data->doTopo()) {
+			calculateAndWriteTopo();
+			LAPIS_CHECK_ABORT_AND_DEALLOC;
+		}
+		
 		cell_t soFarCSM = 0;
 		TaoIdMap idMap;
-		auto csmMergeThreadFunc = [&] {csmProcessingThread(layout, soFarCSM, idMap); };
+		if (data->doCsm()) {
+			log.setProgress(RunProgress::csmTiles, (int)_layout.ncell());
+			auto csmMergeThreadFunc = [&] {csmProcessingThread(soFarCSM, idMap); };
 
-		
-		threads.clear();
-		for (int i = 0; i < data->nThread(); ++i) {
-			threads.push_back(std::thread(csmMergeThreadFunc));
-		}
-		for (int i = 0; i < data->nThread(); ++i) {
-			threads[i].join();
-		}
-		LAPIS_CHECK_ABORT_AND_DEALLOC;
 
-		log.setProgress(RunProgress::writeCsmMetrics, (int)data->csmMetrics().size());
-		writeCSMMetrics();
-		LAPIS_CHECK_ABORT_AND_DEALLOC;
+			threads.clear();
+			for (int i = 0; i < data->nThread(); ++i) {
+				threads.push_back(std::thread(csmMergeThreadFunc));
+			}
+			for (int i = 0; i < data->nThread(); ++i) {
+				threads[i].join();
+			}
+			LAPIS_CHECK_ABORT_AND_DEALLOC;
+
+			log.setProgress(RunProgress::writeCsmMetrics, (int)data->csmMetrics().size());
+			writeCSMMetrics();
+			LAPIS_CHECK_ABORT_AND_DEALLOC;
+		}
 
 		log.setProgress(RunProgress::cleanUp);
 
-		soFarCSM = 0;
-		auto taoIdFixFunc = [&] {fixTAOIds(idMap, layout, soFarCSM); };
-		threads.clear();
-		for (int i = 0; i < data->nThread(); ++i) {
-			threads.push_back(std::thread(taoIdFixFunc));
-		}
-		for (int i = 0; i < data->nThread(); ++i) {
-			threads[i].join();
+		if (data->doTaos()) {
+			soFarCSM = 0;
+			auto taoIdFixFunc = [&] {fixTAOIds(idMap, soFarCSM); };
+			threads.clear();
+			for (int i = 0; i < data->nThread(); ++i) {
+				threads.push_back(std::thread(taoIdFixFunc));
+			}
+			for (int i = 0; i < data->nThread(); ++i) {
+				threads[i].join();
+			}
 		}
 		LAPIS_CHECK_ABORT_AND_DEALLOC;
 
-		writeLayout(layout);
+		writeLayout();
 		LAPIS_CHECK_ABORT_AND_DEALLOC;
 
 		pr->afterProcessing();
@@ -167,7 +183,7 @@ namespace lapis {
 		return out;
 	}
 
-	void LapisController::pointMetricThread(size_t& soFar) const
+	void LapisController::pointMetricThread(size_t& soFar)
 	{
 		LapisLogger& log = LapisLogger::getLogger();
 		while (true) {
@@ -186,9 +202,14 @@ namespace lapis {
 				++soFar;
 			}
 
+			for (auto& c : _layout.cellsFromExtent(lasExt.ext, SnapType::out)) {
+				_layout[c].has_value() = true;
+				_layout[c].value() = true;
+			}
+
 
 			std::optional<Raster<csm_t>> thiscsm;
-			if (true) { //the ability to skip calculating the CSM might go here eventually
+			if (data->doCsm()) {
 				thiscsm = Raster<csm_t>(crop(*data->csmAlign(), lasExt.ext, SnapType::out));
 			}
 
@@ -196,9 +217,13 @@ namespace lapis {
 			LidarPointVector points = getPointsAndDem(thisidx);
 			LAPIS_CHECK_ABORT;
 
-			assignPointsToCalculators(points);
+			if (data->doPointMetrics()) {
+				assignPointsToCalculators(points);
+			}
 			LAPIS_CHECK_ABORT;
-			assignPointsToCSM(points, thiscsm);
+			if (data->doCsm()) {
+				assignPointsToCSM(points, thiscsm);
+			}
 			LAPIS_CHECK_ABORT;
 
 			pr->oncePerLas(lasExt.ext, points);
@@ -219,9 +244,9 @@ namespace lapis {
 			LAPIS_CHECK_ABORT;
 
 			if (data->doFineInt()) {
-				std::shared_ptr<Alignment> csmAlign = data->csmAlign();
-				Raster<intensity_t> numerator{ crop(*csmAlign, lasExt.ext, SnapType::out) };
-				Raster<intensity_t> denominator{ crop(*csmAlign, lasExt.ext, SnapType::out) };
+				std::shared_ptr<Alignment> fineIntAlign = data->fineIntAlign();
+				Raster<intensity_t> numerator{ crop(*fineIntAlign, lasExt.ext, SnapType::out) };
+				Raster<intensity_t> denominator{ crop(*fineIntAlign, lasExt.ext, SnapType::out) };
 				assignPointsToFineIntensity(points, numerator, denominator);
 				LAPIS_CHECK_ABORT;
 				try {
@@ -239,18 +264,22 @@ namespace lapis {
 
 	void LapisController::assignPointsToCalculators(const LidarPointVector& points) const
 	{
+		shared_raster<PointMetricCalculator> pmc = data->allReturnPMC();
+		shared_raster<PointMetricCalculator> frpmc = data->firstReturnPMC();
 		for (auto& p : points) {
-			shared_raster<PointMetricCalculator> pmc = data->allReturnPMC();
-			shared_raster<PointMetricCalculator> frpmc = data->firstReturnPMC();
 			if (!pmc->strictContains(p.x, p.y)) {
 				continue;
 			}
 			cell_t cell = pmc->cellFromXYUnsafe(p.x, p.y);
 
 			std::lock_guard lock{ data->cellMutex(cell) };
-			pmc->atCellUnsafe(cell).value().addPoint(p);
-			if (p.returnNumber == 1) {
-				frpmc->atCellUnsafe(cell).value().addPoint(p);
+			if (pmc) {
+				pmc->atCellUnsafe(cell).value().addPoint(p);
+			}
+			if (frpmc) {
+				if (p.returnNumber == 1) {
+					frpmc->atCellUnsafe(cell).value().addPoint(p);
+				}
 			}
 		}
 	}
@@ -307,11 +336,12 @@ namespace lapis {
 
 	void LapisController::assignPointsToFineIntensity(const LidarPointVector& points, Raster<intensity_t>& numerator, Raster<intensity_t>& denominator) const
 	{
+		coord_t cutoff = data->fineIntCanopyCutoff();
 		for (auto& p : points) {
 			if (!numerator.contains(p.x, p.y)) {
 				continue;
 			}
-			if (p.z < data->canopyCutoff()) {
+			if (p.z < cutoff) {
 				continue;
 			}
 			cell_t cell = numerator.cellFromXYUnsafe(p.x, p.y);
@@ -494,7 +524,7 @@ namespace lapis {
 		}
 	}
 
-	void LapisController::csmProcessingThread(const Alignment& layout, cell_t& soFar, TaoIdMap& idMap) const
+	void LapisController::csmProcessingThread(cell_t& soFar, TaoIdMap& idMap) const
 	{
 		LapisLogger& log = LapisLogger::getLogger();
 		
@@ -505,18 +535,17 @@ namespace lapis {
 		while (true) {
 			{
 				std::lock_guard lock(data->globalMutex());
-				if (soFar >= layout.ncell()) {
+				if (soFar >= _layout.ncell()) {
 					break;
 				}
-				thistile = layout.extentFromCell(soFar);
+				thistile = _layout.extentFromCell(soFar);
 				thisidx = soFar;
 				++soFar;
-				
 			}
 			LAPIS_CHECK_ABORT;
-			coord_t bufferDist = convertUnits(30, linearUnitDefs::meter, layout.crs().getXYUnits());
+			coord_t bufferDist = convertUnits(30, linearUnitDefs::meter, _layout.crs().getXYUnits());
 			std::shared_ptr<Alignment> metricAlign = data->metricAlign();
-			std::shared_ptr<Alignment>csmAlign = data->csmAlign();
+			std::shared_ptr<Alignment> csmAlign = data->csmAlign();
 			bufferDist = std::max(std::max(metricAlign->xres(), metricAlign->yres()), bufferDist);
 			Extent bufferExt = Extent(thistile.xmin() - bufferDist, thistile.xmax() + bufferDist, thistile.ymin() - bufferDist, thistile.ymax() + bufferDist);
 
@@ -625,44 +654,59 @@ namespace lapis {
 			int neighborsNeeded = 6;
 			LAPIS_CHECK_ABORT;
 			fullTile = smoothAndFill(fullTile, smoothWindow, neighborsNeeded, {});
-			
 			LAPIS_CHECK_ABORT;
-			std::vector<cell_t> highPoints = identifyHighPoints(fullTile, data->canopyCutoff());
-			
-			LAPIS_CHECK_ABORT;
-			Raster<taoid_t> segments = watershedSegment(fullTile, highPoints, thisidx, layout.ncell());
 
-			LAPIS_CHECK_ABORT;
-			populateMap(segments, highPoints,idMap, bufferDist, thisidx);
+			std::string tileName = nameFromLayout(thisidx);
 
-			std::string tileName = nameFromLayout(layout, thisidx);
+			if (data->doTaos()) {
+				std::vector<cell_t> highPoints = identifyHighPointsWithMinDist(fullTile, data->minTaoHt(), data->minTaoDist());
+				LAPIS_CHECK_ABORT;
+				
+				Raster<taoid_t> segments = watershedSegment(fullTile, highPoints, thisidx, _layout.ncell());
+				LAPIS_CHECK_ABORT;
+
+				populateMap(segments, highPoints, idMap, bufferDist, thisidx);
+				LAPIS_CHECK_ABORT;
+
+				if (hasAnyValue) {
+					writeHighPoints(highPoints, segments, fullTile, tileName);
+					LAPIS_CHECK_ABORT;
+					Raster<csm_t> maxHeight = maxHeightBySegment(segments, fullTile, highPoints);
+
+					Extent cropExt = fullTile;
+					if (minrow > 0 || mincol > 0 || maxrow < fullTile.nrow() - 1 || maxcol < fullTile.ncol() - 1) {
+						cropExt = Extent{ fullTile.xFromCol(mincol),fullTile.xFromCol(maxcol),fullTile.yFromRow(maxrow),fullTile.yFromRow(minrow) };
+						cropExt = crop(cropExt, thistile);
+						segments = crop(segments, cropExt, SnapType::out);
+						maxHeight = crop(maxHeight, cropExt, SnapType::out);
+					}
+					LAPIS_CHECK_ABORT;
+					writeTempRaster(getTempTAODir(), "Segments_" + tileName, segments);
+					writeRasterWithFullName(getTAODir(), "MaxHeight_" + tileName, maxHeight, OutputUnitLabel::Default);
+					segments = Raster<taoid_t>();
+					maxHeight = Raster<csm_t>();
+					LAPIS_CHECK_ABORT;
+				}
+			}
+
+			
 			if (hasAnyValue) {
 				LAPIS_CHECK_ABORT;
 				calcCSMMetrics(fullTile);
-
-				LAPIS_CHECK_ABORT;
-				writeHighPoints(highPoints, segments, fullTile, tileName);
-
-				LAPIS_CHECK_ABORT;
-				Raster<csm_t> maxHeight = maxHeightBySegment(segments, fullTile, highPoints);
 
 				Extent cropExt = fullTile;
 				if (minrow > 0 || mincol > 0 || maxrow < fullTile.nrow() - 1 || maxcol < fullTile.ncol() - 1) {
 					cropExt = Extent{ fullTile.xFromCol(mincol),fullTile.xFromCol(maxcol),fullTile.yFromRow(maxrow),fullTile.yFromRow(minrow) };
 					cropExt = crop(cropExt, thistile);
 					fullTile = crop(fullTile, cropExt, SnapType::out);
-					segments = crop(segments, cropExt, SnapType::out);
-					maxHeight = crop(maxHeight, cropExt, SnapType::out);
+					
 				}
 				LAPIS_CHECK_ABORT;
 				std::string outname = "CanopySurfaceModel_" + tileName;
 				writeRasterWithFullName(getCSMPermanentDir(), outname, fullTile, OutputUnitLabel::Default);
-				writeTempRaster(getTempTAODir(), "Segments_" + tileName, segments);
-				writeRasterWithFullName(getTAODir(), "MaxHeight_" + tileName, maxHeight, OutputUnitLabel::Default);
+				
 
 				fullTile = Raster<csm_t>(); //freeing up the memory
-				segments = Raster<taoid_t>();
-				maxHeight = Raster<csm_t>();
 
 				if (data->doFineInt()) {
 					Raster<intensity_t> meanCanopyIntensity = canopyIntensityNumerator.value() / canopyIntensityDenominator.value();
@@ -778,7 +822,7 @@ namespace lapis {
 		GDALDatasetWrapper outshp("ESRI Shapefile", filename.c_str(), 0, 0, GDT_Unknown);
 
 		OGRSpatialReference crs;
-		crs.importFromWkt(csm.crs().getCompleteWKT().c_str());
+		crs.importFromWkt(csm.crs().getCleanEPSG().getCompleteWKT().c_str());
 		
 		OGRLayer* layer;
 		layer = outshp->CreateLayer("point_out", &crs, wkbPoint, nullptr);
@@ -833,21 +877,21 @@ namespace lapis {
 		}
 	}
 
-	void LapisController::fixTAOIds(const TaoIdMap& idMap, const Alignment& layout, cell_t& soFar) const
+	void LapisController::fixTAOIds(const TaoIdMap& idMap, cell_t& soFar) const
 	{
 		while (true) {
 			cell_t thisidx;
 			{
 				std::lock_guard lock(data->globalMutex());
-				if (soFar >= layout.ncell()) {
+				if (soFar >= _layout.ncell()) {
 					break;
 				}
 				thisidx = soFar;
 				++soFar;
 			}
 
-			std::string tileName = "_Col" + insertZeroes(layout.colFromCell(thisidx) + 1, layout.ncol()) +
-				"_Row" + insertZeroes(layout.rowFromCell(thisidx) + 1, layout.nrow());
+			std::string tileName = "_Col" + insertZeroes(_layout.colFromCell(thisidx) + 1, _layout.ncol()) +
+				"_Row" + insertZeroes(_layout.rowFromCell(thisidx) + 1, _layout.nrow());
 
 			Raster<taoid_t> segments;
 			try {
@@ -872,16 +916,16 @@ namespace lapis {
 				}
 				v.value() = idMap.coordsToFinalName.at(localNameMap.at(v.value()));
 			}
-			writeRasterWithFullName(getTAODir(), "Segements" + tileName, segments, OutputUnitLabel::Unitless);
+			writeRasterWithFullName(getTAODir(), "Segments" + tileName, segments, OutputUnitLabel::Unitless);
 		}
 	}
 
-	std::string LapisController::nameFromLayout(const Alignment& layout, cell_t cell) const {
-		return "Col" + insertZeroes(layout.colFromCell(cell) + 1, layout.ncol()) +
-			"_Row" + insertZeroes(layout.rowFromCell(cell) + 1, layout.nrow());
+	std::string LapisController::nameFromLayout(cell_t cell) const {
+		return "Col" + insertZeroes(_layout.colFromCell(cell) + 1, _layout.ncol()) +
+			"_Row" + insertZeroes(_layout.rowFromCell(cell) + 1, _layout.nrow());
 	}
 
-	void LapisController::writeLayout(const Alignment& layout) const {
+	void LapisController::writeLayout() const {
 		fs::path filename = getLayoutDir() / "TileLayout.shp";
 		fs::create_directories(getLayoutDir());
 
@@ -890,7 +934,7 @@ namespace lapis {
 		GDALDatasetWrapper outshp("ESRI Shapefile", filename.string().c_str(), 0, 0, GDT_Unknown);
 
 		OGRSpatialReference crs;
-		crs.importFromWkt(layout.crs().getCompleteWKT().c_str());
+		crs.importFromWkt(_layout.crs().getCleanEPSG().getCompleteWKT().c_str());
 
 		OGRLayer* layer;
 		layer = outshp->CreateLayer("point_out", &crs, wkbPolygon, nullptr);
@@ -907,27 +951,26 @@ namespace lapis {
 
 		OGRFieldDefn rowField("Row", OFTInteger);
 		layer->CreateField(&rowField);
-
-		for (cell_t cell = 0; cell < layout.ncell(); ++cell) {
-			std::string name = nameFromLayout(layout, cell);
-			if (!fs::exists(getCSMPermanentDir() / ("CanopySurfaceModel_" + name + ".tif"))) {
+		for (cell_t cell = 0; cell < _layout.ncell(); ++cell) {
+			std::string name = nameFromLayout(cell);
+			if (!_layout[cell].has_value()) {
 				continue;
 			}
 			OGRFeatureWrapper feature(layer);
-			feature->SetField("Name", nameFromLayout(layout, cell).c_str());
+			feature->SetField("Name", nameFromLayout(cell).c_str());
 			feature->SetField("ID", cell);
-			feature->SetField("Column", layout.colFromCell(cell)+1);
-			feature->SetField("Row", layout.rowFromCell(cell)+1);
+			feature->SetField("Column", _layout.colFromCell(cell)+1);
+			feature->SetField("Row", _layout.rowFromCell(cell)+1);
 			
 #pragma pack(push)
 #pragma pack(1)
 #pragma warning(push)
 #pragma warning(disable: 26495)
 			struct WkbRectangle {
-				uint8_t endianness = 1;
-				uint32_t type = 3;
-				uint32_t numRings = 1;
-				uint32_t numPoints = 5; //because the first point is repeated
+				const uint8_t endianness = 1;
+				const uint32_t type = 3;
+				const uint32_t numRings = 1;
+				const uint32_t numPoints = 5; //because the first point is repeated
 				struct Point {
 					double x, y;
 				};
@@ -938,12 +981,12 @@ namespace lapis {
 #pragma pack(pop)
 
 			WkbRectangle tile;
-			coord_t xCenter = layout.xFromCell(cell);
-			coord_t yCenter = layout.yFromCell(cell);
-			tile.points[0].x = tile.points[3].x = tile.points[4].x = xCenter - layout.xres() / 2;
-			tile.points[1].x = tile.points[2].x = xCenter + layout.xres() / 2;
-			tile.points[0].y = tile.points[1].y = tile.points[4].y = yCenter + layout.yres() / 2;
-			tile.points[2].y = tile.points[3].y = yCenter - layout.yres() / 2;
+			coord_t xCenter = _layout.xFromCell(cell);
+			coord_t yCenter = _layout.yFromCell(cell);
+			tile.points[0].x = tile.points[3].x = tile.points[4].x = xCenter - _layout.xres() / 2;
+			tile.points[1].x = tile.points[2].x = xCenter + _layout.xres() / 2;
+			tile.points[0].y = tile.points[1].y = tile.points[4].y = yCenter + _layout.yres() / 2;
+			tile.points[2].y = tile.points[3].y = yCenter - _layout.yres() / 2;
 
 			OGRGeometry* geom;
 			size_t consumed = 0;

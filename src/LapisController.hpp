@@ -35,7 +35,7 @@ namespace lapis {
 		T filesByExtent(const Extent& e, const T& files) const;
 
 		//handles the logic to decide which las files should be processed by the thread that calls this function
-		void pointMetricThread(size_t& soFar) const;
+		void pointMetricThread(size_t& soFar);
 
 		//assigns points from a file to the correct cells of the output
 		//returns the number of points that pass the filters and get used in later processing
@@ -80,7 +80,7 @@ namespace lapis {
 
 		//This is the function that performs the work of merging the temporary CSM files into their final tiles
 		//layout is an alignment whose cells represent the extents of the final tiles.
-		void csmProcessingThread(const Alignment& layout, cell_t& soFar, TaoIdMap& idMap) const;
+		void csmProcessingThread(cell_t& soFar, TaoIdMap& idMap) const;
 
 		void calcCSMMetrics(const Raster<csm_t>& tile) const;
 
@@ -94,11 +94,11 @@ namespace lapis {
 		void writeHighPoints(const std::vector<cell_t>& highPoints, const Raster<taoid_t>& segments,
 			const Raster<csm_t>& csm, const std::string& name) const;
 
-		void fixTAOIds(const TaoIdMap& idMap, const Alignment& layout, cell_t& sofar) const;
+		void fixTAOIds(const TaoIdMap& idMap, cell_t& sofar) const;
 
-		std::string nameFromLayout(const Alignment& layout, cell_t cell) const;
+		std::string nameFromLayout(cell_t cell) const;
 
-		void writeLayout(const Alignment& layout) const;
+		void writeLayout() const;
 
 		void writeCSMMetrics() const;
 
@@ -115,6 +115,8 @@ namespace lapis {
 		mutable std::atomic_bool _isRunning = false;
 
 		LapisData* data;
+
+		Raster<bool> _layout;
 	};
 
 	template<class T>
@@ -153,7 +155,6 @@ namespace lapis {
 		catch (InvalidRasterFileException e) {
 			LapisLogger::getLogger().logMessage("Error writing " + baseName);
 		}
-		LapisLogger::getLogger().incrementTask();
 	}
 }
 

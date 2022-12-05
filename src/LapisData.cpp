@@ -3,6 +3,8 @@
 #include"LapisLogger.hpp"
 
 namespace lapis {
+
+
 	LapisData& LapisData::getDataObject()
 	{
 		static LapisData d;
@@ -10,7 +12,13 @@ namespace lapis {
 	}
 	LapisData::LapisData() : needAbort(false)
 	{
+#ifndef NDEBUG
+		CPLSetErrorHandler(LapisData::logGDALErrors);
+		proj_log_func(ProjContextByThread::get(), nullptr, LapisData::logProjErrors);
+#else
 		CPLSetErrorHandler(LapisData::silenceGDALErrors);
+		proj_log_level(ProjContextByThread::get(), PJ_LOG_NONE);
+#endif
 
 		constexpr ParamName FIRSTPARAM = (ParamName)0;
 		_addParam<FIRSTPARAM>();
@@ -41,12 +49,17 @@ namespace lapis {
 		//this slightly odd way of ordering things is to ensure that only parameters
 		//that weren't specified in the same ini file that changed the units get converted
 		_getRawParam<ParamName::outUnits>().importFromBoost();
-		for (size_t i = 0; i < _params.size(); ++i) {
-			_params[i]->updateUnits();
-		}
+		updateUnits();
 		for (size_t i = 0; i < _params.size(); ++i) {
 			_params[i]->importFromBoost();
 		}
+	}
+
+	void LapisData::updateUnits() {
+		for (size_t i = 0; i < _params.size(); ++i) {
+			_params[i]->updateUnits();
+		}
+		setPrevUnits(getCurrentUnits());
 	}
 
 	void LapisData::prepareForRun()
@@ -73,6 +86,7 @@ namespace lapis {
 		message.str("");
 		message << "Estimated HDD space needed: " << hdd << " GB";
 		log.logMessage(message.str());
+
 
 		if (std::filesystem::is_directory(outFolder())) { //this should always be true unless a specific debug parameter is passed
 			double avail = static_cast<double>(std::filesystem::space(outFolder()).available);
@@ -114,6 +128,10 @@ namespace lapis {
 		return _getRawParam<ParamName::csmOptions>()._csmAlign;
 	}
 
+	std::shared_ptr<Alignment> LapisData::fineIntAlign() {
+		return _getRawParam<ParamName::fineIntOptions>()._fineIntAlign;
+	}
+
 	shared_raster<int> LapisData::nLazRaster()
 	{
 		return _getRawParam<ParamName::alignment>()._nLaz;
@@ -121,12 +139,12 @@ namespace lapis {
 
 	shared_raster<PointMetricCalculator> LapisData::allReturnPMC()
 	{
-		return _getRawParam<ParamName::optionalMetrics>()._allReturnCalculators;
+		return _getRawParam<ParamName::pointMetricOptions>()._allReturnCalculators;
 	}
 
 	shared_raster<PointMetricCalculator> LapisData::firstReturnPMC()
 	{
-		return _getRawParam<ParamName::optionalMetrics>()._firstReturnCalculators;
+		return _getRawParam<ParamName::pointMetricOptions>()._firstReturnCalculators;
 	}
 
 	std::mutex& LapisData::cellMutex(cell_t cell)
@@ -141,57 +159,57 @@ namespace lapis {
 
 	std::vector<PointMetricRaster>& LapisData::allReturnPointMetrics()
 	{
-		return _getRawParam<ParamName::optionalMetrics>()._allReturnPointMetrics;
+		return _getRawParam<ParamName::pointMetricOptions>()._allReturnPointMetrics;
 	}
 
 	std::vector<PointMetricRaster>& LapisData::firstReturnPointMetrics()
 	{
-		return _getRawParam<ParamName::optionalMetrics>()._firstReturnPointMetrics;
+		return _getRawParam<ParamName::pointMetricOptions>()._firstReturnPointMetrics;
 	}
 
 	std::vector<StratumMetricRasters>& LapisData::allReturnStratumMetrics()
 	{
-		return _getRawParam<ParamName::optionalMetrics>()._allReturnStratumMetrics;
+		return _getRawParam<ParamName::pointMetricOptions>()._allReturnStratumMetrics;
 	}
 
 	std::vector<StratumMetricRasters>& LapisData::firstReturnStratumMetrics()
 	{
-		return _getRawParam<ParamName::optionalMetrics>()._firstReturnStratumMetrics;
+		return _getRawParam<ParamName::pointMetricOptions>()._firstReturnStratumMetrics;
 	}
 
 	std::vector<CSMMetric>& LapisData::csmMetrics()
 	{
-		return _getRawParam<ParamName::optionalMetrics>()._csmMetrics;
+		return _getRawParam<ParamName::csmOptions>()._csmMetrics;
 	}
 
 	std::vector<TopoMetric>& LapisData::topoMetrics()
 	{
-		return _getRawParam<ParamName::optionalMetrics>()._topoMetrics;
+		return _getRawParam<ParamName::whichProducts>()._topoMetrics;
 	}
 
 	shared_raster<coord_t> LapisData::elevNum()
 	{
-		return _getRawParam<ParamName::optionalMetrics>()._elevNumerator;
+		return _getRawParam<ParamName::whichProducts>()._elevNumerator;
 	}
 
 	shared_raster<coord_t> LapisData::elevDenom()
 	{
-		return _getRawParam<ParamName::optionalMetrics>()._elevDenominator;
+		return _getRawParam<ParamName::whichProducts>()._elevDenominator;
 	}
 
 	const std::vector<std::shared_ptr<LasFilter>>& LapisData::filters()
 	{
-		return _getRawParam<ParamName::filterOptions>()._filters;
+		return _getRawParam<ParamName::filters>()._filters;
 	}
 
 	coord_t LapisData::minHt()
 	{
-		return _getRawParam<ParamName::filterOptions>()._minhtCache;
+		return _getRawParam<ParamName::filters>()._minhtCache;
 	}
 
 	coord_t LapisData::maxHt()
 	{
-		return _getRawParam<ParamName::filterOptions>()._maxhtCache;
+		return _getRawParam<ParamName::filters>()._maxhtCache;
 	}
 
 	const CoordRef& LapisData::lasCrsOverride()
@@ -247,19 +265,28 @@ namespace lapis {
 		return x;
 	}
 
-	size_t LapisData::csmFileSize()
+	size_t LapisData::tileFileSize()
 	{
 		return 500ll * 1024 * 1024; //500 MB
 	}
 
 	coord_t LapisData::canopyCutoff()
 	{
-		return _getRawParam<ParamName::metricOptions>()._canopyCache;
+		return _getRawParam<ParamName::pointMetricOptions>()._canopyCache;
+	}
+
+	coord_t LapisData::minTaoHt() {
+		auto& p = _getRawParam<ParamName::taoOptions>();
+		return p._sameMinHtRadio == p.SAME ? canopyCutoff() : p._minHtCache;
+	}
+
+	coord_t LapisData::minTaoDist() {
+		return _getRawParam<ParamName::taoOptions>()._minDistCache;
 	}
 
 	const std::vector<coord_t>& LapisData::strataBreaks()
 	{
-		return _getRawParam<ParamName::metricOptions>()._strataCache;
+		return _getRawParam<ParamName::pointMetricOptions>()._strataCache;
 	}
 
 	const std::filesystem::path& LapisData::outFolder()
@@ -272,39 +299,53 @@ namespace lapis {
 		return _getRawParam<ParamName::name>()._runString;
 	}
 
+	coord_t LapisData::fineIntCanopyCutoff() {
+		auto& p = _getRawParam<ParamName::fineIntOptions>();
+		if (!p._cutoffCheck) {
+			return std::numeric_limits<coord_t>::lowest();
+		}
+		if (p._cutoffSameAsPointRadio == p.SAME) {
+			return canopyCutoff();
+		}
+		return p._cutoffCache;
+	}
+
+	bool LapisData::doPointMetrics() {
+		return _getRawParam<ParamName::whichProducts>()._doPointCheck;
+	}
+
 	bool LapisData::doFirstReturnMetrics()
 	{
-		return true;
+		return _getRawParam<ParamName::pointMetricOptions>()._whichReturnsRadio != Parameter<ParamName::pointMetricOptions>::WhichReturns::all;
 	}
 
 	bool LapisData::doAllReturnMetrics()
 	{
-		return true;
+		return _getRawParam<ParamName::pointMetricOptions>()._whichReturnsRadio != Parameter<ParamName::pointMetricOptions>::WhichReturns::first;
 	}
 
 	bool LapisData::doCsm()
 	{
-		return true;
+		return _getRawParam<ParamName::whichProducts>()._doCsmCheck;
 	}
 
 	bool LapisData::doTaos()
 	{
-		return true;
+		return doCsm() && _getRawParam<ParamName::whichProducts>()._doTaoCheck;
 	}
 
 	bool LapisData::doFineInt()
 	{
-		return _getRawParam<ParamName::optionalMetrics>()._fineIntCheck;
+		return _getRawParam<ParamName::whichProducts>()._fineIntCheck;
 	}
 
 	bool LapisData::doTopo()
 	{
-		return true;
+		return _getRawParam<ParamName::whichProducts>()._doTopoCheck;
 	}
 
-	bool LapisData::doAdvPointMetrics()
-	{
-		return _getRawParam<ParamName::optionalMetrics>()._advPointCheck;
+	bool LapisData::isDebugNoAlloc() {
+		return _getRawParam<ParamName::whichProducts>().isDebug();
 	}
 
 	LapisData::ParseResults LapisData::parseArgs(const std::vector<std::string>& args)
@@ -372,6 +413,7 @@ namespace lapis {
 			log.logMessage(e.what());
 			return ParseResults::invalidOpts;
 		}
+		importBoostAndUpdateUnits();
 		return ParseResults::validOpts;
 	}
 	LapisData::ParseResults LapisData::parseIni(const std::string& path)
@@ -392,6 +434,7 @@ namespace lapis {
 			po::variables_map vmFull;
 			po::store(po::parse_config_file(path.c_str(), iniOptions), vmFull);
 			po::notify(vmFull);
+			importBoostAndUpdateUnits();
 			return ParseResults::validOpts;
 		}
 		catch (po::error e) {
@@ -422,6 +465,14 @@ namespace lapis {
 		return out;
 	}
 
+	inline void LapisData::logGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg) {
+		LapisLogger::getLogger().logMessage(pszErrorMsg);
+	}
+
+	inline void LapisData::logProjErrors(void* v, int i, const char* c) {
+		LapisLogger::getLogger().logMessage(c);
+	}
+
 	double LapisData::estimateMemory()
 	{
 		cell_t metricNCell = metricAlign()->ncell();
@@ -433,6 +484,7 @@ namespace lapis {
 		metricMem += firstReturnStratumMetrics().size() * (strataBreaks().size() + 1) * sizeof(metric_t) * metricNCell;
 		metricMem += csmMetrics().size() * sizeof(metric_t) * metricNCell;
 		metricMem += topoMetrics().size() * sizeof(metric_t) * metricNCell;
+
 		if (doTopo())
 			metricMem += sizeof(coord_t) * metricNCell * 2; //elevation numerator and denominator
 		if (doAllReturnMetrics())
@@ -683,7 +735,7 @@ namespace lapis {
 	}
 
 	void LapisData::_checkSampleLas(DataIssues& di, const std::string& filename, const std::set<DemFileAlignment>& demSet) {
-		auto& filterParam = _getRawParam<ParamName::filterOptions>();
+		auto& filterParam = _getRawParam<ParamName::filters>();
 		filterParam.prepareForRun();
 		auto& filtersVec = filters();
 		coord_t min_ht = minHt();

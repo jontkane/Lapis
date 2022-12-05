@@ -116,7 +116,7 @@ namespace lapis {
 					ImGui::SetKeyboardFocusHere();
 					spec.textSiezeFocus = false;
 				}
-				ImGui::InputTextMultiline("", spec.crsBuffer.data(), spec.crsBuffer.size(), ImVec2(350, 100), 0);
+				ImGui::InputTextMultiline(("##crsinput" + spec.name).c_str(), spec.crsBuffer.data(), spec.crsBuffer.size(), ImVec2(350, 100), 0);
 				ImGui::Text("The CRS deduction is flexible but not perfect.\nFor best results when manually specifying,\nspecify an EPSG code or a WKT string");
 				if (ImGui::Button("Specify from file")) {
 					NFD::OpenDialog(spec.nfdFile);
@@ -158,6 +158,9 @@ namespace lapis {
 			std::string s = std::to_string(v);
 			s.erase(s.find_last_not_of('0') + 1, std::string::npos);
 			s.erase(s.find_last_not_of('.') + 1, std::string::npos);
+			if (s.size() > buff.size() - 1) {
+				s.erase(buff.size() - 1, std::string::npos);
+			}
 			strncpy_s(buff.data(), buff.size(), s.c_str(), buff.size());
 		}
 		catch (...) {
@@ -171,6 +174,9 @@ namespace lapis {
 		std::string s = std::to_string(x);
 		s.erase(s.find_last_not_of('0') + 1, std::string::npos);
 		s.erase(s.find_last_not_of('.') + 1, std::string::npos);
+		if (s.size() > buff.size() - 1) {
+			s.erase(buff.size() - 1, std::string::npos);
+		}
 		strncpy_s(buff.data(), buff.size(), s.c_str(), s.size());
 	}
 	const Unit& getCurrentUnits() {
@@ -303,7 +309,11 @@ namespace lapis {
 		auto& d = LapisData::getDataObject();
 		auto& alignParam = d._getRawParam<ParamName::alignment>();
 		auto& lasOverride = d._getRawParam<ParamName::lasOverride>();
+		auto& log = LapisLogger::getLogger();
+
+
 		CoordRef crsOut = alignParam.getCurrentOutCrs();
+
 		coord_t xmin = std::numeric_limits<coord_t>::max();
 		coord_t ymin = std::numeric_limits<coord_t>::max();
 		coord_t xmax = std::numeric_limits<coord_t>::lowest();
@@ -317,9 +327,9 @@ namespace lapis {
 				ymax = std::max(ymax, e.ymax());
 			}
 			else {
-				if (!l.ext.crs().isEmpty()) {
-					crsOut = l.ext.crs();
+				if (crsOut.isEmpty() && !l.ext.crs().isEmpty()) {
 					const Unit& u = lasOverride.getCurrentCrs().getZUnits();
+					crsOut = l.ext.crs();
 					if (!u.isUnknown()) {
 						crsOut.setZUnits(u);
 					}
@@ -404,7 +414,7 @@ namespace lapis {
 	void Parameter<ParamName::output>::renderGui(){
 		ImGui::Text("Output Folder:");
 		ImGui::SameLine();
-		ImGui::InputText("", _buffer.data(), _buffer.size());
+		ImGui::InputText("##outputfolder", _buffer.data(), _buffer.size());
 		ImGui::SameLine();
 		if (ImGui::Button("Browse")) {
 			NFD::PickFolder(_nfdFolder);
@@ -685,15 +695,15 @@ namespace lapis {
 			cellSizeUpdate = input("Y Resolution:", _yresBuffer) || cellSizeUpdate;
 			if (cellSizeUpdate) {
 				if (atof(_xresBuffer.data()) == atof(_yresBuffer.data())) {
-					strcpy_s(_cellsizeBuffer.data(), _cellsizeBuffer.size(), _xresBuffer.data());
+					strncpy_s(_cellsizeBuffer.data(), _cellsizeBuffer.size(), _xresBuffer.data(), _cellsizeBuffer.size());
 				}
 			}
 		}
 		else {
 			cellSizeUpdate = input("Cellsize:", _cellsizeBuffer);
 			if (cellSizeUpdate) {
-				strcpy_s(_xresBuffer.data(), _xresBuffer.size(), _cellsizeBuffer.data());
-				strcpy_s(_yresBuffer.data(), _yresBuffer.size(), _cellsizeBuffer.data());
+				strncpy_s(_xresBuffer.data(), _xresBuffer.size(), _cellsizeBuffer.data(), _xresBuffer.size());
+				strncpy_s(_yresBuffer.data(), _yresBuffer.size(), _cellsizeBuffer.data(), _yresBuffer.size());
 			}
 		}
 
@@ -703,12 +713,12 @@ namespace lapis {
 		}
 		else {
 			if (input("X/Y Origin:", _xoriginBuffer)) {
-				strcpy_s(_yoriginBuffer.data(), _yoriginBuffer.size(), _xoriginBuffer.data());
+				strncpy_s(_yoriginBuffer.data(), _yoriginBuffer.size(), _xoriginBuffer.data(), _yoriginBuffer.size());
 			}
 		}
 
 		ImGui::Text("CRS Input:");
-		ImGui::InputTextMultiline("", _crsBuffer.data(), _crsBuffer.size(),
+		ImGui::InputTextMultiline("##crsinput", _crsBuffer.data(), _crsBuffer.size(),
 			ImVec2(ImGui::GetContentRegionAvail().x, 300));
 		ImGui::Text("The CRS deduction is flexible but not perfect.\nFor best results when manually specifying,\nspecify an EPSG code or a WKT string");
 		if (ImGui::Button("Specify CRS From File")) {
@@ -717,11 +727,11 @@ namespace lapis {
 		if (_nfdCrsFile) {
 			try {
 				CoordRef crs{ _nfdCrsFile.get() };
-				strcpy_s(_crsBuffer.data(), _crsBuffer.size(), crs.getCompleteWKT().c_str());
+				strncpy_s(_crsBuffer.data(), _crsBuffer.size(), crs.getCompleteWKT().c_str(), _crsBuffer.size());
 			}
 			catch (UnableToDeduceCRSException e) {
 				_crsDisplayString = "Error";
-				strcpy_s(_crsBuffer.data(), _crsBuffer.size(), "Error");
+				strncpy_s(_crsBuffer.data(), _crsBuffer.size(), "Error", _crsBuffer.size());
 			}
 		}
 		ImGui::SameLine();
@@ -784,7 +794,7 @@ namespace lapis {
 			catch (InvalidRasterFileException e) {
 				std::string err = "Error";
 				auto setError = [&](FloatBuffer& buff) {
-					strcpy_s(buff.data(), buff.size(), err.c_str());
+					strncpy_s(buff.data(), buff.size(), err.c_str(), buff.size());
 				};
 				setError(_xresBuffer);
 				setError(_yresBuffer);
@@ -815,7 +825,7 @@ namespace lapis {
 		_yresBoost = std::nan("");
 		if (xory) {
 			if (strcmp(_xresBuffer.data(), _yresBuffer.data()) == 0) {
-				strcpy_s(_cellsizeBuffer.data(), _cellsizeBuffer.size(), _xresBuffer.data());
+				strncpy_s(_cellsizeBuffer.data(), _cellsizeBuffer.size(), _xresBuffer.data(), _cellsizeBuffer.size());
 				_xyResDiffCheck = false;
 			}
 			else {
@@ -869,7 +879,7 @@ namespace lapis {
 		}
 		if (_debugBool) {
 			//something intentionally weird so nothing will match it unless it copied from it
-			_align = std::make_shared<Alignment>(Extent(0, 90, 10, 80), 8, 6, 13, 19);
+			_align = std::make_shared<Alignment>(Extent(0, 50, 10, 60), 8, 6, 13, 19);
 			return;
 		}
 		auto& d = LapisData::getDataObject();
@@ -900,6 +910,10 @@ namespace lapis {
 		_align.reset();
 		_align = std::make_shared<Alignment>(e, xorigin, yorigin, xres, yres);
 
+#ifndef NDEBUG
+		log.logMessage("Out CRS: " + _align->crs().getShortName());
+#endif
+
 		_nLaz = std::make_shared<Raster<int>>(*_align);
 		auto& exts = las.getAllExtents();
 		for (auto& le : exts) {
@@ -926,14 +940,17 @@ namespace lapis {
 			"The desired cellsize of the output canopy surface model\n"
 			"Defaults to 1 meter");
 		hidden.add_options()(_smoothCmd.c_str(), po::value<int>(&_smooth), "")
-			(_footprintDiamCmd.c_str(), po::value<coord_t>(&_footprintDiamBoost), "");
+			(_footprintDiamCmd.c_str(), po::value<coord_t>(&_footprintDiamBoost), "")
+			(_skipMetricsCmd.c_str(), po::bool_switch(&_skipCsmMetricsBoost), "");
 	}
 	std::ostream& Parameter<ParamName::csmOptions>::printToIni(std::ostream& o){
 
 		o << _csmCellsizeCmd << "=" << _csmCellsizeBuffer.data() << "\n";
 		o << _smoothCmd << "=" << _smooth << "\n";
 		o << _footprintDiamCmd << "=" << _footprintDiamBuffer.data() << "\n";
-
+		if (!_doCsmMetrics) {
+			o << _skipMetricsCmd << "=\n";
+		}
 		return o;
 	}
 	ParamCategory Parameter<ParamName::csmOptions>::getCategory() const{
@@ -958,12 +975,14 @@ namespace lapis {
 		ImGui::SameLine();
 		ImGui::RadioButton("5x5", &_smooth, 5);
 
+		ImGui::Checkbox("CSM Summary Metrics", &_doCsmMetrics);
+
 		ImGui::Checkbox("Show Advanced Options", &_showAdvanced);
 		if (_showAdvanced) {
 			ImGui::Text("Footprint Diameter:");
 			ImGui::SameLine();
 			ImGui::PushItemWidth(100);
-			ImGui::InputText("##Footprint", _footprintDiamBuffer.data(), _footprintDiamBuffer.size());
+			ImGui::InputText("##Footprint", _footprintDiamBuffer.data(), _footprintDiamBuffer.size(), ImGuiInputTextFlags_CharsDecimal);
 			ImGui::PopItemWidth();
 			ImGui::SameLine();
 			ImGui::Text(getUnitsPluralName().c_str());
@@ -992,6 +1011,8 @@ namespace lapis {
 			copyToBuffer(_csmCellsizeBuffer, _csmCellsizeBoost);
 			_csmCellsizeBoost = std::nan("");
 		}
+
+		_doCsmMetrics = !_skipCsmMetricsBoost;
 	}
 	void Parameter<ParamName::csmOptions>::prepareForRun() {
 		if (_csmAlign) {
@@ -1001,6 +1022,17 @@ namespace lapis {
 		auto& d = LapisData::getDataObject();
 		auto& alignParam = d._getRawParam<ParamName::alignment>();
 		auto& log = LapisLogger::getLogger();
+		const Alignment& metricAlign = alignParam.getFullAlignment();
+		const Unit& u = d.getCurrentUnits();
+
+
+		if (!d.doCsm()) {
+			//there's a few random places in the code that use the csm alignment even if the csm isn't being calculated
+			//if the csm is turned off, so we don't have its parameters, just default to 1 meter cellsize
+			coord_t cellsize = convertUnits(1, u, metricAlign.crs().getXYUnits());
+			_csmAlign = std::make_shared<Alignment>(metricAlign, metricAlign.xOrigin(), metricAlign.yOrigin(), cellsize, cellsize);
+			return;
+		}
 		
 		_footprintDiamCache = getValueWithError(_footprintDiamBuffer, "footprint");
 		coord_t cellsize = getValueWithError(_csmCellsizeBuffer, "csm cellsize");
@@ -1017,27 +1049,45 @@ namespace lapis {
 			cellsize = 1;
 		}
 
-		const Alignment& metricAlign = alignParam.getFullAlignment();
-		const Unit& u = d.getCurrentUnits();
+		
 		cellsize = convertUnits(cellsize, u, metricAlign.crs().getXYUnits());
 		_csmAlign = std::make_shared<Alignment>(metricAlign, metricAlign.xOrigin(), metricAlign.yOrigin(), cellsize, cellsize);
+
+		if (d.isDebugNoAlloc()) {
+			return;
+		}
+
+		if (_doCsmMetrics) {
+			const Alignment& a = d._getRawParam<ParamName::alignment>().getFullAlignment();
+			using oul = OutputUnitLabel;
+
+			_csmMetrics.emplace_back(&viewMax<csm_t>, "MaxCSM", a, oul::Default);
+			_csmMetrics.emplace_back(&viewMean<csm_t>, "MeanCSM", a, oul::Default);
+			_csmMetrics.emplace_back(&viewStdDev<csm_t>, "StdDevCSM", a, oul::Default);
+			_csmMetrics.emplace_back(&viewRumple<csm_t>, "RumpleCSM", a, oul::Unitless);
+		}
 	}
 	void Parameter<ParamName::csmOptions>::cleanAfterRun() {
 		_footprintDiamCache = std::nan("");
 		_csmAlign.reset();
+		_csmMetrics.clear();
 	}
 
-	Parameter<ParamName::metricOptions>::Parameter() : _canopyBoost(2) {
+	Parameter<ParamName::pointMetricOptions>::Parameter() : _canopyBoost(2) {
 		_strataBoost = "0.5,1,2,4,8,16,32,48,64";
 	}
-	void Parameter<ParamName::metricOptions>::addToCmd(po::options_description& visible,
+	void Parameter<ParamName::pointMetricOptions>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
 		visible.add_options()(_canopyCmd.c_str(), po::value<coord_t>(&_canopyBoost),
 			"The height threshold for a point to be considered canopy.")
 			(_strataCmd.c_str(), po::value<std::string>(&_strataBoost),
-				"A comma-separated list of strata breaks on which to calculate strata metrics.");
+				"A comma-separated list of strata breaks on which to calculate strata metrics.")
+			(_advPointCmd.c_str(), po::bool_switch(&_advPointBoost),
+				"Calculate a larger suite of point metrics.");
+		hidden.add_options()(_skipFirstReturnsCmd.c_str(), po::bool_switch(&_skipFirstReturnBoost), "")
+			(_skipAllReturnsCmd.c_str(), po::bool_switch(&_skipAllReturnBoost), "");
 	}
-	std::ostream& Parameter<ParamName::metricOptions>::printToIni(std::ostream& o){
+	std::ostream& Parameter<ParamName::pointMetricOptions>::printToIni(std::ostream& o){
 		o << _canopyCmd << "=" << _canopyBuffer.data() << "\n";
 
 		if (_strataBuffers.size()) {
@@ -1053,29 +1103,53 @@ namespace lapis {
 			o << "\n";
 		}
 
+		if (_advPointRadio) {
+			o << _advPointCmd << "=\n";
+		}
+		if (_whichReturnsRadio == WhichReturns::first) {
+			o << _skipAllReturnsCmd << "=\n";
+		}
+		if (_whichReturnsRadio == WhichReturns::all) {
+			o << _skipFirstReturnsCmd << "=\n";
+		}
+
 		return o;
 	}
-	ParamCategory Parameter<ParamName::metricOptions>::getCategory() const{
+	ParamCategory Parameter<ParamName::pointMetricOptions>::getCategory() const{
 		return ParamCategory::process;
 	}
-	void Parameter<ParamName::metricOptions>::renderGui(){
+	void Parameter<ParamName::pointMetricOptions>::renderGui(){
 		ImGui::Text("Metric Options");
+
+
+		ImGui::BeginChild("stratumleft", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f - 2, ImGui::GetContentRegionAvail().y), false, 0);
+
 		ImGui::Text("Canopy Cutoff:");
 		ImGui::SameLine();
 		ImGui::PushItemWidth(100);
-		ImGui::InputText("##canopy", _canopyBuffer.data(), _canopyBuffer.size());
+		ImGui::InputText("##canopy", _canopyBuffer.data(), _canopyBuffer.size(), ImGuiInputTextFlags_CharsDecimal);
 		ImGui::PopItemWidth();
 		ImGui::SameLine();
 		ImGui::Text(getUnitsPluralName().c_str());
 
-		ImGui::BeginChild("stratumleft", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f - 2, ImGui::GetContentRegionAvail().y), false, 0);
-		ImGui::Text("Stratum Breaks:");
+		ImGui::RadioButton("Common Metrics", &_advPointRadio, 0);
+		ImGui::SameLine();
+		ImGui::RadioButton("All Metrics", &_advPointRadio, 1);
+
+		ImGui::RadioButton("All Returns", &_whichReturnsRadio, WhichReturns::all);
+		ImGui::SameLine();
+		ImGui::RadioButton("First Returns", &_whichReturnsRadio, WhichReturns::first);
+		ImGui::SameLine();
+		ImGui::RadioButton("Both", &_whichReturnsRadio, WhichReturns::both);
+		ImGui::EndChild();
+
+		ImGui::SameLine();
+		ImGui::BeginChild("stratumright", ImVec2(ImGui::GetContentRegionAvail().x - 2, ImGui::GetContentRegionAvail().y), true, 0);
+		ImGui::Text("Stratum Breaks");
+		ImGui::SameLine();
 		if (ImGui::Button("Change")) {
 			_displayStratumWindow = true;
 		}
-		ImGui::EndChild();
-		ImGui::SameLine();
-		ImGui::BeginChild("stratumright", ImVec2(ImGui::GetContentRegionAvail().x - 2, ImGui::GetContentRegionAvail().y), true, 0);
 		for (size_t i = 0; i < _strataBuffers.size(); ++i) {
 			ImGui::Text(_strataBuffers[i].data());
 			ImGui::SameLine();
@@ -1117,37 +1191,51 @@ namespace lapis {
 					std::string s = std::to_string(v);
 					s.erase(s.find_last_not_of('0') + 1, std::string::npos);
 					s.erase(s.find_last_not_of('.') + 1, std::string::npos);
-					strcpy_s(_strataBuffers[_strataBuffers.size() - 1].data(),
-						_strataBuffers[_strataBuffers.size() - 1].size(), s.c_str());
+					strncpy_s(_strataBuffers[_strataBuffers.size() - 1].data(),
+						_strataBuffers[_strataBuffers.size() - 1].size(), s.c_str(), _strataBuffers[_strataBuffers.size()-1].size());
 				}
 				else {
 					_strataBuffers.emplace_back();
-					strcpy_s(_strataBuffers[_strataBuffers.size() - 1].data(),
-						_strataBuffers[_strataBuffers.size() - 1].size(), "0");
+					strncpy_s(_strataBuffers[_strataBuffers.size() - 1].data(),
+						_strataBuffers[_strataBuffers.size() - 1].size(), "0", _strataBuffers[_strataBuffers.size()-1].size());
 				}
 			}
 			_displayStratumWindow = false;
 		}
 
 		for (size_t i = 0; i < _strataBuffers.size(); ++i) {
-			ImGui::InputText(("##" + std::to_string(i)).c_str(), _strataBuffers[i].data(), _strataBuffers[i].size());
+			ImGui::InputText(("##" + std::to_string(i)).c_str(), _strataBuffers[i].data(), _strataBuffers[i].size(), ImGuiInputTextFlags_CharsDecimal);
 			ImGui::SameLine();
 			ImGui::Text(getUnitsPluralName().c_str());
 		}
 
 		ImGui::End();
 	}
-	void Parameter<ParamName::metricOptions>::updateUnits() {
+	void Parameter<ParamName::pointMetricOptions>::updateUnits() {
 		updateUnitsBuffer(_canopyBuffer);
 		for (size_t i = 0; i < _strataBuffers.size(); ++i) {
 			updateUnitsBuffer(_strataBuffers[i]);
 		}
 	}
-	void Parameter<ParamName::metricOptions>::importFromBoost() {
+	void Parameter<ParamName::pointMetricOptions>::importFromBoost() {
 		if (!std::isnan(_canopyBoost)) {
 			copyToBuffer(_canopyBuffer, _canopyBoost);
 			_canopyBoost = std::nan("");
 		}
+
+
+		if (_skipAllReturnBoost && _skipFirstReturnBoost) {/*TODO: make this talk to the checkbox for whether to do point metrics at all, and log an error if they don't match*/ }
+		else if (_skipAllReturnBoost) {
+			_whichReturnsRadio = WhichReturns::first;
+		}
+		else if (_skipFirstReturnBoost) {
+			_whichReturnsRadio = WhichReturns::all;
+		}
+		else {
+			_whichReturnsRadio = WhichReturns::both;
+		}
+
+		_advPointRadio = (int)_advPointBoost;
 
 		if (!_strataBoost.size()) {
 			return;
@@ -1175,7 +1263,12 @@ namespace lapis {
 		}
 		_strataBoost.clear();
 	}
-	void Parameter<ParamName::metricOptions>::prepareForRun() {
+	void Parameter<ParamName::pointMetricOptions>::prepareForRun() {
+		auto& d = LapisData::getDataObject();
+
+		using oul = OutputUnitLabel;
+		using pmc = PointMetricCalculator;
+
 		LapisLogger& log = LapisLogger::getLogger();
 		_canopyCache = getValueWithError(_canopyBuffer, "canopy cutoff");
 		_strataCache.resize(_strataBuffers.size());
@@ -1185,18 +1278,105 @@ namespace lapis {
 		if (_canopyCache < 0) {
 			log.logMessage("Canopy cutoff is negative. Is this intentional?");
 		}
+
+		bool doFirst = (_whichReturnsRadio != WhichReturns::all);
+		bool doAll = (_whichReturnsRadio != WhichReturns::first);
+
+		if (d.isDebugNoAlloc()) {
+			return;
+		}
+
+		const Alignment& a = d._getRawParam<ParamName::alignment>().getFullAlignment();
+
+		auto addMetric = [&](const std::string& name, MetricFunc f, oul u) {
+			if (doAll) {
+				_allReturnPointMetrics.emplace_back(name, f, a, u);
+			}
+			if (doFirst) {
+				_firstReturnPointMetrics.emplace_back(name, f, a, u);
+			}
+		};
+
+		addMetric("Mean_CanopyHeight", &pmc::meanCanopy, oul::Default);
+		addMetric("StdDev_CanopyHeight", &pmc::stdDevCanopy, oul::Default);
+		addMetric("25thPercentile_CanopyHeight", &pmc::p25Canopy, oul::Default);
+		addMetric("50thPercentile_CanopyHeight", &pmc::p50Canopy, oul::Default);
+		addMetric("75thPercentile_CanopyHeight", &pmc::p75Canopy, oul::Default);
+		addMetric("95thPercentile_CanopyHeight", &pmc::p95Canopy, oul::Default);
+		addMetric("TotalReturnCount", &pmc::returnCount, oul::Unitless);
+		addMetric("CanopyCover", &pmc::canopyCover, oul::Percent);
+
+		if (_advPointRadio) {
+			addMetric("CoverAboveMean", &pmc::coverAboveMean, oul::Percent);
+			addMetric("CanopyReliefRatio", &pmc::canopyReliefRatio, oul::Unitless);
+			addMetric("CanopySkewness", &pmc::skewnessCanopy, oul::Unitless);
+			addMetric("CanopyKurtosis", &pmc::kurtosisCanopy, oul::Unitless);
+			addMetric("05thPercentile_CanopyHeight", &pmc::p05Canopy, oul::Default);
+			addMetric("10thPercentile_CanopyHeight", &pmc::p10Canopy, oul::Default);
+			addMetric("15thPercentile_CanopyHeight", &pmc::p15Canopy, oul::Default);
+			addMetric("20thPercentile_CanopyHeight", &pmc::p20Canopy, oul::Default);
+			addMetric("30thPercentile_CanopyHeight", &pmc::p30Canopy, oul::Default);
+			addMetric("35thPercentile_CanopyHeight", &pmc::p35Canopy, oul::Default);
+			addMetric("40thPercentile_CanopyHeight", &pmc::p40Canopy, oul::Default);
+			addMetric("45thPercentile_CanopyHeight", &pmc::p45Canopy, oul::Default);
+			addMetric("55thPercentile_CanopyHeight", &pmc::p55Canopy, oul::Default);
+			addMetric("60thPercentile_CanopyHeight", &pmc::p60Canopy, oul::Default);
+			addMetric("65thPercentile_CanopyHeight", &pmc::p65Canopy, oul::Default);
+			addMetric("70thPercentile_CanopyHeight", &pmc::p70Canopy, oul::Default);
+			addMetric("80thPercentile_CanopyHeight", &pmc::p80Canopy, oul::Default);
+			addMetric("85thPercentile_CanopyHeight", &pmc::p85Canopy, oul::Default);
+			addMetric("90thPercentile_CanopyHeight", &pmc::p90Canopy, oul::Default);
+			addMetric("99thPercentile_CanopyHeight", &pmc::p99Canopy, oul::Default);
+		}
+
+		if (_strataCache.size()) {
+			auto to_string_with_precision = [](coord_t v)->std::string {
+				//all this nonsense should get a non-scientific notation representation with at most two places after the decimal point, but trailing 0s removed
+				std::ostringstream out;
+				out.precision(2);
+				out << std::fixed;
+				out << v;
+				std::string s = out.str();
+				s.erase(s.find_last_not_of('0') + 1, std::string::npos);
+				s.erase(s.find_last_not_of('.') + 1, std::string::npos);
+				return s;
+			};
+			std::vector<std::string> stratumNames;
+			stratumNames.push_back("LessThan" + to_string_with_precision(_strataCache[0]));
+			for (size_t i = 1; i < _strataCache.size(); ++i) {
+				stratumNames.push_back(to_string_with_precision(_strataCache[i - 1]) + "To" + to_string_with_precision(_strataCache[i]));
+			}
+			stratumNames.push_back("GreaterThan" + to_string_with_precision(_strataCache[_strataCache.size() - 1]));
+
+			if (doAll) {
+				_allReturnStratumMetrics.emplace_back("StratumCover_", stratumNames, &pmc::stratumCover, a, oul::Percent);
+				_allReturnStratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &pmc::stratumPercent, a, oul::Percent);
+			}
+			if (doFirst) {
+				_firstReturnStratumMetrics.emplace_back("StratumCover_", stratumNames, &pmc::stratumCover, a, oul::Percent);
+				_firstReturnStratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &pmc::stratumPercent, a, oul::Percent);
+			}
+		}
+
+		if (doAll) {
+			_allReturnCalculators = std::make_shared<Raster<PointMetricCalculator>>(a);
+		}
+		if (doFirst) {
+			_firstReturnCalculators = std::make_shared<Raster<PointMetricCalculator>>(a);
+		}
 	}
-	void Parameter<ParamName::metricOptions>::cleanAfterRun() {
+	void Parameter<ParamName::pointMetricOptions>::cleanAfterRun() {
 		_strataCache.clear();
 		_strataCache.shrink_to_fit();
-	}
-	const std::vector<coord_t>& Parameter<ParamName::metricOptions>::getStrataBreaks()
-	{
-		prepareForRun();
-		return _strataCache;
+		_allReturnPointMetrics.clear();
+		_firstReturnPointMetrics.clear();
+		_allReturnStratumMetrics.clear();
+		_firstReturnStratumMetrics.clear();
+		_allReturnCalculators.reset();
+		_firstReturnCalculators.reset();
 	}
 
-	Parameter<ParamName::filterOptions>::Parameter() : _minhtBoost(-8), _maxhtBoost(100) {
+	Parameter<ParamName::filters>::Parameter() : _minhtBoost(-8), _maxhtBoost(100) {
 		for (size_t i = 0; i < _classChecks.size(); ++i) {
 			_classChecks[i] = true;
 		}
@@ -1205,7 +1385,7 @@ namespace lapis {
 		_classChecks[18] = false;
 		_updateClassListString();
 	}
-	void Parameter<ParamName::filterOptions>::addToCmd(po::options_description& visible,
+	void Parameter<ParamName::filters>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
 		visible.add_options()(_minhtCmd.c_str(), po::value<coord_t>(&_minhtBoost),
 			"The threshold for low outliers. Points with heights below this value will be excluded.")
@@ -1216,7 +1396,7 @@ namespace lapis {
 				"Alternatively, preface the list with ~ to specify a blacklist.");
 		hidden.add_options()(_useWithheldCmd.c_str(), po::bool_switch(&_useWithheld), "");
 	}
-	std::ostream& Parameter<ParamName::filterOptions>::printToIni(std::ostream& o){
+	std::ostream& Parameter<ParamName::filters>::printToIni(std::ostream& o){
 		o << _minhtCmd << "=" << _minhtBuffer.data() << "\n";
 		o << _maxhtCmd << "=" << _maxhtBuffer.data() << "\n";
 		if (!_filterWithheldCheck) {
@@ -1266,10 +1446,10 @@ namespace lapis {
 
 		return o;
 	}
-	ParamCategory Parameter<ParamName::filterOptions>::getCategory() const{
+	ParamCategory Parameter<ParamName::filters>::getCategory() const{
 		return ParamCategory::process;
 	}
-	void Parameter<ParamName::filterOptions>::renderGui(){
+	void Parameter<ParamName::filters>::renderGui(){
 		ImGui::Text("Filter Options");
 		if (ImGui::Checkbox("Exclude Withheld Points", &_filterWithheldCheck)) {
 			_useWithheld = !_filterWithheldCheck;
@@ -1278,7 +1458,7 @@ namespace lapis {
 		ImGui::Text("Low Outlier:");
 		ImGui::SameLine();
 		ImGui::PushItemWidth(100);
-		ImGui::InputText("##minht", _minhtBuffer.data(), _minhtBuffer.size());
+		ImGui::InputText("##minht", _minhtBuffer.data(), _minhtBuffer.size(), ImGuiInputTextFlags_CharsDecimal);
 		ImGui::PopItemWidth();
 		ImGui::SameLine();
 		ImGui::Text(getUnitsPluralName().c_str());
@@ -1286,7 +1466,7 @@ namespace lapis {
 		ImGui::Text("High Outlier:");
 		ImGui::SameLine();
 		ImGui::PushItemWidth(100);
-		ImGui::InputText("##maxht", _maxhtBuffer.data(), _maxhtBuffer.size());
+		ImGui::InputText("##maxht", _maxhtBuffer.data(), _maxhtBuffer.size(), ImGuiInputTextFlags_CharsDecimal);
 		ImGui::PopItemWidth();
 		ImGui::SameLine();
 		ImGui::Text(getUnitsPluralName().c_str());
@@ -1342,11 +1522,11 @@ namespace lapis {
 
 		ImGui::End();
 	}
-	void Parameter<ParamName::filterOptions>::updateUnits() {
+	void Parameter<ParamName::filters>::updateUnits() {
 		updateUnitsBuffer(_minhtBuffer);
 		updateUnitsBuffer(_maxhtBuffer);
 	}
-	void Parameter<ParamName::filterOptions>::importFromBoost() {
+	void Parameter<ParamName::filters>::importFromBoost() {
 		if (!std::isnan(_minhtBoost)) {
 			copyToBuffer(_minhtBuffer, _minhtBoost);
 			_minhtBoost = std::nan("");
@@ -1401,7 +1581,7 @@ namespace lapis {
 		}
 		_classBoost.clear();
 	}
-	void Parameter<ParamName::filterOptions>::_updateClassListString() {
+	void Parameter<ParamName::filters>::_updateClassListString() {
 		_classDisplayString = "";
 		for (size_t i = 0; i < _classChecks.size(); ++i) {
 			if (_classChecks[i]) {
@@ -1412,7 +1592,7 @@ namespace lapis {
 			}
 		}
 	}
-	void Parameter<ParamName::filterOptions>::prepareForRun() {
+	void Parameter<ParamName::filters>::prepareForRun() {
 		if (_filters.size()) {
 			return;
 		}
@@ -1460,41 +1640,68 @@ namespace lapis {
 			_filters.emplace_back(new LasFilterClassBlacklist(classes));
 		}
 	}
-	void Parameter<ParamName::filterOptions>::cleanAfterRun() {
+	void Parameter<ParamName::filters>::cleanAfterRun() {
 		_filters.clear();
 		_filters.shrink_to_fit();
 	}
 
-	Parameter<ParamName::optionalMetrics>::Parameter() : _debugBool(false) {}
-	void Parameter<ParamName::optionalMetrics>::addToCmd(po::options_description& visible,
+	Parameter<ParamName::whichProducts>::Parameter() : _debugBool(false) {}
+	void Parameter<ParamName::whichProducts>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
-		visible.add_options()(_advPointCmd.c_str(), po::bool_switch(&_advPointCheck),
-			"Calculate a larger suite of point metrics.")
-			(_fineIntCmd.c_str(), po::bool_switch(&_fineIntCheck),
+		visible.add_options()(_fineIntCmd.c_str(), po::bool_switch(&_fineIntCheck),
 				"Create a canopy mean intensity raster with the same resolution as the CSM");
 
-		hidden.add_options()(_debugNoAllocRaster.c_str(), po::bool_switch(&_debugBool), "");
+		hidden.add_options()(_debugNoAllocRaster.c_str(), po::bool_switch(&_debugBool), "")
+			(_skipCsmCmd.c_str(), po::bool_switch(&_skipCsmBoost), "")
+			(_skipPointCmd.c_str(), po::bool_switch(&_skipPointBoost), "")
+			(_skipTaoCmd.c_str(), po::bool_switch(&_skipTaoBoost), "")
+			(_skipTopoCmd.c_str(), po::bool_switch(&_skipTopoBoost), "");
 	}
-	std::ostream& Parameter<ParamName::optionalMetrics>::printToIni(std::ostream& o){
+	std::ostream& Parameter<ParamName::whichProducts>::printToIni(std::ostream& o){
 		if (_fineIntCheck) {
 			o << _fineIntCmd << "=\n";
 		}
-		if (_advPointCheck) {
-			o << _advPointCmd << "=\n";
+		if (!_doCsmCheck) {
+			o << _skipCsmCmd << "=\n";
+		}
+		if (!_doPointCheck) {
+			o << _skipPointCmd << "=\n";
+		}
+		if (!_doTaoCheck) {
+			o << _skipTaoCmd << "=\n";
+		}
+		if (!_doTopoCheck) {
+			o << _skipTopoCmd << "=\n";
 		}
 		return o;
 	}
-	ParamCategory Parameter<ParamName::optionalMetrics>::getCategory() const{
+	ParamCategory Parameter<ParamName::whichProducts>::getCategory() const{
 		return ParamCategory::process;
 	}
-	void Parameter<ParamName::optionalMetrics>::renderGui(){
+	void Parameter<ParamName::whichProducts>::renderGui(){
 		ImGui::Text("Optional Product Options");
-		ImGui::Checkbox("Advanced Point Metrics", &_advPointCheck);
-		ImGui::Checkbox("Fine-scale Canopy Intensity", &_fineIntCheck);
+		ImGui::Checkbox("Point Metrics", &_doPointCheck);
+		ImGui::Checkbox("Canopy Surface Model", &_doCsmCheck);
+		
+		if (!_doCsmCheck) {
+			ImGui::BeginDisabled();
+			_doTaoCheck = false;
+		}
+		ImGui::Checkbox("Tree-Approximate Objects (Tree ID)", &_doTaoCheck);
+		if (!_doCsmCheck) {
+			ImGui::EndDisabled();
+		}
+		ImGui::Checkbox("Topographic Metrics", &_doTopoCheck);
+		ImGui::Checkbox("Fine-scale Intensity", &_fineIntCheck);
 	}
-	void Parameter<ParamName::optionalMetrics>::importFromBoost() {}
-	void Parameter<ParamName::optionalMetrics>::updateUnits() {}
-	void Parameter<ParamName::optionalMetrics>::prepareForRun() {
+	void Parameter<ParamName::whichProducts>::importFromBoost() {
+		_doCsmCheck = !_skipCsmBoost;
+		_doPointCheck = !_skipPointBoost;
+		_doTaoCheck = !_skipTaoBoost;
+		_doTopoCheck = !_skipTopoBoost;
+	}
+	void Parameter<ParamName::whichProducts>::updateUnits() {}
+	void Parameter<ParamName::whichProducts>::prepareForRun() {
 		if (_debugBool) {
 			return;
 		}
@@ -1505,88 +1712,20 @@ namespace lapis {
 		using oul = OutputUnitLabel;
 		using pmc = PointMetricCalculator;
 
-		auto addMetric = [&](const std::string& name, MetricFunc f, oul u) {
-			_allReturnPointMetrics.emplace_back(name, f, a, u);
-			_firstReturnPointMetrics.emplace_back(name, f, a, u);
-		};
-
-		addMetric("Mean_CanopyHeight", &pmc::meanCanopy, oul::Default);
-		addMetric("StdDev_CanopyHeight", &pmc::stdDevCanopy, oul::Default);
-		addMetric("25thPercentile_CanopyHeight", &pmc::p25Canopy, oul::Default);
-		addMetric("50thPercentile_CanopyHeight", &pmc::p50Canopy, oul::Default);
-		addMetric("75thPercentile_CanopyHeight", &pmc::p75Canopy, oul::Default);
-		addMetric("95thPercentile_CanopyHeight", &pmc::p95Canopy, oul::Default);
-		addMetric("TotalReturnCount", &pmc::returnCount, oul::Unitless);
-		addMetric("CanopyCover", &pmc::canopyCover, oul::Percent);
-
-		if (_advPointCheck) {
-			addMetric("CoverAboveMean", &pmc::coverAboveMean, oul::Percent);
-			addMetric("CanopyReliefRatio", &pmc::canopyReliefRatio, oul::Unitless);
-			addMetric("CanopySkewness", &pmc::skewnessCanopy, oul::Unitless);
-			addMetric("CanopyKurtosis", &pmc::kurtosisCanopy, oul::Unitless);
-			addMetric("05thPercentile_CanopyHeight", &pmc::p05Canopy, oul::Default);
-			addMetric("10thPercentile_CanopyHeight", &pmc::p10Canopy, oul::Default);
-			addMetric("15thPercentile_CanopyHeight", &pmc::p15Canopy, oul::Default);
-			addMetric("20thPercentile_CanopyHeight", &pmc::p20Canopy, oul::Default);
-			addMetric("30thPercentile_CanopyHeight", &pmc::p30Canopy, oul::Default);
-			addMetric("35thPercentile_CanopyHeight", &pmc::p35Canopy, oul::Default);
-			addMetric("40thPercentile_CanopyHeight", &pmc::p40Canopy, oul::Default);
-			addMetric("45thPercentile_CanopyHeight", &pmc::p45Canopy, oul::Default);
-			addMetric("55thPercentile_CanopyHeight", &pmc::p55Canopy, oul::Default);
-			addMetric("60thPercentile_CanopyHeight", &pmc::p60Canopy, oul::Default);
-			addMetric("65thPercentile_CanopyHeight", &pmc::p65Canopy, oul::Default);
-			addMetric("70thPercentile_CanopyHeight", &pmc::p70Canopy, oul::Default);
-			addMetric("80thPercentile_CanopyHeight", &pmc::p80Canopy, oul::Default);
-			addMetric("85thPercentile_CanopyHeight", &pmc::p85Canopy, oul::Default);
-			addMetric("90thPercentile_CanopyHeight", &pmc::p90Canopy, oul::Default);
-			addMetric("99thPercentile_CanopyHeight", &pmc::p99Canopy, oul::Default);
-		}
-
-		const std::vector<coord_t>& strataBreaks = d._getRawParam<ParamName::metricOptions>().getStrataBreaks();
-		if (strataBreaks.size()) {
-			auto to_string_with_precision = [](coord_t v)->std::string {
-				std::ostringstream out;
-				out.precision(2);
-				out << v;
-				return out.str();
-			};
-			std::vector<std::string> stratumNames;
-			stratumNames.push_back("LessThan" + to_string_with_precision(strataBreaks[0]));
-			for (size_t i = 1; i < strataBreaks.size(); ++i) {
-				stratumNames.push_back(to_string_with_precision(strataBreaks[i - 1]) + "To" + to_string_with_precision(strataBreaks[i]));
-			}
-			stratumNames.push_back("GreaterThan" + to_string_with_precision(strataBreaks[strataBreaks.size() - 1]));
-
-			_allReturnStratumMetrics.emplace_back("StratumCover_", stratumNames, &pmc::stratumCover, a, oul::Percent);
-			_allReturnStratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &pmc::stratumPercent, a, oul::Percent);
-			_firstReturnStratumMetrics.emplace_back("StratumCover_", stratumNames, &pmc::stratumCover, a, oul::Percent);
-			_firstReturnStratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &pmc::stratumPercent, a, oul::Percent);
-		}
+		
 
 		_elevNumerator = std::make_shared<Raster<coord_t>>(a);
 		_elevDenominator = std::make_shared<Raster<coord_t>>(a);
 		_topoMetrics.push_back({ viewSlope<coord_t,metric_t>,"Slope",oul::Radian });
 		_topoMetrics.push_back({ viewAspect<coord_t,metric_t>,"Aspect",oul::Radian });
-
-		_csmMetrics.push_back({ &viewMax<csm_t>, "MaxCSM", a,oul::Default });
-		_csmMetrics.push_back({ &viewMean<csm_t>, "MeanCSM", a,oul::Default });
-		_csmMetrics.push_back({ &viewStdDev<csm_t>, "StdDevCSM", a,oul::Default });
-		_csmMetrics.push_back({ &viewRumple<csm_t>, "RumpleCSM", a,oul::Unitless });
-
-		_allReturnCalculators = std::make_shared<Raster<PointMetricCalculator>>(a);
-		_firstReturnCalculators = std::make_shared<Raster<PointMetricCalculator>>(a);
 	}
-	void Parameter<ParamName::optionalMetrics>::cleanAfterRun() {
-		_allReturnPointMetrics.clear();
-		_firstReturnPointMetrics.clear();
-		_allReturnStratumMetrics.clear();
-		_firstReturnStratumMetrics.clear();
-		_csmMetrics.clear();
+	void Parameter<ParamName::whichProducts>::cleanAfterRun() {
 		_topoMetrics.clear();
 		_elevNumerator.reset();
 		_elevDenominator.reset();
-		_allReturnCalculators.reset();
-		_firstReturnCalculators.reset();
+	}
+	bool Parameter<ParamName::whichProducts>::isDebug() const {
+		return _debugBool;
 	}
 
 	Parameter<ParamName::computerOptions>::Parameter() : _threadBoost(defaultNThread()), _perfCheck(false) {}
@@ -1610,8 +1749,7 @@ namespace lapis {
 	void Parameter<ParamName::computerOptions>::renderGui() {
 		ImGui::Text("Number of threads:");
 		ImGui::SameLine();
-		ImGui::InputText("", _threadBuffer.data(), _threadBuffer.size(), ImGuiInputTextFlags_CharsDecimal);
-		ImGui::Checkbox("Performance Mode", &_perfCheck);
+		ImGui::InputText("##nthread", _threadBuffer.data(), _threadBuffer.size(), ImGuiInputTextFlags_CharsDecimal);
 	}
 	void Parameter<ParamName::computerOptions>::importFromBoost() {
 		if (_threadBoost > 0) {
@@ -1626,6 +1764,268 @@ namespace lapis {
 		_threadCache = std::stoi(_threadBuffer.data());
 	}
 	void Parameter<ParamName::computerOptions>::cleanAfterRun() {}
+
+	Parameter<ParamName::taoOptions>::Parameter() : _minHtBoost(2), _minDistBoost(0), _idAlgoBoost("highpoint"), _segAlgoBoost("watershed") {}
+	void Parameter<ParamName::taoOptions>::addToCmd(po::options_description& visible,
+		po::options_description& hidden) {
+		hidden.add_options()(_minHtCmd.c_str(), po::value<coord_t>(&_minHtBoost), "")
+			(_minDistCmd.c_str(), po::value<coord_t>(&_minDistBoost), "")
+			(_idAlgoCmd.c_str(), po::value<std::string>(&_idAlgoBoost), "")
+			(_segAlgoCmd.c_str(), po::value<std::string>(&_segAlgoBoost), "");
+	}
+	std::ostream& Parameter<ParamName::taoOptions>::printToIni(std::ostream& o) {
+		if (_sameMinHtRadio == NOT_SAME) {
+			o << _minHtCmd << "=" << _minHtBuffer.data() << "\n";
+		}
+		o << _minDistCmd << "=" << _minDistBuffer.data() << "\n";
+
+		o << _idAlgoCmd << "=";
+		if (_idAlgoRadio == IdAlgo::highPoint) {
+			o << "highpoint";
+		}
+		o << "\n";
+
+		o << _segAlgoCmd << "=";
+		if (_segAlgoRadio == SegAlgo::watershed) {
+			o << "watershed";
+		}
+		o << "\n";
+		return o;
+	}
+	ParamCategory Parameter<ParamName::taoOptions>::getCategory() const {
+		return ParamCategory::process;
+	}
+	void Parameter<ParamName::taoOptions>::renderGui() {
+		if (!LapisData::getDataObject().doCsm()) {
+			ImGui::Text("Tree identification requires a CSM");
+			return;
+		}
+
+		ImGui::Text("Tree Identification Algorithm:");
+		ImGui::RadioButton("High Points", &_idAlgoRadio, IdAlgo::highPoint);
+		ImGui::Text("Segmentation Algorithm:");
+		ImGui::RadioButton("Watershed", &_segAlgoRadio, SegAlgo::watershed);
+
+		ImGui::Text("Minimum Distance Between Trees:");
+		ImGui::SameLine();
+		ImGui::PushItemWidth(100);
+		ImGui::InputText("##mintaodist", _minDistBuffer.data(), _minDistBuffer.size(), ImGuiInputTextFlags_CharsDecimal);
+		ImGui::PopItemWidth();
+		ImGui::SameLine();
+		ImGui::Text(getUnitsPluralName().c_str());
+
+		ImGui::Text("Minimum Tree Height:");
+		ImGui::RadioButton("Same as Point Metric Canopy Cutoff", &_sameMinHtRadio, SAME);
+		ImGui::SameLine();
+		ImGui::RadioButton("Other:##taominht", &_sameMinHtRadio, NOT_SAME);
+		ImGui::SameLine();
+		if (_sameMinHtRadio == SAME) {
+			ImGui::BeginDisabled();
+		}
+		ImGui::PushItemWidth(100);
+		ImGui::InputText("##mintaoht", _minHtBuffer.data(), _minHtBuffer.size(), ImGuiInputTextFlags_CharsDecimal);
+		ImGui::PopItemWidth();
+		if (_sameMinHtRadio == SAME) {
+			ImGui::EndDisabled();
+		}
+		ImGui::SameLine();
+		ImGui::Text(getUnitsPluralName().c_str());
+	}
+	void Parameter<ParamName::taoOptions>::importFromBoost() {
+		
+		//the first time this function is called, the default value for minHt will be copied into the buffer
+		//this should *not* cause the checkbox to flip to having a unique value
+		//However, any subsequent imports from boost indicate intentionality, and if minht is specified, that should be respected
+		if (!std::isnan(_minHtBoost)) {
+			copyToBuffer(_minHtBuffer, _minHtBoost);
+			_minHtBoost = std::nan("");
+			if (_initialSetup) {
+				_initialSetup = false;
+			}
+			else {
+				_sameMinHtRadio = NOT_SAME;
+			}
+		}
+
+		if (!std::isnan(_minDistBoost)) {
+			copyToBuffer(_minDistBuffer, _minDistBoost);
+			_minDistBoost = std::nan("");
+		}
+
+		LapisLogger& log = LapisLogger::getLogger();
+
+		if (_idAlgoBoost.size()) {
+			static std::regex highPointRegex{ ".*high.*",std::regex::icase };
+			if (std::regex_match(_idAlgoBoost, highPointRegex)) {
+				_idAlgoRadio = IdAlgo::highPoint;
+			} /*other algorithms go here*/
+			else {
+				log.logMessage("Unrecognized Tree ID Algorithm: " + _idAlgoBoost);
+			}
+			_idAlgoBoost = "";
+		}
+
+		if (_segAlgoBoost.size()) {
+			static std::regex watershedRegex{ ".*water.*",std::regex::icase };
+			if (std::regex_match(_segAlgoBoost, watershedRegex)) {
+				_segAlgoRadio = SegAlgo::watershed;
+			} /*other algorithms go here*/
+			else {
+				log.logMessage("Unrecognized Segmentation Algorithm: " + _segAlgoBoost);
+			}
+			_segAlgoBoost = "";
+		}
+
+	}
+	void Parameter<ParamName::taoOptions>::updateUnits() {
+		updateUnitsBuffer(_minHtBuffer);
+		updateUnitsBuffer(_minDistBuffer);
+	}
+	void Parameter<ParamName::taoOptions>::prepareForRun() {
+		LapisLogger& log = LapisLogger::getLogger();
+		if (_sameMinHtRadio == NOT_SAME) {
+			_minHtCache = getValueWithError(_minHtBuffer, "Min TAO Ht");
+			if (_minHtCache < 0) {
+				log.logMessage("Minimum tree height is negative. Is this intentional?");
+			}
+		}
+		else {
+			_minHtCache = 0;
+		}
+		_minDistCache = getValueWithError(_minDistBuffer, "Min TAO Dist");
+		if (_minDistCache < 0) {
+			log.logMessage("Minimum TAO Distance cannot be negative");
+			log.logMessage("Aborting");
+			LapisData::getDataObject().needAbort = true;
+			return;
+		}
+	}
+	void Parameter<ParamName::taoOptions>::cleanAfterRun() {}
+
+	Parameter<ParamName::fineIntOptions>::Parameter() {}
+	void Parameter<ParamName::fineIntOptions>::addToCmd(po::options_description& visible,
+		po::options_description& hidden) {
+		hidden.add_options()(_cellsizeCmd.c_str(), po::value<coord_t>(&_cellsizeBoost), "")
+			(_noCutoffCmd.c_str(), po::bool_switch(&_noCutoffBoost), "")
+			(_cutoffCmd.c_str(), po::value<coord_t>(&_cutoffBoost), "");
+	}
+	std::ostream& Parameter<ParamName::fineIntOptions>::printToIni(std::ostream& o) {
+		if (_cellsizeSameAsCsmRadio == NOT_SAME) {
+			o << _cellsizeCmd << "=" << _cellsizeBuffer.data() << "\n";
+		}
+		if (!_cutoffCheck) {
+			o << _noCutoffCmd.c_str() << "=\n";
+			if (_cutoffSameAsPointRadio == NOT_SAME) {
+				o << _cutoffCmd.c_str() << "=" << _cutoffBuffer.data() << "\n";
+			}
+		}
+		return o;
+	}
+	ParamCategory Parameter<ParamName::fineIntOptions>::getCategory() const {
+		return ParamCategory::process;
+	}
+	void Parameter<ParamName::fineIntOptions>::renderGui() {
+		ImGui::Text("Cellsize:");
+		ImGui::RadioButton("Same as CSM", &_cellsizeSameAsCsmRadio, SAME);
+		ImGui::SameLine();
+		ImGui::RadioButton("Other:##cellsize", &_cellsizeSameAsCsmRadio, NOT_SAME);
+		ImGui::SameLine();
+		if (_cellsizeSameAsCsmRadio == SAME) {
+			ImGui::BeginDisabled();
+		}
+		ImGui::PushItemWidth(100);
+		ImGui::InputText("##fineintcellsize", _cellsizeBuffer.data(), _cellsizeBuffer.size(), ImGuiInputTextFlags_CharsDecimal);
+		ImGui::PopItemWidth();
+		if (_cellsizeSameAsCsmRadio == SAME) {
+			ImGui::EndDisabled();
+		}
+		ImGui::SameLine();
+		ImGui::Text(getUnitsPluralName().c_str());
+
+		ImGui::Dummy(ImVec2(0,10));
+		ImGui::Text("Height Cutoff:");
+		ImGui::Checkbox("Use Returns Above a Certain Height", &_cutoffCheck);
+		if (_cutoffCheck) {
+			ImGui::RadioButton("Same as Point Metric Canopy Cutoff", &_cutoffSameAsPointRadio, SAME);
+			ImGui::SameLine();
+			ImGui::RadioButton("Other:##cutoff", &_cutoffSameAsPointRadio, NOT_SAME);
+			ImGui::SameLine();
+			if (_cutoffSameAsPointRadio == SAME) {
+				ImGui::BeginDisabled();
+			}
+			ImGui::PushItemWidth(100);
+			ImGui::InputText("##fineintcutoff", _cutoffBuffer.data(), _cutoffBuffer.size(), ImGuiInputTextFlags_CharsDecimal);
+			ImGui::PopItemWidth();
+			if (_cutoffSameAsPointRadio == SAME) {
+				ImGui::EndDisabled();
+			}
+			ImGui::SameLine();
+			ImGui::Text(getUnitsPluralName().c_str());
+		}
+	}
+	void Parameter<ParamName::fineIntOptions>::importFromBoost() {
+		_cutoffCheck = !_noCutoffBoost;
+
+		if (!std::isnan(_cutoffBoost)) {
+			copyToBuffer(_cutoffBuffer, _cutoffBoost);
+			if (!_initialSetup) {
+				_cutoffSameAsPointRadio = NOT_SAME;
+			}
+			_cutoffBoost = std::nan("");
+		}
+		if (!std::isnan(_cellsizeBoost)) {
+			copyToBuffer(_cellsizeBuffer, _cellsizeBoost);
+			if (!_initialSetup) {
+				_cellsizeSameAsCsmRadio = NOT_SAME;
+			}
+			_cellsizeBoost = std::nan("");
+		}
+		_initialSetup = false;
+	}
+	void Parameter<ParamName::fineIntOptions>::updateUnits() {
+		updateUnitsBuffer(_cellsizeBuffer);
+		updateUnitsBuffer(_cutoffBuffer);
+	}
+	void Parameter<ParamName::fineIntOptions>::prepareForRun() {
+		if (_fineIntAlign) {
+			return;
+		}
+		LapisLogger& log = LapisLogger::getLogger();
+		LapisData& d = LapisData::getDataObject();
+
+		if (_cutoffCheck) {
+			_cutoffCache = getValueWithError(_cutoffBuffer, "Fine Intensity Cutoff");
+			if (_cutoffCache < 0) {
+				log.logMessage("Fine Intensity cutoff is negative. Is this intentional?");
+			}
+		}
+		else {
+			_cutoffCache = std::numeric_limits<coord_t>::lowest();
+		}
+
+		coord_t cellsize = 1;
+		if (_cellsizeSameAsCsmRadio == SAME) {
+			auto& p = d._getRawParam<ParamName::csmOptions>();
+			p.prepareForRun();
+			const Alignment& a = *d.csmAlign();
+			cellsize = a.xres();
+		}
+		else {
+			cellsize = getValueWithError(_cellsizeBuffer, "Fine Intensity Cellsize");
+			if (cellsize <= 0) {
+				log.logMessage("Fine Intensity Cellsize is Negative");
+				log.logMessage("Aborting");
+				d.needAbort = true;
+				return;
+			}
+		}
+
+		const Alignment& a = d._getRawParam<ParamName::alignment>().getFullAlignment();
+		_fineIntAlign = std::make_unique<Alignment>((Extent)a, a.xOrigin(), a.yOrigin(), cellsize, cellsize);
+	}
+	void Parameter<ParamName::fineIntOptions>::cleanAfterRun() {
+		_fineIntAlign.reset();
+	}
 
 	std::set<std::string>& LasDemSpecifics::getFileSpecsSet() {
 		return fileSpecsSet;

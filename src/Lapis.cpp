@@ -57,6 +57,7 @@ int APIENTRY WinMain(
 	_In_ LPSTR lpCmdLine,
 	_In_ int nShowCmd
 ) {
+
 	bool attachResult = AttachConsole(ATTACH_PARENT_PROCESS);
 	if (!attachResult) { //there is no parent console. Just open the GUI
 		renderFullGui();

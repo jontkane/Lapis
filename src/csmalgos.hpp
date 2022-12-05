@@ -33,8 +33,12 @@ namespace lapis {
 
 
 	//identifies the high points/TAOs present in this CSM
-	//the ids produced by this function will be guaranteed to have a remainder of thistile when divided by nTiles, in order to produce unique TAO IDs across multiple tiles.
 	std::vector<cell_t> identifyHighPoints(const Raster<csm_t>& csm, csm_t canopyCutoff);
+
+	//this is similar to identfyHighPoints, but the points returned are guaranteed to be at least minDist away from each other
+	//this runs in O(n)+O(m*log(m)), where n is the number of cells in the csm and m is the number of candidate high points
+	//this is probably improvable to O(n+m) but with much worse coefficients; may or may not be worth it since m will be so much smaller than n
+	std::vector<cell_t> identifyHighPointsWithMinDist(const Raster<csm_t>& csm, csm_t canopyCutoff, coord_t minDist);
 
 	//returns a segmented and labeled raster
 	//Theres's a few constraints here:

@@ -75,7 +75,7 @@ namespace lapis {
 		LapisGuiObjects& lgo = LapisGuiObjects::getGuiObjects();
 
 		if (!lgo.isRunning()) {
-			d.importBoostAndUpdateUnits();
+			d.updateUnits();
 			d.setPrevUnits(d.getCurrentUnits());
 			if (ImGui::BeginTabItem("Run")) {
 				runTab();
@@ -101,12 +101,12 @@ namespace lapis {
 				}
 				ImGui::EndTabItem();
 			}
-			if (ImGui::BeginTabItem("Computer Options")) {
-				d.renderGui(ParamName::computerOptions);
-				ImGui::EndTabItem();
-			}
 			if (ImGui::BeginTabItem("Processing Options")) {
 				processingOptions();
+				ImGui::EndTabItem();
+			}
+			if (ImGui::BeginTabItem("Product Options")) {
+				productOptions();
 				ImGui::EndTabItem();
 			}
 		}
@@ -160,7 +160,6 @@ namespace lapis {
 	void processingOptions()
 	{
 		LapisData& d = LapisData::getDataObject();
-		LapisGuiObjects& lgo = LapisGuiObjects::getGuiObjects();
 
 		ImGui::BeginChild("units", getRegionSize(0), true, 0);
 		d.renderGui(ParamName::outUnits);
@@ -171,23 +170,50 @@ namespace lapis {
 		d.renderGui(ParamName::alignment);
 		ImGui::EndChild();
 
-		ImGui::BeginChild("csm", getRegionSize(2), true, 0);
-		d.renderGui(ParamName::csmOptions);
+		ImGui::BeginChild("filter", getRegionSize(2), true, 0);
+		d.renderGui(ParamName::filters);
 		ImGui::EndChild();
 
 		ImGui::SameLine();
-		ImGui::BeginChild("metric", getRegionSize(3), true, 0);
-		d.renderGui(ParamName::metricOptions);
+		ImGui::BeginChild("computer", getRegionSize(3), true, 0);
+		d.renderGui(ParamName::computerOptions);
+		ImGui::EndChild();
+	}
+
+	void productOptions()
+	{
+		//check boxes for what to compute at the top
+		//then tabs for each of those to customize them
+		LapisData& d = LapisData::getDataObject();
+
+		ImGui::BeginChild("products", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y * 0.5f), true, 0);
+		d.renderGui(ParamName::whichProducts);
 		ImGui::EndChild();
 
-		ImGui::BeginChild("filter", getRegionSize(4), true, 0);
-		d.renderGui(ParamName::filterOptions);
-		ImGui::EndChild();
+		ImGui::BeginTabBar("producttabs");
 
-		ImGui::SameLine();
-		ImGui::BeginChild("optional", getRegionSize(5), true, 0);
-		d.renderGui(ParamName::optionalMetrics);
-		ImGui::EndChild();
+		if (d.doPointMetrics() && ImGui::BeginTabItem("Point Metrics")) {
+			d.renderGui(ParamName::pointMetricOptions);
+			ImGui::EndTabItem();
+		}
+		if (d.doCsm() && ImGui::BeginTabItem("Canopy Surface Model")) {
+			d.renderGui(ParamName::csmOptions);
+			ImGui::EndTabItem();
+		}
+		if (d.doTaos() && ImGui::BeginTabItem("Tree ID")) {
+			d.renderGui(ParamName::taoOptions);
+			ImGui::EndTabItem();
+		}
+		if (d.doTopo() && ImGui::BeginTabItem("Topography")) {
+			//d.renderGui(ParamName::topo);
+			ImGui::EndTabItem();
+		}
+		if (d.doFineInt() && ImGui::BeginTabItem("Fine-Scale Intensity")) {
+			d.renderGui(ParamName::fineIntOptions);
+			ImGui::EndTabItem();
+		}
+
+		ImGui::EndTabBar();
 	}
 
 	ImVec2 getRegionSize(int i) {

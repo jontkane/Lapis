@@ -262,4 +262,65 @@ namespace lapis {
 
 		return out;
 	}
+
+	std::vector<cell_t> identifyHighPointsWithMinDist(const Raster<csm_t>& csm, csm_t canopyCutoff, coord_t minDist) {
+
+		std::vector<cell_t> candidates = identifyHighPoints(csm, canopyCutoff);
+		if (minDist <= 0) {
+			return candidates;
+		}
+
+		struct CellValue {
+			csm_t value;
+			cell_t cell;
+		};
+		std::vector<CellValue> sortableValues;
+		sortableValues.reserve(candidates.size());
+
+		for (cell_t cell : candidates) {
+			auto v = csm[cell];
+			sortableValues.emplace_back(v.value(), cell);
+		}
+		std::sort(sortableValues.begin(), sortableValues.end(), [](auto& a, auto& b) {return a.value > b.value; });
+
+		Raster<bool> masked{ (Alignment)csm }; //this raster's values will be true for pixels which don't qualify as high points because they're too close to another high points
+
+		struct RelativePosition {
+			rowcol_t x, y;
+		};
+		std::vector<RelativePosition> circle;
+
+		rowcol_t maxPixels = (rowcol_t)std::ceil(std::abs(minDist / csm.xres()));
+		circle.reserve((size_t)maxPixels * maxPixels);
+
+		coord_t minDistPixSq = (minDist / csm.xres()) * (minDist / csm.xres());
+		for (rowcol_t r = -maxPixels; r <= maxPixels; ++r) {
+			for (rowcol_t c = -maxPixels; c <= maxPixels; ++c) {
+				if (r * r + c * c < minDistPixSq) {
+					circle.emplace_back(c, r);
+				}
+			}
+		}
+
+		std::vector<cell_t> out;
+
+		for (CellValue& candidate : sortableValues) {
+			if (!masked[candidate.cell].value()) {
+				out.push_back(candidate.cell);
+				
+				rowcol_t thisRow = masked.rowFromCellUnsafe(candidate.cell);
+				rowcol_t thisCol = masked.colFromCellUnsafe(candidate.cell);
+				for (RelativePosition& rp : circle) {
+					rowcol_t row = thisRow + rp.y;
+					rowcol_t col = thisCol + rp.x;
+					if (row < 0 || row >= masked.nrow() || col < 0 || col >= masked.ncol()) {
+						continue;
+					}
+					masked.atRCUnsafe(row, col).value() = true;
+				}
+			}
+		}
+
+		return out;
+	}
 }

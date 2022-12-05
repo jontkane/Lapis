@@ -63,7 +63,9 @@ namespace lapis {
 		if (incrementMessage.contains(_currentTask)) {
 			std::cout << incrementMessage[_currentTask] << _currentOutOfTotal << "/" << _totalForTask;
 		}
-		_updateIncStr();
+		if (_totalForTask > 0) {
+			_updateIncStr();
+		}
 	}
 	void LapisLogger::logMessage(const std::string& s)
 	{

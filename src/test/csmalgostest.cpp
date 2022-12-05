@@ -78,4 +78,27 @@ namespace lapis {
 		EXPECT_TRUE(expectedCells.contains(pointtwo));
 		EXPECT_NE(pointone, pointtwo);
 	}
+
+	TEST(CsmAlgosTest, identifyHighPointsWithMinDistTest) {
+		Raster<csm_t> r{ Alignment(Extent(0,3,0,3),3,3) };
+		for (cell_t cell = 0; cell < r.ncell(); ++cell) {
+			r[cell].has_value() = true;
+			r[cell].value() = 5;
+		}
+		r[0].value() = 7;
+		r[2].value() = 6;
+		r[6].value() = 6;
+		r[8].value() = 7;
+
+		auto highpoints = identifyHighPointsWithMinDist(r, 2, 2.1);
+		EXPECT_EQ(highpoints.size(), 2);
+
+		auto& pointone = highpoints[0];
+		auto& pointtwo = highpoints[1];
+
+		std::set<cell_t> expectedCells = { 0,8 };
+		EXPECT_TRUE(expectedCells.contains(pointone));
+		EXPECT_TRUE(expectedCells.contains(pointtwo));
+		EXPECT_NE(pointone, pointtwo);
+	}
 }
