@@ -205,7 +205,7 @@ namespace lapis {
 			ImGui::EndTabItem();
 		}
 		if (d.doTopo() && ImGui::BeginTabItem("Topography")) {
-			//d.renderGui(ParamName::topo);
+			d.renderGui(ParamName::topoOptions);
 			ImGui::EndTabItem();
 		}
 		if (d.doFineInt() && ImGui::BeginTabItem("Fine-Scale Intensity")) {
@@ -395,7 +395,6 @@ namespace lapis {
 				ImGui::Text("No issues detected.");
 			}
 		}
-
 
 		ImGui::EndChild();
 		

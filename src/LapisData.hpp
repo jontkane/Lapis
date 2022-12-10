@@ -3,14 +3,11 @@
 #define LAPISDATA_H
 
 #include"app_pch.hpp"
-#include"LapisParameters.hpp"
+#include"ParameterBase.hpp"
 #include"LapisUtils.hpp"
 #include"MetricTypeDefs.hpp"
 
 namespace lapis {
-
-	template<class T>
-	using shared_raster = std::shared_ptr<Raster<T>>;
 
 	class LapisData {
 
@@ -31,6 +28,8 @@ namespace lapis {
 		void setPrevUnits(const Unit& u);
 		const Unit& getCurrentUnits() const;
 		const Unit& getPrevUnits() const;
+		const std::string& getUnitSingular() const;
+		const std::string& getUnitPlural() const;
 		void importBoostAndUpdateUnits();
 
 		void updateUnits();
@@ -39,9 +38,10 @@ namespace lapis {
 		void cleanAfterRun();
 		void resetObject();
 
+		Extent fullExtent();
+		const CoordRef& userCrs();
 		std::shared_ptr<Alignment> metricAlign();
 		std::shared_ptr<Alignment> csmAlign();
-
 		std::shared_ptr<Alignment> fineIntAlign();
 
 		
@@ -85,8 +85,8 @@ namespace lapis {
 		coord_t minTaoDist();
 		const std::vector<coord_t>& strataBreaks();
 
-		const std::filesystem::path& outFolder();
-		const std::string& name();
+		std::filesystem::path outFolder();
+		std::string name();
 
 		coord_t fineIntCanopyCutoff();
 
@@ -97,8 +97,12 @@ namespace lapis {
 		bool doTaos();
 		bool doFineInt();
 		bool doTopo();
+		bool doStratumMetrics();
 
 		bool isDebugNoAlloc();
+		bool isDebugNoAlign();
+		bool isDebugNoOutput();
+		bool isAnyDebug();
 
 		enum class ParseResults {
 			invalidOpts, helpPrinted, validOpts, guiRequested
@@ -144,11 +148,14 @@ namespace lapis {
 
 		void reportFailedLas(const std::string& s);
 
+		const int maxLapisFileName = 75;
+#ifdef _WIN32
+		const int maxTotalFilePath = 250;
+#else
+		const int maxTotalFilePath = 4000;
+#endif
 
 	private:
-
-		template<ParamName N>
-		friend class Parameter;
 
 		LapisData();
 		std::vector<std::unique_ptr<ParamBase>> _params;
@@ -174,13 +181,6 @@ namespace lapis {
 		void _checkLasDemOverlap(DataIssues& di, const std::set<LasFileExtent>& las, const std::set<DemFileAlignment>& dem);
 
 		void _checkSampleLas(DataIssues& di, const std::string& filename, const std::set<DemFileAlignment>& demSet);
-
-		const int maxLapisFileName = 75;
-#ifdef _WIN32
-		const int maxTotalFilePath = 250;
-#else
-		const int maxTotalFilePath = 4000;
-#endif
 	};
 
 	template<ParamName N>

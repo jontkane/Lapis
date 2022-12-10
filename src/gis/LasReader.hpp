@@ -55,7 +55,7 @@ namespace lapis {
 		//This function adds a raster to the list of DTMs for this las
 		//Extent checking is done to ensure that as little data as possible is read
 		//The DTMs will be used in a priority order with the finest resolutions first
-		void addDEM(const std::string& file, const CoordRef& crsOverride = CoordRef(), const Unit& unitOverride = linearUnitDefs::unkLinear);
+		void addDEM(const std::string& file, const CoordRef& crsOverride = CoordRef(), const Unit& unitOverride = LinearUnitDefs::unkLinear);
 
 		//Returns a raster which is a resampling of the internal DEMs to the given alignment
 		//As with point normalization, finer-resolution DEMs are preferred

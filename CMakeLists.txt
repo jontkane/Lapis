@@ -71,6 +71,9 @@ set(LAPIS_APP_SOURCES
 		src/LapisData.hpp
 		src/LapisData.cpp
 		src/MetricTypeDefs.hpp
+		src/ParameterBase.hpp
+		src/CommonGuiElements.hpp
+		src/CommonGuiElements.cpp
 		)
 
 set(LAPIS_TEST_SOURCES

@@ -266,17 +266,42 @@ namespace lapis {
 	{
 		shared_raster<PointMetricCalculator> pmc = data->allReturnPMC();
 		shared_raster<PointMetricCalculator> frpmc = data->firstReturnPMC();
-		for (auto& p : points) {
-			if (!pmc->strictContains(p.x, p.y)) {
-				continue;
-			}
-			cell_t cell = pmc->cellFromXYUnsafe(p.x, p.y);
 
-			std::lock_guard lock{ data->cellMutex(cell) };
-			if (pmc) {
+		//this structure is kind of ugly and has copy/pasted code, but it guarantees that inside the core loop, only the code you actually care about in a given run is present
+		//skipping a *lot* of if checks in a very time-intensive part of the run
+		if (frpmc && pmc) {
+			for (auto& p : points) {
+				if (!pmc->strictContains(p.x, p.y)) {
+					continue;
+				}
+				cell_t cell = pmc->cellFromXYUnsafe(p.x, p.y);
+
+				std::lock_guard lock{ data->cellMutex(cell) };
+				pmc->atCellUnsafe(cell).value().addPoint(p);
+				if (p.returnNumber == 1) {
+					frpmc->atCellUnsafe(cell).value().addPoint(p);
+				}
+			}
+		}
+		else if (pmc) {
+			for (auto& p : points) {
+				if (!pmc->strictContains(p.x, p.y)) {
+					continue;
+				}
+				cell_t cell = pmc->cellFromXYUnsafe(p.x, p.y);
+
+				std::lock_guard lock{ data->cellMutex(cell) };
 				pmc->atCellUnsafe(cell).value().addPoint(p);
 			}
-			if (frpmc) {
+		}
+		else if (frpmc) {
+			for (auto& p : points) {
+				if (!pmc->strictContains(p.x, p.y)) {
+					continue;
+				}
+				cell_t cell = pmc->cellFromXYUnsafe(p.x, p.y);
+
+				std::lock_guard lock{ data->cellMutex(cell) };
 				if (p.returnNumber == 1) {
 					frpmc->atCellUnsafe(cell).value().addPoint(p);
 				}
@@ -543,7 +568,7 @@ namespace lapis {
 				++soFar;
 			}
 			LAPIS_CHECK_ABORT;
-			coord_t bufferDist = convertUnits(30, linearUnitDefs::meter, _layout.crs().getXYUnits());
+			coord_t bufferDist = convertUnits(30, LinearUnitDefs::meter, _layout.crs().getXYUnits());
 			std::shared_ptr<Alignment> metricAlign = data->metricAlign();
 			std::shared_ptr<Alignment> csmAlign = data->csmAlign();
 			bufferDist = std::max(std::max(metricAlign->xres(), metricAlign->yres()), bufferDist);

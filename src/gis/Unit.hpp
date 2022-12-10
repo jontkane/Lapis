@@ -35,29 +35,16 @@ namespace lapis {
 			return type == unitType::linear;
 		}
 	};
-	namespace linearUnitDefs {
+	namespace LinearUnitDefs {
 		const Unit meter{ "metre",1.,unitType::linear,unitStatus::setByUser };
 		const Unit foot{ "foot",0.3048,unitType::linear,unitStatus::setByUser };
 		const Unit surveyFoot{ "US survey foot",0.30480060960122,unitType::linear,unitStatus::setByUser };
 		const Unit unkLinear{ "unknown",1.,unitType::linear,unitStatus::unknown };
 	}
 
-	namespace areaUnitDefs {
-		const Unit sqMeter{ "square metre",1.,unitType::area,unitStatus::setByUser };
-		const Unit sqIntlFoot{ "square foot",0.09290304,unitType::area,unitStatus::setByUser };
-		const Unit sqSurveyFoot{ "square US survey foot",0.09290341161,unitType::area,unitStatus::setByUser };
-		const Unit hectare{ "hectare",10000.,unitType::area,unitStatus::setByUser };
-		const Unit acre{ "acre",4046.8564224,unitType::area,unitStatus::setByUser };
-		const Unit surveyAcre{ "US survey acre",4046.87260973 ,unitType::area,unitStatus::setByUser };
-	}
-
 	inline bool operator==(const Unit& lhs, const Unit& rhs) {
 		//Not checking that the name strings are identical because I don't care about the difference between 'meter' and 'metre'
 		return (lhs.convFactor == rhs.convFactor) && (lhs.type == rhs.type) && (lhs.isUnknown() == rhs.isUnknown());
-	}
-
-	inline Unit linearToArea(Unit linear) {
-		return Unit("square " + linear.name, linear.convFactor * linear.convFactor, unitType::area, linear.status);
 	}
 
 	inline coord_t convertUnits(coord_t value, const Unit& src, const Unit& dst) {
@@ -74,16 +61,16 @@ namespace lapis {
 		std::regex surveyfoot{ ".*us.*" };
 		std::regex intlfoot{ ".*f.*" };
 		if (std::regex_match(name, meter)) {
-			*this = linearUnitDefs::meter;
+			*this = LinearUnitDefs::meter;
 		}
 		else if (std::regex_match(name, surveyfoot)) {
-			*this = linearUnitDefs::surveyFoot;
+			*this = LinearUnitDefs::surveyFoot;
 		}
 		else if (std::regex_match(name, intlfoot)) {
-			*this = linearUnitDefs::foot;
+			*this = LinearUnitDefs::foot;
 		}
 		else {
-			*this = linearUnitDefs::unkLinear;
+			*this = LinearUnitDefs::unkLinear;
 		}
 	}
 }

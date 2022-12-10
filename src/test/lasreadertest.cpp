@@ -30,7 +30,7 @@ namespace lapis{
 		std::string file = std::string(LAPISTESTFILES) + "largelaz.laz";
 		
 		LasReader lr{ file };
-		lr.setHeightLimits(1284, 1421, linearUnitDefs::unkLinear); //all correctly-read points will get through but if values start reading garbage they'll fail this
+		lr.setHeightLimits(1284, 1421, LinearUnitDefs::unkLinear); //all correctly-read points will get through but if values start reading garbage they'll fail this
 		
 		auto points = lr.getPoints(lr.nPoints());
 		EXPECT_EQ(points.size(), 169873);

@@ -45,7 +45,7 @@ namespace lapis {
 			, "4269"
 		};
 		std::vector<Unit> expected = {
-			linearUnitDefs::unkLinear
+			LinearUnitDefs::unkLinear
 			, Unit{"US survey foot",0.30480060960122,unitType::linear, unitStatus::statedInCRS}
 			, Unit{"metre",1.,unitType::linear,unitStatus::statedInCRS }
 			, Unit{"US survey foot",0.30480060960122,unitType::linear, unitStatus::statedInCRS}
@@ -65,19 +65,19 @@ namespace lapis {
 	TEST(CoordRefTest, zUnits) {
 		std::vector<CoordRef> source = {
 			""
-			, CoordRef("",linearUnitDefs::foot)
+			, CoordRef("",LinearUnitDefs::foot)
 			, "2927"
 			, "2927+5703"
-			, CoordRef("2927",linearUnitDefs::meter)
+			, CoordRef("2927",LinearUnitDefs::meter)
 			, "4269"
 		};
 		std::vector<Unit> expected = {
-			linearUnitDefs::unkLinear
-			, linearUnitDefs::foot
+			LinearUnitDefs::unkLinear
+			, LinearUnitDefs::foot
 			, Unit{"US survey foot",0.30480060960122,unitType::linear, unitStatus::inferredFromCRS}
 			, Unit{ "metre",1.,unitType::linear,unitStatus::statedInCRS }
-			, linearUnitDefs::meter
-			, linearUnitDefs::unkLinear
+			, LinearUnitDefs::meter
+			, LinearUnitDefs::unkLinear
 		};
 
 		for (int i = 0; i < source.size(); ++i) {
@@ -120,8 +120,8 @@ namespace lapis {
 			, "2927+5703"
 			, "4269"
 			, "6340+5702"
-			, CoordRef("6340",linearUnitDefs::meter)
-			, CoordRef("6340+5703",linearUnitDefs::foot)
+			, CoordRef("6340",LinearUnitDefs::meter)
+			, CoordRef("6340+5703",LinearUnitDefs::foot)
 		};
 		std::vector<bool> expected = {
 			true

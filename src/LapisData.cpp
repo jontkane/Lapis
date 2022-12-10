@@ -1,6 +1,7 @@
 #include"app_pch.hpp"
 #include"LapisData.hpp"
 #include"LapisLogger.hpp"
+#include"LapisParameters.hpp"
 
 namespace lapis {
 
@@ -22,7 +23,7 @@ namespace lapis {
 
 		constexpr ParamName FIRSTPARAM = (ParamName)0;
 		_addParam<FIRSTPARAM>();
-		_prevUnits = linearUnitDefs::meter;
+		_prevUnits = LinearUnitDefs::meter;
 		for (size_t i = 0; i < _params.size(); ++i) {
 			_params[i]->importFromBoost();
 		}
@@ -37,12 +38,19 @@ namespace lapis {
 	}
 	const Unit& LapisData::getCurrentUnits() const
 	{
-		auto& p = _getRawParam<ParamName::outUnits>();
-		return ParamBase::unitRadioOrder[p._radio];
+		return _getRawParam<ParamName::outUnits>().unit();
 	}
 	const Unit& LapisData::getPrevUnits() const
 	{
 		return _prevUnits;
+	}
+	const std::string& LapisData::getUnitSingular() const
+	{
+		return _getRawParam<ParamName::outUnits>().unitSingularName();
+	}
+	const std::string& LapisData::getUnitPlural() const
+	{
+		return _getRawParam<ParamName::outUnits>().unitPluralName();
 	}
 	void LapisData::importBoostAndUpdateUnits()
 	{
@@ -54,17 +62,18 @@ namespace lapis {
 			_params[i]->importFromBoost();
 		}
 	}
-
 	void LapisData::updateUnits() {
 		for (size_t i = 0; i < _params.size(); ++i) {
 			_params[i]->updateUnits();
 		}
 		setPrevUnits(getCurrentUnits());
 	}
-
 	void LapisData::prepareForRun()
 	{
 		for (size_t i = 0; i < _params.size(); ++i) {
+#ifndef NDEBUG
+			LapisLogger::getLogger().logMessage("Preparing parameter: " + std::to_string(i));
+#endif
 			_params[i]->prepareForRun();
 			if (needAbort) {
 				return;
@@ -95,8 +104,11 @@ namespace lapis {
 				message << "Hard drive space available: " << avail << " GB";
 				log.logMessage(message.str());
 		}
-	}
 
+		if (isAnyDebug()) {
+			needAbort = true;
+		}
+	}
 	void LapisData::cleanAfterRun()
 	{
 		for (size_t i = 0; i < _params.size(); ++i) {
@@ -105,12 +117,11 @@ namespace lapis {
 		_cellMuts.reset();
 		needAbort = false;
 	}
-
 	void LapisData::resetObject() {
 		_params.clear();
 		constexpr ParamName FIRSTPARAM = (ParamName)0;
 		_addParam<FIRSTPARAM>();
-		_prevUnits = linearUnitDefs::meter;
+		_prevUnits = LinearUnitDefs::meter;
 		_cellMuts.reset();
 		for (size_t i = 0; i < _params.size(); ++i) {
 			_params[i]->importFromBoost();
@@ -118,234 +129,212 @@ namespace lapis {
 		needAbort = false;
 	}
 
+	Extent LapisData::fullExtent()
+	{
+		return _getRawParam<ParamName::las>().getFullExtent();
+	}
+
+	const CoordRef& LapisData::userCrs()
+	{
+		return _getRawParam<ParamName::alignment>().getCurrentOutCrs();
+	}
+
 	std::shared_ptr<Alignment> LapisData::metricAlign()
 	{
-		return _getRawParam<ParamName::alignment>()._align;
+		return _getRawParam<ParamName::alignment>().metricAlign();
 	}
-
 	std::shared_ptr<Alignment> LapisData::csmAlign()
 	{
-		return _getRawParam<ParamName::csmOptions>()._csmAlign;
+		return _getRawParam<ParamName::csmOptions>().csmAlign();
 	}
-
 	std::shared_ptr<Alignment> LapisData::fineIntAlign() {
-		return _getRawParam<ParamName::fineIntOptions>()._fineIntAlign;
+		return _getRawParam<ParamName::fineIntOptions>().fineIntAlign();
 	}
-
 	shared_raster<int> LapisData::nLazRaster()
 	{
-		return _getRawParam<ParamName::alignment>()._nLaz;
+		return _getRawParam<ParamName::alignment>().nLaz();
 	}
-
 	shared_raster<PointMetricCalculator> LapisData::allReturnPMC()
 	{
-		return _getRawParam<ParamName::pointMetricOptions>()._allReturnCalculators;
+		return _getRawParam<ParamName::pointMetricOptions>().allReturnCalculators();
 	}
-
 	shared_raster<PointMetricCalculator> LapisData::firstReturnPMC()
 	{
-		return _getRawParam<ParamName::pointMetricOptions>()._firstReturnCalculators;
+		return _getRawParam<ParamName::pointMetricOptions>().firstReturnCalculators();
 	}
-
 	std::mutex& LapisData::cellMutex(cell_t cell)
 	{
 		return (*_cellMuts)[cell % _cellMutCount];
 	}
-
 	std::mutex& LapisData::globalMutex()
 	{
 		return _globalMut;
 	}
-
 	std::vector<PointMetricRaster>& LapisData::allReturnPointMetrics()
 	{
-		return _getRawParam<ParamName::pointMetricOptions>()._allReturnPointMetrics;
+		return _getRawParam<ParamName::pointMetricOptions>().allReturnPointMetrics();
 	}
-
 	std::vector<PointMetricRaster>& LapisData::firstReturnPointMetrics()
 	{
-		return _getRawParam<ParamName::pointMetricOptions>()._firstReturnPointMetrics;
+		return _getRawParam<ParamName::pointMetricOptions>().firstReturnPointMetrics();
 	}
-
 	std::vector<StratumMetricRasters>& LapisData::allReturnStratumMetrics()
 	{
-		return _getRawParam<ParamName::pointMetricOptions>()._allReturnStratumMetrics;
+		return _getRawParam<ParamName::pointMetricOptions>().allReturnStratumMetrics();
 	}
-
 	std::vector<StratumMetricRasters>& LapisData::firstReturnStratumMetrics()
 	{
-		return _getRawParam<ParamName::pointMetricOptions>()._firstReturnStratumMetrics;
+		return _getRawParam<ParamName::pointMetricOptions>().firstReturnStratumMetrics();
 	}
-
 	std::vector<CSMMetric>& LapisData::csmMetrics()
 	{
-		return _getRawParam<ParamName::csmOptions>()._csmMetrics;
+		return _getRawParam<ParamName::csmOptions>().csmMetrics();
 	}
-
 	std::vector<TopoMetric>& LapisData::topoMetrics()
 	{
-		return _getRawParam<ParamName::whichProducts>()._topoMetrics;
+		return _getRawParam<ParamName::topoOptions>().topoMetrics();
 	}
-
 	shared_raster<coord_t> LapisData::elevNum()
 	{
-		return _getRawParam<ParamName::whichProducts>()._elevNumerator;
+		return _getRawParam<ParamName::topoOptions>().elevNumerator();
 	}
-
 	shared_raster<coord_t> LapisData::elevDenom()
 	{
-		return _getRawParam<ParamName::whichProducts>()._elevDenominator;
+		return _getRawParam<ParamName::topoOptions>().elevDenominator();
 	}
-
 	const std::vector<std::shared_ptr<LasFilter>>& LapisData::filters()
 	{
-		return _getRawParam<ParamName::filters>()._filters;
+		return _getRawParam<ParamName::filters>().filters();
 	}
-
 	coord_t LapisData::minHt()
 	{
-		return _getRawParam<ParamName::filters>()._minhtCache;
+		return _getRawParam<ParamName::filters>().minht();
 	}
-
 	coord_t LapisData::maxHt()
 	{
-		return _getRawParam<ParamName::filters>()._maxhtCache;
+		return _getRawParam<ParamName::filters>().maxht();
 	}
-
 	const CoordRef& LapisData::lasCrsOverride()
 	{
-		return _getRawParam<ParamName::lasOverride>()._spec.crs;
+		return _getRawParam<ParamName::lasOverride>().crs();
 	}
-
 	const CoordRef& LapisData::demCrsOverride()
 	{
-		return _getRawParam<ParamName::demOverride>()._spec.crs;
+		return _getRawParam<ParamName::demOverride>().crs();
 	}
-
 	const Unit& LapisData::lasUnitOverride()
 	{
-		return _getRawParam<ParamName::lasOverride>()._spec.crs.getZUnits();
+		return _getRawParam<ParamName::lasOverride>().zUnits();
 	}
-
 	const Unit& LapisData::demUnitOverride()
 	{
-		return _getRawParam<ParamName::demOverride>()._spec.crs.getZUnits();
+		return _getRawParam<ParamName::demOverride>().zUnits();
 	}
-
 	coord_t LapisData::footprintDiameter()
 	{
-		return _getRawParam<ParamName::csmOptions>()._footprintDiamCache;
+		return _getRawParam<ParamName::csmOptions>().footprintDiameter();
 	}
-
 	int LapisData::smooth()
 	{
-		return _getRawParam<ParamName::csmOptions>()._smooth;
+		return _getRawParam<ParamName::csmOptions>().smooth();
 	}
-
 	const std::vector<LasFileExtent>& LapisData::sortedLasList()
 	{
-		return _getRawParam<ParamName::las>()._fileExtents;
+		return _getRawParam<ParamName::las>().sortedLasExtents();
 	}
-
 	const std::set<DemFileAlignment>& LapisData::demList()
 	{
-		return _getRawParam<ParamName::dem>()._fileAligns;
+		return _getRawParam<ParamName::dem>().demList();
 	}
-
 	int LapisData::nThread()
 	{
-		return _getRawParam<ParamName::computerOptions>()._threadCache;
+		return _getRawParam<ParamName::computerOptions>().nThread();
 	}
-
 	coord_t LapisData::binSize()
 	{
-		bool perf = _getRawParam<ParamName::computerOptions>()._perfCheck;
-		coord_t x = perf ? 0.1 : 0.01;
-		x = convertUnits(x, linearUnitDefs::meter, getCurrentUnits());
-		return x;
+		return convertUnits(0.01, LinearUnitDefs::meter, getCurrentUnits());
 	}
-
 	size_t LapisData::tileFileSize()
 	{
 		return 500ll * 1024 * 1024; //500 MB
 	}
-
 	coord_t LapisData::canopyCutoff()
 	{
-		return _getRawParam<ParamName::pointMetricOptions>()._canopyCache;
+		return _getRawParam<ParamName::pointMetricOptions>().canopyCutoff();
 	}
-
 	coord_t LapisData::minTaoHt() {
-		auto& p = _getRawParam<ParamName::taoOptions>();
-		return p._sameMinHtRadio == p.SAME ? canopyCutoff() : p._minHtCache;
+		return _getRawParam<ParamName::taoOptions>().minTaoHt();
 	}
-
 	coord_t LapisData::minTaoDist() {
-		return _getRawParam<ParamName::taoOptions>()._minDistCache;
+		return _getRawParam<ParamName::taoOptions>().minTaoDist();
 	}
-
 	const std::vector<coord_t>& LapisData::strataBreaks()
 	{
-		return _getRawParam<ParamName::pointMetricOptions>()._strataCache;
+		static std::vector<coord_t> empty;
+		return doStratumMetrics() ? _getRawParam<ParamName::pointMetricOptions>().strata() : empty;
 	}
-
-	const std::filesystem::path& LapisData::outFolder()
+	std::filesystem::path LapisData::outFolder()
 	{
-		return _getRawParam<ParamName::output>()._path;
+		return _getRawParam<ParamName::output>().path();
 	}
-
-	const std::string& LapisData::name()
+	std::string LapisData::name()
 	{
-		return _getRawParam<ParamName::name>()._runString;
+		return _getRawParam<ParamName::name>().name();
 	}
-
 	coord_t LapisData::fineIntCanopyCutoff() {
-		auto& p = _getRawParam<ParamName::fineIntOptions>();
-		if (!p._cutoffCheck) {
-			return std::numeric_limits<coord_t>::lowest();
-		}
-		if (p._cutoffSameAsPointRadio == p.SAME) {
-			return canopyCutoff();
-		}
-		return p._cutoffCache;
+		return _getRawParam<ParamName::fineIntOptions>().fineIntCutoff();
 	}
 
 	bool LapisData::doPointMetrics() {
-		return _getRawParam<ParamName::whichProducts>()._doPointCheck;
+		return _getRawParam<ParamName::whichProducts>().doPointMetrics();
 	}
-
 	bool LapisData::doFirstReturnMetrics()
 	{
-		return _getRawParam<ParamName::pointMetricOptions>()._whichReturnsRadio != Parameter<ParamName::pointMetricOptions>::WhichReturns::all;
+		return _getRawParam<ParamName::pointMetricOptions>().doFirstReturns();
 	}
-
 	bool LapisData::doAllReturnMetrics()
 	{
-		return _getRawParam<ParamName::pointMetricOptions>()._whichReturnsRadio != Parameter<ParamName::pointMetricOptions>::WhichReturns::first;
+		return _getRawParam<ParamName::pointMetricOptions>().doAllReturns();
 	}
-
 	bool LapisData::doCsm()
 	{
-		return _getRawParam<ParamName::whichProducts>()._doCsmCheck;
+		return _getRawParam<ParamName::whichProducts>().doCsm();
 	}
-
 	bool LapisData::doTaos()
 	{
-		return doCsm() && _getRawParam<ParamName::whichProducts>()._doTaoCheck;
+		return doCsm() && _getRawParam<ParamName::whichProducts>().doTao();
 	}
-
 	bool LapisData::doFineInt()
 	{
-		return _getRawParam<ParamName::whichProducts>()._fineIntCheck;
+		return _getRawParam<ParamName::whichProducts>().doFineInt();
 	}
-
 	bool LapisData::doTopo()
 	{
-		return _getRawParam<ParamName::whichProducts>()._doTopoCheck;
+		return _getRawParam<ParamName::whichProducts>().doTopo();
+	}
+
+	bool LapisData::doStratumMetrics()
+	{
+		return _getRawParam<ParamName::pointMetricOptions>().doStratumMetrics();
 	}
 
 	bool LapisData::isDebugNoAlloc() {
 		return _getRawParam<ParamName::whichProducts>().isDebug();
+	}
+
+	bool LapisData::isDebugNoAlign()
+	{
+		return _getRawParam<ParamName::alignment>().isDebug();
+	}
+
+	bool LapisData::isDebugNoOutput()
+	{
+		return _getRawParam<ParamName::output>().isDebugNoOutput();
+	}
+
+	bool LapisData::isAnyDebug()
+	{
+		return isDebugNoAlign() || isDebugNoAlloc() || isDebugNoOutput();
 	}
 
 	LapisData::ParseResults LapisData::parseArgs(const std::vector<std::string>& args)
@@ -521,7 +510,7 @@ namespace lapis {
 			perThread += meanArea / csmCellArea * sizeof(intensity_t) * 2;
 		}
 
-		double sparseHistEst = convertUnits(50, linearUnitDefs::meter, metricAlign()->crs().getXYUnits()) / binSize() * sizeof(int);
+		double sparseHistEst = convertUnits(50, LinearUnitDefs::meter, metricAlign()->crs().getXYUnits()) / binSize() * sizeof(int);
 		sparseHistEst *= meanArea / (metricAlign()->xres() * metricAlign()->yres());
 		perThread += sparseHistEst;
 
@@ -596,7 +585,7 @@ namespace lapis {
 		DataIssues out;
 
 		_failedLas.clear();
-		std::set<LasFileExtent> lasSet = iterateOverFileSpecifiers(_getRawParam<ParamName::las>()._spec.getFileSpecsSet(),
+		std::set<LasFileExtent> lasSet = iterateOverFileSpecifiers(_getRawParam<ParamName::las>().currentFileSpecifiers(),
 			tryLasFile, CoordRef(), Unit());
 
 		out.failedLas = _failedLas;
@@ -629,8 +618,8 @@ namespace lapis {
 			}
 		}
 
-		CoordRef demOver = _getRawParam<ParamName::demOverride>().getCurrentCrs();
-		std::set<DemFileAlignment> demSet = iterateOverFileSpecifiers(_getRawParam<ParamName::dem>()._spec.getFileSpecsSet(),
+		CoordRef demOver = _getRawParam<ParamName::demOverride>().crs();
+		std::set<DemFileAlignment> demSet = iterateOverFileSpecifiers(_getRawParam<ParamName::dem>().currentFileSpecifiers(),
 			tryDtmFile, demOver, demOver.getZUnits());
 		size_t idx = -1;
 		for (auto& d : demSet) {
@@ -652,8 +641,8 @@ namespace lapis {
 	{
 
 		CoordRef outCrs = _getRawParam<ParamName::alignment>().getCurrentOutCrs();
-		CoordRef lasOverCrs = _getRawParam<ParamName::lasOverride>().getCurrentCrs();
-		CoordRef demOverCrs = _getRawParam<ParamName::demOverride>().getCurrentCrs();
+		CoordRef lasOverCrs = _getRawParam<ParamName::lasOverride>().crs();
+		CoordRef demOverCrs = _getRawParam<ParamName::demOverride>().crs();
 
 		//If there are multiple las CRSes present, and some of them are undefined, trying to figure out the output alignment is nonsense
 		if (lasOverCrs.isEmpty() && di.byCrs.size() > 1 && di.byCrs.contains(CoordRef())) {
@@ -693,7 +682,7 @@ namespace lapis {
 			lasExtents[i] = QuadExtent(lasExtents[i], outCrs).outerExtent();
 			fullExtent = extend(fullExtent, lasExtents[i]);
 		}
-		coord_t cellsize = convertUnits(30, linearUnitDefs::meter, outCrs.getXYUnits());
+		coord_t cellsize = convertUnits(30, LinearUnitDefs::meter, outCrs.getXYUnits());
 		Alignment fullAlign = Alignment(fullExtent, 0, 0, cellsize, cellsize);
 		Raster<bool> lasCovers{ fullAlign };
 		Raster<bool> demCovers{ fullAlign };
@@ -749,7 +738,7 @@ namespace lapis {
 		di.pointsAfterFilters = sampleLas.getPoints(di.pointsInSample).size();
 
 		sampleLas = LasReader{ di.successfulLas[0] };
-		CoordRef lasOverCrs = _getRawParam<ParamName::lasOverride>().getCurrentCrs();
+		CoordRef lasOverCrs = _getRawParam<ParamName::lasOverride>().crs();
 		if (!lasOverCrs.isEmpty()) {
 			sampleLas.defineCRS(lasOverCrs);
 		}
@@ -757,7 +746,7 @@ namespace lapis {
 			sampleLas.addFilter(filter);
 		}
 		sampleLas.setHeightLimits(min_ht, max_ht, getCurrentUnits());
-		CoordRef demOverCrs = _getRawParam<ParamName::demOverride>().getCurrentCrs();
+		CoordRef demOverCrs = _getRawParam<ParamName::demOverride>().crs();
 		for (auto& dem : demSet) {
 			sampleLas.addDEM(dem.filename, demOverCrs, demOverCrs.getZUnits());
 		}

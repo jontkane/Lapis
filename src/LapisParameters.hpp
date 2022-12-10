@@ -5,105 +5,13 @@
 #include"app_pch.hpp"
 #include"LapisUtils.hpp"
 #include"MetricTypeDefs.hpp"
+#include"ParameterBase.hpp"
+#include"CommonGuiElements.hpp"
 
 namespace lapis {
 
-	//Each of these should correspond to a cohesive unit of the parameters fed into Lapis--not necessarily a single parameter each
-	//As a rule of thumb, each one should correspond to any number of parameters that parameterize a single data object in the final run
-	enum class ParamName {
-		name,
-		las,
-		dem,
-		output,
-		lasOverride,
-		demOverride,
-		outUnits,
-		alignment,
-		filters,
-		computerOptions,
-		whichProducts,
-		csmOptions,
-		pointMetricOptions,
-		taoOptions,
-		fineIntOptions,
-
-		_Count_NotAParam //this element's value will be equal to the cardinality of the enum class
-	};
-
-	enum class ParamCategory {
-		data, computer, process
-	};
-
-	namespace po = boost::program_options;
-	class ParamBase {
-	public:
-		using FloatBuffer = std::array<char, 11>;
-
-		const inline static std::vector<Unit> unitRadioOrder = {
-		linearUnitDefs::unkLinear,
-		linearUnitDefs::meter,
-		linearUnitDefs::foot,
-		linearUnitDefs::surveyFoot };
-
-		const inline static std::vector<std::string> unitPluralNames = {
-			"Units",
-			"Meters",
-			"Feet",
-			"Feet"
-		};
-
-		ParamBase() {}
-
-		virtual void addToCmd(po::options_description& visible,
-			po::options_description& hidden) = 0;
-
-		virtual std::ostream& printToIni(std::ostream& o) = 0;
-
-		//this function should assume that it's already in the correct tab/child
-		//it should feel limited by the value of ImGui::GetContentRegionAvail().x, but not by y
-		//if making things look nice takes more vertical space than provided, adjustments should be made in the layout portion of the code
-		virtual void renderGui() = 0;
-
-		virtual ParamCategory getCategory() const = 0;
-
-		virtual void importFromBoost() = 0;
-		virtual void updateUnits() = 0;
-
-		virtual void prepareForRun() = 0;
-		virtual void cleanAfterRun() = 0;
-	};
-
-	template<ParamName N>
-	class Parameter : public ParamBase {};
-
-	//This is the skeleton of a new template specialization of Parameter
-	/*
-	template<>
-	class Parameter<ParamName::newparam> : public ParamBase {
-		friend class LapisData;
-	public:
-		Parameter();
-
-		void addToCmd(po::options_description& visible,
-			po::options_description& hidden) override;
-
-		std::ostream& printToIni(std::ostream& o) override;
-
-		ParamCategory getCategory() const override;
-
-		void renderGui() override;
-
-		void importFromBoost() override;
-		void updateUnits() override;
-
-		void prepareForRun() override;
-		void cleanAfterRun() override;
-	};
-	*/
-
 	template<>
 	class Parameter<ParamName::name> : public ParamBase {
-		friend class LapisData;
 	public:
 
 		Parameter();
@@ -123,40 +31,15 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
-		const std::string& getName();
+		std::string name();
 
 	private:
-		std::string _nameCmd = "name";
-		std::string _nameBoost;
-		std::array<char, 30> _nameBuffer;
-
-		std::string _runString;
+		TextBox _name{ "Name of Run:","name",
+		"The name of the run. If specified, will be included in the filenames and metadata." };
 	};
-
-	struct LasDemSpecifics {
-		mutable std::vector<std::string> fileSpecsVector;
-		NFD::UniquePathU8 nfdFolder;
-		NFD::UniquePathSet nfdFiles;
-		bool recursiveCheckbox = true;
-
-		std::unique_ptr<nfdnfilteritem_t> fileFilter;
-		std::string name;
-		std::vector<std::string> wildcards;
-
-		std::set<std::string>& getFileSpecsSet();
-		const std::set<std::string>& getFileSpecsSet() const;
-
-		void importFromBoost();
-
-	private:
-		mutable std::set<std::string> fileSpecsSet;
-	};
-
-	void lasDemUnifiedGui(LasDemSpecifics& spec);
 
 	template<>
 	class Parameter<ParamName::las> : public ParamBase {
-		friend class LapisData;
 	public:
 
 		Parameter();
@@ -177,18 +60,25 @@ namespace lapis {
 		void cleanAfterRun() override;
 
 		Extent getFullExtent();
-		const std::vector<LasFileExtent> getAllExtents();
+		const std::vector<LasFileExtent>& sortedLasExtents();
+		const std::set<std::string>& currentFileSpecifiers() const;
 
 	private:
-		const std::string _cmdName = "las";
-		LasDemSpecifics _spec;
+		FileSpecifierSet _specifiers{ "Las","las",
+		"Specify input point cloud (las/laz) files in one of three ways:\n"
+			"\tAs a file name pointing to a point cloud file\n"
+			"As a folder name, which will haves it and its subfolders searched for .las or .laz files\n"
+			"As a folder name with a wildcard specifier, e.g. C:\\data\\*.laz\n"
+			"This option can be specified multiple times",
+			{"*.las","*.laz"},std::make_unique<nfdnfilteritem_t>(L"LAS Files", L"las,laz") };
 
 		std::vector<LasFileExtent> _fileExtents;
+
+		bool _runPrepared = false;
 	};
 
 	template<>
 	class Parameter<ParamName::dem> : public ParamBase {
-		friend class LapisData;
 	public:
 
 		Parameter();
@@ -208,15 +98,24 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
+		const std::set<DemFileAlignment>& demList();
+		const std::set<std::string>& currentFileSpecifiers() const;
+
 	private:
-		const std::string _cmdName = "dem";
-		LasDemSpecifics _spec;
+		FileSpecifierSet _specifiers{ "Dem","dem",
+		"Specify input raster elevation models in one of three ways:\n"
+			"\tAs a file name pointing to a raster file\n"
+			"As a folder name, which will haves it and its subfolders searched for raster files\n"
+			"As a folder name with a wildcard specifier, e.g. C:\\data\\*.tif\n"
+			"This option can be specified multiple times\n"
+			"Most raster formats are supported, but arcGIS .gdb geodatabases are not" ,
+			{"*.*"},
+		std::unique_ptr<nfdnfilteritem_t>() };
 		std::set<DemFileAlignment> _fileAligns;
 	};
 
 	template<>
 	class Parameter<ParamName::output> : public ParamBase {
-		friend class LapisData;
 	public:
 
 		Parameter();
@@ -236,41 +135,17 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
+		std::filesystem::path path() const;
+		bool isDebugNoOutput() const;
+
 	private:
-		std::string _cmdName = "output";
-		std::string _boostString;
-		std::array<char, 256> _buffer = std::array<char, 256>{0};
-		NFD::UniquePathU8 _nfdFolder;
-
-		std::filesystem::path _path;
+		FolderTextInput _output{ "Output Folder:","output",
+			"The output folder to store results in" };
+		CheckBox _debugNoOutput{ "Debug no Output","debug-no-output" };
 	};
-
-	void updateCrsAndDisplayString(const char* inStr, const char* defaultMessage, std::string* display, CoordRef* crs);
-	int unitRadioFromString(const std::string& s);
-
-	struct LasDemOverrideSpecifics {
-		std::string crsDisplayString = "Infer From Files";
-		std::vector<char> crsBuffer;
-		int unitRadio = 0;
-		std::string crsBoostString = "";
-		std::string unitBoostString = "";
-
-		std::string name;
-		bool displayManualCrsWindow = false;
-		bool textSiezeFocus = false;
-
-		CoordRef crs;
-
-		NFD::UniquePathU8 nfdFile;
-
-		void importFromBoost();
-	};
-
-	void lasDemOverrideUnifiedGui(LasDemOverrideSpecifics& spec);
 
 	template<>
 	class Parameter<ParamName::lasOverride> : public ParamBase {
-		friend class LapisData;
 	public:
 		Parameter();
 
@@ -286,20 +161,20 @@ namespace lapis {
 		void importFromBoost() override;
 		void updateUnits() override;
 
-		const CoordRef& getCurrentCrs();
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
-	private:
-		LasDemOverrideSpecifics _spec;
+		const CoordRef& crs();
+		const Unit& zUnits() const;
 
-		const std::string _lasUnitCmd = "las-units";
-		const std::string _lasCrsCmd = "las-crs";
+	private:
+		RadioSelect<UnitDecider, Unit> _unit{ "Vertical units in laz files:","las-units" };
+		CRSInput _crs{ "Laz CRS:","las-crs","Infer from files" };
+		bool _displayWindow = false;
 	};
 
 	template<>
 	class Parameter<ParamName::demOverride> : public ParamBase {
-		friend class LapisData;
 	public:
 
 		Parameter();
@@ -316,20 +191,20 @@ namespace lapis {
 		void importFromBoost() override;
 		void updateUnits() override;
 
-		const CoordRef& getCurrentCrs();
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
-	private:
-		LasDemOverrideSpecifics _spec;
+		const CoordRef& crs();
+		const Unit& zUnits() const;
 
-		const std::string _demUnitCmd = "dem-units";
-		const std::string _demCrsCmd = "dem-crs";
+	private:
+		RadioSelect<UnitDecider, Unit> _unit{ "Vertical units in DEM files:","dem-units" };
+		CRSInput _crs{ "DEM CRS:","dem-crs","Infer from files" };
+		bool _displayWindow = false;
 	};
 
 	template<>
 	class Parameter<ParamName::outUnits> : public ParamBase {
-		friend class LapisData;
 	public:
 
 		Parameter();
@@ -342,28 +217,43 @@ namespace lapis {
 		ParamCategory getCategory() const override;
 
 		void renderGui() override;
-
-		static const std::string& getUnitsPluralName();
 
 		void importFromBoost() override;
 		void updateUnits() override;
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
+		const std::string& unitPluralName() const;
+		const std::string& unitSingularName() const;
+		const Unit& unit() const;
+
 	private:
-		int _radio = 1;
+		RadioSelect<UnitDecider, Unit> _unit{ "Output Units:","user-units","The units you want output to be in. All options will be interpretted as these units\n"
+			"\tValues: m (for meters), f (for international feet), usft (for us survey feet)\n"
+			"\tDefault is meters" };
 
-		std::string _boostString;
-		std::string _cmdName = "user-units";
+		class UnitHasher {
+		public:
+			size_t operator()(const Unit& u) const {
+				return std::hash<std::string>()(u.name + std::to_string(u.convFactor));
+			}
+		};
+		inline static const std::unordered_map<Unit, std::string, UnitHasher> _singularNames = {
+			{LinearUnitDefs::meter,"Meter"},
+			{LinearUnitDefs::foot,"Foot"},
+			{LinearUnitDefs::surveyFoot,"Foot"},
+			{LinearUnitDefs::unkLinear,"Unit"}
+		};
+		inline static const std::unordered_map<Unit, std::string, UnitHasher> _pluralNames = {
+			{LinearUnitDefs::meter,"Meters"},
+			{LinearUnitDefs::foot,"Feet"},
+			{LinearUnitDefs::surveyFoot,"Feet"},
+			{LinearUnitDefs::unkLinear,"Units"}
+		};
 	};
-
-	void updateUnitsBuffer(ParamBase::FloatBuffer& buff);
-
-	void copyToBuffer(ParamBase::FloatBuffer& buff, coord_t x);
 
 	template<>
 	class Parameter<ParamName::alignment> : public ParamBase {
-		friend class LapisData;
 	public:
 
 		Parameter();
@@ -380,56 +270,55 @@ namespace lapis {
 		void importFromBoost() override;
 		void updateUnits() override;
 
-		CoordRef getCurrentOutCrs() const;
+		const CoordRef& getCurrentOutCrs() const;
 		const Alignment& getFullAlignment();
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
+		std::shared_ptr<Raster<int>> nLaz();
+		std::shared_ptr<Alignment> metricAlign();
+
 		bool isDebug() const;
 
 	private:
+
+		NumericTextBoxWithUnits _xorigin{ "X Origin:","xorigin",0 };
+		NumericTextBoxWithUnits _yorigin{ "Y Origin:","yorigin",0 };
+		NumericTextBoxWithUnits _origin{ "Origin:","origin",0 };
+		NumericTextBoxWithUnits _xres{ "X Resolution:","xres",30 };
+		NumericTextBoxWithUnits _yres{ "Y Resolution:","yres",30 };
+		NumericTextBoxWithUnits _cellsize{ "Cellsize:","cellsize",30,
+		"The desired cellsize of the output metric rasters\n"
+				"Defaults to 30 meters" };
+
+		CRSInput _crs{ "Output CRS:","out-crs",
+		"The desired CRS for the output layers\n"
+				"Can be a filename, or a manual specification (usually EPSG)","Same as Las Files" };
+
+		CheckBox _debugNoAlign{ "Debug No Alignment","debug-no-alignment" };
+
 		std::string _alignCmd = "alignment";
-		std::string _cellsizeCmd = "cellsize";
-		std::string _xresCmd = "xres";
-		std::string _yresCmd = "yres";
-		std::string _xoriginCmd = "xorigin";
-		std::string _yoriginCmd = "yorigin";
-		std::string _crsCmd = "out-crs";
-		std::string _debugCmd = "debug-no-alignment";
 
 		std::string _alignFileBoostString;
-		std::string _crsBoostString;
-		coord_t _cellsizeBoost;
-		coord_t _xresBoost;
-		coord_t _yresBoost;
-		coord_t _xoriginBoost;
-		coord_t _yoriginBoost;
-
-		FloatBuffer _xresBuffer = FloatBuffer{ 0 };
-		FloatBuffer _yresBuffer = FloatBuffer{ 0 };
-		FloatBuffer _xoriginBuffer = FloatBuffer{ 0 };
-		FloatBuffer _yoriginBuffer = FloatBuffer{ 0 };
-		FloatBuffer _cellsizeBuffer = FloatBuffer{ 0 };
-
-		std::string _crsDisplayString = "Same as LAZ Files";
-		std::vector<char> _crsBuffer;
 
 		NFD::UniquePathU8 _nfdAlignFile;
-		NFD::UniquePathU8 _nfdCrsFile;
 
 		bool _displayManualWindow = false;
+		bool _displayErrorWindow = false;
 		bool _xyResDiffCheck = false;
 		bool _xyOriginDiffCheck = false;
 
 		std::shared_ptr<Alignment> _align;
 		std::shared_ptr<Raster<int>> _nLaz;
 
-		bool _debugBool;
+		void _manualWindow();
+		void _errorWindow();
+
+		bool _runPrepared = false;
 	};
 
 	template<>
 	class Parameter<ParamName::csmOptions> : public ParamBase {
-		friend class LapisData;
 	public:
 
 		Parameter();
@@ -448,33 +337,30 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
+		int smooth() const;
+		std::vector<CSMMetric>& csmMetrics();
+		std::shared_ptr<Alignment> csmAlign();
+		coord_t footprintDiameter() const;
+
 	private:
-		std::string _footprintDiamCmd = "footprint";
-		std::string _smoothCmd = "smooth";
-		std::string _csmCellsizeCmd = "csm-cellsize";
-		std::string _skipMetricsCmd = "skip-csm-metrics";
-
-		coord_t _footprintDiamBoost;
-		coord_t _csmCellsizeBoost;
-
-		int _smooth;
-
-		FloatBuffer _footprintDiamBuffer = FloatBuffer{ 0 };
-		FloatBuffer _csmCellsizeBuffer = FloatBuffer{ 0 };
+		NumericTextBoxWithUnits _footprint{ "Diameter of Pulse Footprint:","footprint",0.4 };
+		NumericTextBoxWithUnits _cellsize{ "Cellsize:","csm-cellsize",1,
+		"The desired cellsize of the output canopy surface model\n"
+			"Defaults to 1 meter" };
+		InvertedCheckBox _doMetrics{ "Calculate CSM Metrics","skip-csm-metrics" };
+		RadioSelect<SmoothDecider, int> _smooth{ "Smoothing:","smooth" };
 
 		bool _showAdvanced = false;
 
-		coord_t _footprintDiamCache;
 		std::shared_ptr<Alignment> _csmAlign;
 
 		std::vector<CSMMetric> _csmMetrics;
-		bool _doCsmMetrics = true;
-		bool _skipCsmMetricsBoost = false;
+
+		bool _runPrepared = false;
 	};
 
 	template<>
 	class Parameter<ParamName::pointMetricOptions> : public ParamBase {
-		friend class LapisData;
 	public:
 
 		Parameter();
@@ -493,36 +379,35 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
+		bool doAllReturns() const;
+		bool doFirstReturns() const;
+
+		std::vector<StratumMetricRasters>& firstReturnStratumMetrics();
+		std::vector<StratumMetricRasters>& allReturnStratumMetrics();
+		std::vector<PointMetricRaster>& firstReturnPointMetrics();
+		std::vector<PointMetricRaster>& allReturnPointMetrics();
+
+		shared_raster<PointMetricCalculator> firstReturnCalculators();
+		shared_raster<PointMetricCalculator> allReturnCalculators();
+
+		const std::vector<coord_t>& strata() const;
+		coord_t canopyCutoff() const;
+		bool doStratumMetrics() const;
+
 	private:
-		std::string _canopyCmd = "canopy";
-		std::string _strataCmd = "strata";
-		std::string _advPointCmd = "adv-point";
-		std::string _skipAllReturnsCmd = "skip-all-returns";
-		std::string _skipFirstReturnsCmd = "skip-first-returns";
-
-		std::vector<FloatBuffer> _strataBuffers;
-		FloatBuffer _canopyBuffer = FloatBuffer{ 0 };
-
-		std::string _strataBoost;
-		coord_t _canopyBoost;
-
-		bool _displayStratumWindow = false;
-
-		coord_t _canopyCache;
-		std::vector<coord_t> _strataCache;
-
-		struct WhichReturns {
-			static constexpr int all = 1;
-			static constexpr int first = 2;
-			static constexpr int both = 3;
-		};
-
-		bool _skipAllReturnBoost = false;
-		bool _skipFirstReturnBoost = false;
-		int _whichReturnsRadio = WhichReturns::both;
-
-		int _advPointRadio = 0;
-		bool _advPointBoost = false;
+		NumericTextBoxWithUnits _canopyCutoff{ "Canopy Cutoff:","canopy",2,
+		"The height threshold for a point to be considered canopy." };
+		MultiNumericTextBoxWithUnits _strata{ "Stratum Breaks:","strata","0.5,1,2,4,8,16,32,48,64",
+			"A comma-separated list of strata breaks on which to calculate strata metrics." };
+		RadioBoolean _advMetrics{ "adv-point","All Metrics","Common Metrics",
+		"Calculate a larger suite of point metrics." };
+		InvertedCheckBox _doStrata{ "Calculate Strata Metrics","skip-strata" };
+		
+		static constexpr int FIRST_RETURNS = RadioDoubleBoolean::FIRST;
+		static constexpr int ALL_RETURNS = RadioDoubleBoolean::SECOND;
+		static constexpr bool DO_SKIP = true;
+		static constexpr bool DONT_SKIP = false;
+		RadioDoubleBoolean _whichReturns{ "skip-first-returns","skip-all-returns" };
 
 		std::vector<PointMetricRaster> _allReturnPointMetrics;
 		std::vector<PointMetricRaster> _firstReturnPointMetrics;
@@ -531,11 +416,12 @@ namespace lapis {
 
 		std::shared_ptr<Raster<PointMetricCalculator>> _allReturnCalculators;
 		std::shared_ptr<Raster<PointMetricCalculator>> _firstReturnCalculators;
+
+		bool _runPrepared = false;
 	};
 
 	template<>
 	class Parameter<ParamName::filters> : public ParamBase {
-		friend class LapisData;
 	public:
 
 		Parameter();
@@ -555,57 +441,28 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
+		const std::vector<std::shared_ptr<LasFilter>>& filters();
+		coord_t minht() const;
+		coord_t maxht() const;
+
 	private:
-		void _updateClassListString();
 
-
-		std::string _minhtCmd = "minht";
-		std::string _maxhtCmd = "maxht";
-		std::string _classCmd = "class";
-		std::string _useWithheldCmd = "use-withheld";
-
-		coord_t _minhtBoost;
-		coord_t _maxhtBoost;
-		std::string _classBoost;
-
-		FloatBuffer _minhtBuffer = FloatBuffer{ 0 };
-		FloatBuffer _maxhtBuffer = FloatBuffer{ 0 };
-		std::array<bool, 255> _classChecks;
-		std::string _classDisplayString;
-
-		bool _useWithheld = false;
-		bool _filterWithheldCheck = true;
-
-		bool _displayClassWindow = false;
-
-		const std::vector<std::string> _classNames = { "Never Classified",
-		"Unassigned",
-		"Ground",
-		"Low Vegetation",
-		"Medium Vegetation",
-		"High Vegetation",
-		"Building",
-		"Low Point",
-		"Model Key (LAS 1.0-1.3)/Reserved (LAS 1.4)",
-		"Water",
-		"Rail",
-		"Road Surface",
-		"Overlap (LAS 1.0-1.3)/Reserved (LAS 1.4)",
-		"Wire - Guard (Shield)",
-		"Wire - Conductor (Phase)",
-		"Transmission Tower",
-		"Wire-Structure Connector (Insulator)",
-		"Bridge Deck",
-		"High Noise" };
+		NumericTextBoxWithUnits _minht{ "Minimum Height:","minht",-8,
+		"The threshold for low outliers. Points with heights below this value will be excluded." };
+		NumericTextBoxWithUnits _maxht{ "Maximum Height:","maxht",100,
+		"The threshold for high outliers. Points with heights above this value will be excluded." };
+		InvertedCheckBox _filterWithheld{ "Filter Withheld Points","use-withheld" };
+		ClassCheckBoxes _class{ "class",
+		"A comma-separated list of LAS point classifications to use for this run.\n"
+				"Alternatively, preface the list with ~ to specify a blacklist." };
 
 		std::vector<std::shared_ptr<LasFilter>> _filters;
-		coord_t _minhtCache;
-		coord_t _maxhtCache;
+
+		bool _runPrepared = false;
 	};
 
 	template<>
 	class Parameter<ParamName::whichProducts> : public ParamBase {
-		friend class LapisData;
 	public:
 
 		Parameter();
@@ -623,41 +480,29 @@ namespace lapis {
 		void updateUnits() override;
 		void prepareForRun() override;
 		void cleanAfterRun() override;
+
+		bool doCsm() const;
+		bool doPointMetrics() const;
+		bool doTao() const;
+		bool doTopo() const;
+		bool doFineInt() const;
 
 		bool isDebug() const;
 
 	private:
-		std::string _skipCsmCmd = "skip-csm";
-		std::string _skipPointCmd = "skip-point-metrics";
-		std::string _skipTaoCmd = "skip-tao";
-		std::string _skipTopoCmd = "skip-topo";
-		std::string _fineIntCmd = "fine-int";
-		std::string _debugNoAllocRaster = "debug-no-alloc-raster";
 
-		bool _fineIntCheck = false;
+		InvertedCheckBox _doCsm{ "Canopy Surface Model","skip-csm" };
+		InvertedCheckBox _doPointMetrics{ "Point Metrics","skip-point-metrics" };
+		InvertedCheckBox _doTao{ "Tree ID","skip-tao" };
+		InvertedCheckBox _doTopo{ "Topographic Metrics","skip-topo" };
+		CheckBox _doFineInt{ "Fine-Scale Intensity Image","fine-int",
+		"Create a canopy mean intensity raster with the same resolution as the CSM" };
 
-		bool _doTaoCheck = true;
-		bool _skipTaoBoost = false;
-
-		bool _doCsmCheck = true;
-		bool _skipCsmBoost = false;
-
-		bool _doPointCheck = true;
-		bool _skipPointBoost = false;
-
-		bool _doTopoCheck = true;
-		bool _skipTopoBoost = false;
-
-		std::vector<TopoMetric> _topoMetrics;
-		std::shared_ptr<Raster<coord_t>> _elevNumerator;
-		std::shared_ptr<Raster<coord_t>> _elevDenominator;
-
-		bool _debugBool;
+		CheckBox _debugNoAlloc{ "Debug No Alloc","debug-no-alloc-raster" };
 	};
 
 	template<>
 	class Parameter<ParamName::computerOptions> : public ParamBase {
-		friend class LapisData;
 	public:
 
 		Parameter();
@@ -676,33 +521,19 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
+		int nThread() const;
+
 	private:
+		IntegerTextBox _thread{ "Number of Threads:","thread", defaultNThread(),
+		"The number of threads to run Lapis on. Defaults to the number of cores on the computer" };
 		std::string _threadCmd = "thread";
-		std::string _perfCmd = "performance";
 
-		int _threadBoost;
-
-		bool _perfCheck = false;
 
 		FloatBuffer _threadBuffer = FloatBuffer{ 0 };
-
-		int _threadCache;
 	};
-
-	namespace IdAlgo {
-		enum {
-			highPoint,
-		};
-	}
-	namespace SegAlgo {
-		enum {
-			watershed,
-		};
-	}
 
 	template<>
 	class Parameter<ParamName::taoOptions> : public ParamBase {
-		friend class LapisData;
 	public:
 		Parameter();
 
@@ -721,40 +552,20 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
+		coord_t minTaoHt() const;
+		coord_t minTaoDist() const;
+
 	private:
 
-		std::string _idAlgoCmd = "id-algo";
-		std::string _segAlgoCmd = "seg-algo";
-		std::string _minHtCmd = "min-tao-ht";
-		std::string _minDistCmd = "min-tao-dist";
-
-		std::string _idAlgoBoost;
-		std::string _segAlgoBoost;
-		coord_t _minHtBoost;
-		coord_t _minDistBoost;
-
-		int _idAlgoRadio = IdAlgo::highPoint;
-		int _segAlgoRadio = SegAlgo::watershed;
-
-		static constexpr int SAME = 0;
-		static constexpr int NOT_SAME = 1;
-		int _sameMinHtRadio = SAME;
-		FloatBuffer _minHtBuffer = FloatBuffer{ 0 };
-
-
-		FloatBuffer _minDistBuffer = FloatBuffer{ 0 };
-
-		coord_t _minHtCache;
-		coord_t _minDistCache;
-
-		//this is related to the behavior of minht; when importFromBoost is called as part of initial setup, that shouldn't change the _sameMinHt flag
-		//but any future calls to importFromBoost should change that flag.
-		bool _initialSetup = true;
+		NumericTextBoxWithUnits _minht{ "","min-tao-ht",2 };
+		NumericTextBoxWithUnits _mindist{ "Minimum Distance Between Trees:","min-tao-dist",0 };
+		RadioSelect<IdAlgoDecider, int> _idAlgo{ "Tree ID Algorithm:","id-algo" };
+		RadioSelect<SegAlgoDecider, int> _segAlgo{ "Canopy Segmentation Algorithm:","seg-algo" };
+		RadioBoolean _sameMinHt{ "tao-same-min-ht","Same as Point Metric Canopy Cutoff","Other:" };
 	};
 
 	template<>
 	class Parameter<ParamName::fineIntOptions> : public ParamBase {
-		friend class LapisData;
 	public:
 		Parameter();
 
@@ -773,33 +584,54 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
-	private:
-		std::string _cellsizeCmd = "fine-int-cellsize";
-		std::string _noCutoffCmd = "fine-int-no-cutoff";
-		std::string _cutoffCmd = "fine-int-cutoff";
+		std::shared_ptr<Alignment> fineIntAlign();
+		coord_t fineIntCutoff() const;
 
-		static constexpr int SAME = 0;
-		static constexpr int NOT_SAME = 1;
+	private:
+		NumericTextBoxWithUnits _cellsize{ "","fine-int-cellsize",1 };
+		InvertedCheckBox _useCutoff{ "Use Returns Above a Certain Height","fine-int-no-cutoff" };
+		NumericTextBoxWithUnits _cutoff{ "","fine-int-cutoff",2 };
+		RadioBoolean _sameCellsize{ "fine-int-same-cellsize","Same as CSM","Other:" };
+		RadioBoolean _sameCutoff{ "fine-int-same-cutoff","Same as Point Metric Canopy Cutoff","Other:" };
 
 		bool _initialSetup = true;
 
-		int _cellsizeSameAsCsmRadio = SAME;
-		coord_t _cellsizeBoost = 1;
-		FloatBuffer _cellsizeBuffer = FloatBuffer{ 0 };
-
-		bool _cutoffCheck = true;
-		bool _noCutoffBoost = false;
-		int _cutoffSameAsPointRadio = SAME;
-		FloatBuffer _cutoffBuffer = FloatBuffer{ 0 };
-		coord_t _cutoffBoost = 2;
-		coord_t _cutoffCache = 2;
-
 		std::shared_ptr<Alignment> _fineIntAlign;
+
+		bool _runPrepared = false;
 	};
 
-	const Unit& getCurrentUnits();
-	const Unit& getUnitsLastFrame();
-	const std::string& getUnitsPluralName();
+	template<>
+	class Parameter<ParamName::topoOptions> : public ParamBase {
+	public:
+		Parameter();
+
+		void addToCmd(po::options_description& visible,
+			po::options_description& hidden) override;
+
+		std::ostream& printToIni(std::ostream& o) override;
+
+		ParamCategory getCategory() const override;
+
+		void renderGui() override;
+
+		void importFromBoost() override;
+		void updateUnits() override;
+
+		void prepareForRun() override;
+		void cleanAfterRun() override;
+
+		std::shared_ptr<Raster<coord_t>> elevNumerator();
+		std::shared_ptr<Raster<coord_t>> elevDenominator();
+		std::vector<TopoMetric>& topoMetrics();
+
+	private:
+		std::vector<TopoMetric> _topoMetrics;
+		std::shared_ptr<Raster<coord_t>> _elevNumerator;
+		std::shared_ptr<Raster<coord_t>> _elevDenominator;
+
+		bool _runPrepared = false;
+	};
 
 	template<class T>
 	using fileSpecOpen = void(const std::filesystem::path&, std::set<T>&,
@@ -817,8 +649,7 @@ namespace lapis {
 	//otherwise, logs an error and does nothing
 	void tryDtmFile(const std::filesystem::path& file, std::set<DemFileAlignment>& data,
 		const CoordRef& crs, const Unit& u);
-
-	coord_t getValueWithError(const ParamBase::FloatBuffer& buff, const std::string& name);
+	
 }
 
 #endif

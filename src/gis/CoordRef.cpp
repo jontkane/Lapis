@@ -155,7 +155,7 @@ namespace lapis {
 
 	Unit CoordRef::getXYUnits() const {
 		if (isEmpty()) {
-			return linearUnitDefs::unkLinear;
+			return LinearUnitDefs::unkLinear;
 		}
 
 		ProjPJWrapper horiz = _p;
@@ -398,12 +398,12 @@ namespace lapis {
 
 	Unit CoordRef::_inferZUnits() {
 		if (isEmpty()) {
-			return linearUnitDefs::unkLinear;
+			return LinearUnitDefs::unkLinear;
 		}
 		PJ_TYPE t = proj_get_type(_p.ptr());
 		if (t != PJ_TYPE_COMPOUND_CRS) {
 			if (!isProjected()) {
-				return linearUnitDefs::unkLinear;
+				return LinearUnitDefs::unkLinear;
 			}
 			Unit u = getXYUnits();
 			u.status = unitStatus::inferredFromCRS;

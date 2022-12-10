@@ -23,7 +23,7 @@ namespace lapis {
 		void prepareParamsNoSlowStuff(std::vector<std::string> args) {
 			args.push_back("--debug-no-alignment");
 			args.push_back("--debug-no-alloc-raster");
-			args.push_back("--output=debug-test");
+			args.push_back("--debug-no-output");
 			prepareParams(args);
 		}
 	};
@@ -62,12 +62,12 @@ namespace lapis {
 		checkCsm(defaultRes);
 
 		prepareParamsNoSlowStuff({"--user-units=ft"});
-		checkCsm(convertUnits(defaultRes, linearUnitDefs::meter, linearUnitDefs::foot));
+		checkCsm(convertUnits(defaultRes, LinearUnitDefs::meter, LinearUnitDefs::foot));
 
 		prepareParamsNoSlowStuff({"--csm-cellsize=0.5"});
 		checkCsm(0.5);
 
-		prepareParams({ "--debug-no-alignment","--output=debug-test","--skip-csm-metrics"});
+		prepareParams({ "--debug-no-alignment","--debug-no-output","--skip-csm-metrics"});
 		EXPECT_EQ(data().csmMetrics().size(), 0);
 
 		prepareParamsNoSlowStuff({ "--footprint=2" });
@@ -79,8 +79,8 @@ namespace lapis {
 
 	TEST_F(LapisDataTest, nLazRaster) {
 		std::string testFolder = LAPISTESTFILES;
-		prepareParams({ "--debug-no-alloc-raster", "--las=" + testFolder + "/testlaz14.laz", "--cellsize=0.1","--output=debug-test"});
-		auto& r1 = *data().nLazRaster();
+		prepareParams({ "--debug-no-alloc-raster", "--las=" + testFolder + "/testlaz14.laz", "--cellsize=0.1","--debug-no-output"});
+		Raster<int> r1 = *data().nLazRaster();
 		EXPECT_EQ(*data().metricAlign(), (Alignment)r1);
 		bool anyHasValue = false;
 		for (cell_t cell = 0; cell < r1.ncell(); ++cell) {
@@ -92,8 +92,8 @@ namespace lapis {
 		EXPECT_TRUE(anyHasValue);
 
 		prepareParams({ "--debug-no-alloc-raster","--las=" + testFolder + "/testlaz14.laz",
-			"--las=" + testFolder + "/testlaznormalized.laz","--cellsize=0.1","--output=debug-test"});
-		auto& r2 = *data().nLazRaster();
+			"--las=" + testFolder + "/testlaznormalized.laz","--cellsize=0.1","--debug-no-output"});
+		Raster<int> r2 = *data().nLazRaster();
 		EXPECT_EQ((Alignment)r1, Alignment(r2));
 		for (cell_t cell = 0; cell < r2.ncell(); ++cell) {
 			if (r1[cell].has_value()) {
@@ -108,7 +108,7 @@ namespace lapis {
 
 	TEST_F(LapisDataTest, metricRasters) {
 		std::string debugParam = "--debug-no-alignment";
-		prepareParams({ debugParam, "--strata=1,2,3","--output=debug-test"});
+		prepareParams({ debugParam, "--strata=1,2,3","--debug-no-output"});
 
 		const Alignment& a = *data().metricAlign();
 		
@@ -210,8 +210,8 @@ namespace lapis {
 		EXPECT_TRUE(classSet.contains(12));
 		EXPECT_TRUE(classSet.contains(17));
 
-		EXPECT_NEAR(convertUnits(defaultMin, linearUnitDefs::meter, linearUnitDefs::foot),data().minHt(), 0.0001);
-		EXPECT_NEAR(convertUnits(defaultMax, linearUnitDefs::meter, linearUnitDefs::foot), data().maxHt(), 0.0001);
+		EXPECT_NEAR(convertUnits(defaultMin, LinearUnitDefs::meter, LinearUnitDefs::foot),data().minHt(), 0.0001);
+		EXPECT_NEAR(convertUnits(defaultMax, LinearUnitDefs::meter, LinearUnitDefs::foot), data().maxHt(), 0.0001);
 
 		prepareParamsNoSlowStuff({ "--minht=200","--maxht=5000" });
 		EXPECT_EQ(200, data().minHt());
@@ -222,7 +222,7 @@ namespace lapis {
 		std::string debugParam = "--debug-no-alloc-raster";
 
 		std::string testFileFolder = LAPISTESTFILES;
-		prepareParams({ debugParam, "--las=" + testFileFolder, "--output=debug-test"});
+		prepareParams({ debugParam, "--las=" + testFileFolder, "--debug-no-output"});
 		const auto& files = data().sortedLasList();
 
 		EXPECT_EQ(files.size(), 5);
@@ -234,10 +234,10 @@ namespace lapis {
 		coord_t defaultOrigin = data().metricAlign()->xOrigin();
 
 		prepareParams({ debugParam, "--las=" + testFileFolder + "/testlaz10.laz",
-			"--las=" + testFileFolder + "/testlaz14.laz", "--las-crs=2286","--las-units=m", "--output=debug-test" });
+			"--las=" + testFileFolder + "/testlaz14.laz", "--las-crs=2286","--las-units=m", "--debug-no-output" });
 		const auto& filestwo = data().sortedLasList();
 		EXPECT_EQ(filestwo.size(), 2);
-		crs = CoordRef("2286", linearUnitDefs::meter);
+		crs = CoordRef("2286", LinearUnitDefs::meter);
 		for (size_t i = 0; i < filestwo.size(); ++i) {
 			EXPECT_TRUE(filestwo[i].ext.crs().isConsistentHoriz(crs));
 			EXPECT_TRUE(filestwo[i].ext.crs().isConsistentZUnits(crs));
@@ -256,14 +256,14 @@ namespace lapis {
 			return std::min(origin, std::abs(res - origin));
 		};
 
-		EXPECT_NEAR(convertUnits(defaultCellSize, linearUnitDefs::meter, crs.getXYUnits()), metricAlign.xres(),0.01);
-		EXPECT_NEAR(convertUnits(defaultCellSize, linearUnitDefs::meter, crs.getXYUnits()), metricAlign.yres(), 0.01);
-		EXPECT_NEAR(convertUnits(defaultOrigin, linearUnitDefs::meter, crs.getXYUnits()), roundOriginToZero(metricAlign.xOrigin(),metricAlign.xres()), 0.01);
-		EXPECT_NEAR(convertUnits(defaultOrigin, linearUnitDefs::meter, crs.getXYUnits()), roundOriginToZero(metricAlign.yOrigin(),metricAlign.yres()), 0.01);
+		EXPECT_NEAR(convertUnits(defaultCellSize, LinearUnitDefs::meter, crs.getXYUnits()), metricAlign.xres(),0.01);
+		EXPECT_NEAR(convertUnits(defaultCellSize, LinearUnitDefs::meter, crs.getXYUnits()), metricAlign.yres(), 0.01);
+		EXPECT_NEAR(convertUnits(defaultOrigin, LinearUnitDefs::meter, crs.getXYUnits()), roundOriginToZero(metricAlign.xOrigin(),metricAlign.xres()), 0.01);
+		EXPECT_NEAR(convertUnits(defaultOrigin, LinearUnitDefs::meter, crs.getXYUnits()), roundOriginToZero(metricAlign.yOrigin(),metricAlign.yres()), 0.01);
 
 		Alignment fileAlign{ testFileFolder + "/testRaster.tif" };
 		prepareParams({ debugParam, "--las=" + testFileFolder + "/testlaz10.laz",
-			"--alignment=" + testFileFolder + "/testRaster.tif", "--output=debug-test" });
+			"--alignment=" + testFileFolder + "/testRaster.tif", "--debug-no-output" });
 		metricAlign = *data().metricAlign();
 		EXPECT_TRUE(fileAlign.crs().isConsistent(metricAlign.crs()));
 		EXPECT_NEAR(fileAlign.xres(), metricAlign.xres(), 0.000001);
@@ -273,27 +273,24 @@ namespace lapis {
 
 
 		prepareParams({ debugParam, "--las=" + testFileFolder + "/testlaz10.laz",
-			"--out-crs=2286", "--user-units=m","--cellsize=20","--xorigin=10","--yorigin=5", "--output=debug-test" });
+			"--out-crs=2286", "--user-units=m","--cellsize=20","--xorigin=10","--yorigin=5", "--debug-no-output" });
 		metricAlign = *data().metricAlign();
 		EXPECT_TRUE(metricAlign.crs().isConsistentHoriz(CoordRef("2286")));
-		EXPECT_NEAR(convertUnits(20, linearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
-		EXPECT_NEAR(convertUnits(20, linearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yres(), 0.0001);
-		EXPECT_NEAR(convertUnits(10, linearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xOrigin(), 0.0001);
-		EXPECT_NEAR(convertUnits(5, linearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yOrigin(), 0.0001);
+		EXPECT_NEAR(convertUnits(20, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
+		EXPECT_NEAR(convertUnits(20, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yres(), 0.0001);
+		EXPECT_NEAR(convertUnits(10, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xOrigin(), 0.0001);
+		EXPECT_NEAR(convertUnits(5, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yOrigin(), 0.0001);
 
-		prepareParams({ debugParam, "--las=" + testFileFolder + "/testlaz10.laz", "--out-crs=2286", "--user-units=m","--yres=9","--xres=7", "--output=debug-test" });
+		prepareParams({ debugParam, "--las=" + testFileFolder + "/testlaz10.laz", "--out-crs=2286", "--user-units=m","--yres=9","--xres=7", "--debug-no-output" });
 		metricAlign = *data().metricAlign();
-		EXPECT_NEAR(convertUnits(7, linearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
-		EXPECT_NEAR(convertUnits(9, linearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yres(), 0.0001);
+		EXPECT_NEAR(convertUnits(7, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
+		EXPECT_NEAR(convertUnits(9, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yres(), 0.0001);
 	}
 
 	TEST_F(LapisDataTest, computerOptions) {
 		prepareParamsNoSlowStuff({ "--thread=129" });
 		EXPECT_EQ(129, data().nThread());
 		coord_t noPerfBinSize = data().binSize();
-
-		prepareParamsNoSlowStuff({ "--performance" });
-		EXPECT_GT(data().binSize(), noPerfBinSize);
 	}
 
 	TEST_F(LapisDataTest, pointMetricOptions) {
@@ -325,15 +322,22 @@ namespace lapis {
 			EXPECT_EQ(newStrata[i], i);
 		}
 
+		prepareParamsNoSlowStuff({ "--skip-strata" });
+		EXPECT_EQ(data().strataBreaks().size(), 0);
+
 		size_t metricCount = data().allReturnPointMetrics().size();
 
-		prepareParams({ "--debug-no-alignment","--output=debug-test","--skip-all-returns","--adv-point" });
+		prepareParams({ "--debug-no-alignment","--debug-no-output","--skip-all-returns","--adv-point" });
 		EXPECT_EQ(data().allReturnPointMetrics().size(), 0);
 		EXPECT_GT(data().firstReturnPointMetrics().size(), metricCount);
+		EXPECT_EQ(data().allReturnStratumMetrics().size(), 0);
+		EXPECT_GT(data().firstReturnStratumMetrics().size(), 0);
 
-		prepareParams({ "--debug-no-alignment","--output=debug-test","--skip-first-returns","--adv-point" });
+		prepareParams({ "--debug-no-alignment","--debug-no-output","--skip-first-returns","--adv-point","--skip-strata"});
 		EXPECT_EQ(data().firstReturnPointMetrics().size(), 0);
 		EXPECT_GT(data().allReturnPointMetrics().size(), metricCount);
+		EXPECT_EQ(data().allReturnStratumMetrics().size(), 0);
+		EXPECT_EQ(data().firstReturnStratumMetrics().size(), 0);
 	}
 
 	TEST_F(LapisDataTest, name) {
@@ -424,26 +428,26 @@ namespace lapis {
 			EXPECT_NEAR(fineInt.yOrigin(), std::fmod(a.yOrigin(), fineInt.yres()), 0.0001);
 		};
 
-		prepareParamsNoSlowStuff({});
+		prepareParamsNoSlowStuff({"--fine-int"});
 		checkAlign(data().csmAlign()->xres());
 
-		prepareParamsNoSlowStuff({ "--csm-cellsize=5" });
+		prepareParamsNoSlowStuff({"--fine-int", "--csm-cellsize=5"});
 		checkAlign(data().csmAlign()->xres());
 
-		prepareParamsNoSlowStuff({ "--csm-cellsize=5","--fine-int-cellsize=20" });
+		prepareParamsNoSlowStuff({ "--fine-int","--csm-cellsize=5","--fine-int-cellsize=20"});
 		checkAlign(20);
 
 
 		prepareParamsNoSlowStuff({});
 		EXPECT_EQ(data().fineIntCanopyCutoff(), data().canopyCutoff());
 
-		prepareParamsNoSlowStuff({ "--canopy=10" });
+		prepareParamsNoSlowStuff({ "--fine-int","--canopy=10" });
 		EXPECT_EQ(data().fineIntCanopyCutoff(), data().canopyCutoff());
 
-		prepareParamsNoSlowStuff({ "--canopy=11","--fine-int-cutoff=7" });
+		prepareParamsNoSlowStuff({ "--fine-int","--canopy=11","--fine-int-cutoff=7" });
 		EXPECT_EQ(data().fineIntCanopyCutoff(), 7);
 
-		prepareParamsNoSlowStuff({ "--fine-int-no-cutoff" });
+		prepareParamsNoSlowStuff({ "--fine-int","--fine-int-no-cutoff" });
 		EXPECT_EQ(data().fineIntCanopyCutoff(), std::numeric_limits<coord_t>::lowest());
 	}
 }
