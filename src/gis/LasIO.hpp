@@ -165,7 +165,7 @@ namespace lapis {
 		uint8_t flagByte;
 		uint8_t rawClassification;
 		uint8_t userData;
-		uint16_t rawSanAngle;
+		uint16_t rawScanAngle;
 		uint16_t pointSourceID;
 		double gpsTime;
 
@@ -204,7 +204,7 @@ namespace lapis {
 		}
 
 		double scanAngle() const {
-			return (double)rawSanAngle * 0.006;
+			return (double)rawScanAngle * 0.006;
 		}
 	};
 #pragma pack(pop)
