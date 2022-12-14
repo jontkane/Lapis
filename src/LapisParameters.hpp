@@ -238,13 +238,13 @@ namespace lapis {
 				return std::hash<std::string>()(u.name + std::to_string(u.convFactor));
 			}
 		};
-		inline static const std::unordered_map<Unit, std::string, UnitHasher> _singularNames = {
+		const std::unordered_map<Unit, std::string, UnitHasher> _singularNames = {
 			{LinearUnitDefs::meter,"Meter"},
 			{LinearUnitDefs::foot,"Foot"},
 			{LinearUnitDefs::surveyFoot,"Foot"},
 			{LinearUnitDefs::unkLinear,"Unit"}
 		};
-		inline static const std::unordered_map<Unit, std::string, UnitHasher> _pluralNames = {
+		const std::unordered_map<Unit, std::string, UnitHasher> _pluralNames = {
 			{LinearUnitDefs::meter,"Meters"},
 			{LinearUnitDefs::foot,"Feet"},
 			{LinearUnitDefs::surveyFoot,"Feet"},
@@ -307,6 +307,7 @@ namespace lapis {
 		bool _displayErrorWindow = false;
 		bool _xyResDiffCheck = false;
 		bool _xyOriginDiffCheck = false;
+		bool _displayAdvanced = false;
 
 		std::shared_ptr<Alignment> _align;
 		std::shared_ptr<Raster<int>> _nLaz;

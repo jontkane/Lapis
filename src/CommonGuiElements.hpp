@@ -5,6 +5,7 @@
 #include"app_pch.hpp"
 #include"LapisTypedefs.hpp"
 #include"LapisLogger.hpp"
+#include"LapisUtils.hpp"
 
 namespace lapis {
 	
@@ -33,12 +34,15 @@ namespace lapis {
 
 		void addShortCmdAlias(char alias);
 
+		void addHelpText(const std::string& help);
+
 	protected:
 		const std::string _cmdName;
 		const std::string _cmdDesc;
 		const bool _hidden;
 		const std::string _guiDesc;
 		char _alias = '\0';
+		std::string _helpText;
 
 		template<class T>
 		void addToCmdBase(po::options_description& visible, po::options_description& hidden, T* p);
@@ -500,11 +504,21 @@ namespace lapis {
 	{
 		bool changed = false;
 		ImGui::Text(_guiDesc.c_str());
+
+		if (_helpText.size() && !_singleLine) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
+		}
+
 		for (auto& v : _buttons) {
 			if (_singleLine) {
 				ImGui::SameLine();
 			}
 			changed = ImGui::RadioButton(v.second.display.c_str(), &_radio, v.first) || changed;
+		}
+		if (_helpText.size() && _singleLine) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
 		}
 		return changed;
 	}

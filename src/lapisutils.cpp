@@ -50,4 +50,18 @@ namespace lapis {
 		unsigned int out = std::thread::hardware_concurrency();
 		return out > 1 ? out - 1 : 1;
 	}
+
+	//copied from the ImGui demo
+	void ImGuiHelpMarker(const char* desc)
+	{
+		ImGui::TextDisabled("(?)");
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::BeginTooltip();
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+			ImGui::TextUnformatted(desc);
+			ImGui::PopTextWrapPos();
+			ImGui::EndTooltip();
+		}
+	}
 }

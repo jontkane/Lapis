@@ -30,6 +30,8 @@ namespace lapis {
 	//returns a useful default for the number of concurrent threads to run
 	unsigned int defaultNThread();
 
+	void ImGuiHelpMarker(const char* desc);
+
 
 }
 

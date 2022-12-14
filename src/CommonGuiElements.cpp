@@ -2,6 +2,7 @@
 #include"CommonGuiElements.hpp"
 #include"LapisData.hpp"
 #include"LapisLogger.hpp"
+#include"LapisUtils.hpp"
 
 namespace lapis {
 
@@ -14,10 +15,13 @@ namespace lapis {
 		: _guiDesc(guiDesc), _cmdName(cmdName), _cmdDesc(cmdDescription), _hidden(false)
 	{
 	}
-
 	void CmdGuiElement::addShortCmdAlias(char alias)
 	{
 		_alias = alias;
+	}
+	void CmdGuiElement::addHelpText(const std::string& help)
+	{
+		_helpText = help;
 	}
 
 	CheckBox::CheckBox(const std::string& guiDesc, const std::string& cmdName)
@@ -42,7 +46,12 @@ namespace lapis {
 	bool CheckBox::renderGui()
 	{
 		std::string label = _guiDesc + "##" + _cmdName;
-		return ImGui::Checkbox(label.c_str(), &_state);
+		bool changed = ImGui::Checkbox(label.c_str(), &_state);
+		if (_helpText.size()) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
+		}
+		return changed;
 	}
 	bool CheckBox::importFromBoost()
 	{
@@ -80,7 +89,12 @@ namespace lapis {
 	bool InvertedCheckBox::renderGui()
 	{
 		std::string label = _guiDesc + "##" + _cmdName;
-		return ImGui::Checkbox(label.c_str(), &_state);
+		bool changed = ImGui::Checkbox(label.c_str(), &_state);
+		if (_helpText.size()) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
+		}
+		return changed;
 	}
 	bool InvertedCheckBox::importFromBoost()
 	{
@@ -128,6 +142,10 @@ namespace lapis {
 			changed = ImGui::RadioButton(_falseDisplayString.c_str(), &_radio, FALSE_RADIO) || changed;
 			ImGui::SameLine();
 			changed = ImGui::RadioButton(_trueDisplayString.c_str(), &_radio, TRUE_RADIO) || changed;
+		}
+		if (_helpText.size()) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
 		}
 		return changed;
 	}
@@ -193,6 +211,10 @@ namespace lapis {
 			std::string label = v.second.displayString + "##" + _firstCmdName + _secondCmdName;
 			changed = ImGui::RadioButton(label.c_str(), &_radio, v.first) || changed;
 		}
+		if (_helpText.size()) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
+		}
 		return changed;
 	}
 	bool RadioDoubleBoolean::importFromBoost()
@@ -244,15 +266,13 @@ namespace lapis {
 	}
 	bool NumericTextBoxWithUnits::renderGui()
 	{
-		bool changed;
-
 		ImGui::Text(_guiDesc.c_str());
 
 		ImGui::SameLine();
 		static constexpr int pixelWidth = 100;
 		ImGui::PushItemWidth(pixelWidth);
 		const std::string name = "##" + _cmdName;
-		changed = ImGui::InputText(name.c_str(), _buffer.data(), _buffer.size(), ImGuiInputTextFlags_CharsDecimal);
+		bool changed = ImGui::InputText(name.c_str(), _buffer.data(), _buffer.size(), ImGuiInputTextFlags_CharsDecimal);
 		ImGui::PopItemWidth();
 
 		ImGui::SameLine();
@@ -262,6 +282,10 @@ namespace lapis {
 		}
 		else {
 			ImGui::Text(data.getUnitPlural().c_str());
+		}
+		if (_helpText.size()) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
 		}
 
 		return changed;
@@ -368,6 +392,10 @@ namespace lapis {
 		ImGui::SameLine();
 		if (ImGui::Button(("Change##" + _cmdName).c_str())) {
 			_displayWindow = true;
+		}
+		if (_helpText.size()) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
 		}
 		for (size_t i = 0; i < _buffers.size(); ++i) {
 			ImGui::Text(_buffers[i].asText());
@@ -511,7 +539,14 @@ namespace lapis {
 		ImGui::Text(_guiDesc.c_str());
 		ImGui::SameLine();
 		std::string label = "##" + _cmdName;
-		return ImGui::InputText(label.c_str(), _buffer.data(), _buffer.size(), ImGuiInputTextFlags_CharsDecimal);
+		ImGui::PushItemWidth(100);
+		bool changed = ImGui::InputText(label.c_str(), _buffer.data(), _buffer.size(), ImGuiInputTextFlags_CharsDecimal);
+		ImGui::PopItemWidth();
+		if (_helpText.size()) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
+		}
+		return changed;
 	}
 	bool IntegerTextBox::importFromBoost()
 	{
@@ -571,6 +606,10 @@ namespace lapis {
 		std::string label = "##" + _cmdName;
 		bool changed = ImGui::InputText(label.c_str(), _buffer.data(), _buffer.size());
 		ImGui::PopItemWidth();
+		if (_helpText.size()) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
+		}
 		return changed;
 	}
 	bool TextBox::importFromBoost()
@@ -652,8 +691,12 @@ namespace lapis {
 		if (ImGui::Button("Remove All")) {
 			_fileSpecsSet.clear();
 		}
-		//ImGui::SameLine();
+
 		ImGui::Checkbox("Add subfolders", &_recursiveCheck);
+		if (_helpText.size()) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
+		}
 
 		ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
 		std::string childname = "##" + _cmdName;
@@ -716,6 +759,11 @@ namespace lapis {
 			changed = true;
 		}
 
+		if (_helpText.size()) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
+		}
+
 		return changed;
 	}
 	bool FolderTextInput::importFromBoost()
@@ -763,6 +811,12 @@ namespace lapis {
 	bool CRSInput::renderGui()
 	{
 		ImGui::Text(_guiDesc.c_str());
+
+		if (_helpText.size()) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
+		}
+
 		bool changed = ImGui::InputTextMultiline(("##crsinput" + _cmdName).c_str(), _buffer.data(), _buffer.size(),
 			ImVec2(350, 100), 0);
 		if (changed) {
@@ -871,6 +925,10 @@ namespace lapis {
 		ImGui::SameLine();
 		if (ImGui::Button("Change")) {
 			_displayWindow = true;
+		}
+		if (_helpText.size()) {
+			ImGui::SameLine();
+			ImGuiHelpMarker(_helpText.c_str());
 		}
 
 		ImGui::BeginChild(("##classlist" + _cmdName).c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 50), true, ImGuiWindowFlags_HorizontalScrollbar);

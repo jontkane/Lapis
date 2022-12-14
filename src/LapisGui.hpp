@@ -11,7 +11,8 @@ namespace lapis {
 	struct LapisGuiObjects {
 		std::unique_ptr<LapisController> controller;
 		std::thread runThread;
-		NFD::UniquePathU8 inifile;
+		NFD::UniquePathU8 inputIniFile;
+		NFD::UniquePathU8 outputIniFile;
 
 		bool showAdvancedDataOptions = false;
 
@@ -27,6 +28,8 @@ namespace lapis {
 	void renderFullGui();
 
 	void guiTabs();
+
+	void dataTab();
 
 	void runTab();
 

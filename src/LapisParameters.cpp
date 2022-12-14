@@ -8,6 +8,7 @@ namespace lapis {
 
 	Parameter<ParamName::name>::Parameter() {
 		_name.addShortCmdAlias('N');
+		_name.addHelpText("If you supply a name for the run, it will be included in the filenames of the output.");
 	}
 	void Parameter<ParamName::name>::addToCmd(po::options_description& visible,
 		po::options_description& hidden) {
@@ -39,6 +40,9 @@ namespace lapis {
 
 	Parameter<ParamName::las>::Parameter() {
 		_specifiers.addShortCmdAlias('L');
+		_specifiers.addHelpText("Use these buttons to specify the las/laz format lidar point clouds you want to process.\n\n"
+			"If you select a folder, it will include all las/laz files in that folder.\n\n"
+			"If the 'recursive' box is checked, it will also include any las/laz files in subfolders.");
 	}
 	void Parameter<ParamName::las>::addToCmd(po::options_description& visible,
 		po::options_description& hidden) {
@@ -153,6 +157,11 @@ namespace lapis {
 
 	Parameter<ParamName::dem>::Parameter() {
 		_specifiers.addShortCmdAlias('D');
+		_specifiers.addHelpText("Use these buttons to specify the vendor-provided DEM rasters you want to use for this run.\n\n"
+			"If you select a folder, it will assume all rasters in that folder are DEMs.\n\n"
+			"If the 'recursive' box is checked, it will also include any las/laz files in subfolders.\n\n"
+		"Lapis cannot currently create its own ground model.\n\n"
+		"If your rasters are in ESRI grid format, select the folder itself.");
 	}
 	void Parameter<ParamName::dem>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
@@ -202,6 +211,7 @@ namespace lapis {
 
 	Parameter<ParamName::output>::Parameter() {
 		_output.addShortCmdAlias('O');
+		_debugNoOutput.addHelpText("This checkbox should only be displayed in debug mode. If you see it in a public release, please contact the developer.");
 	}
 	void Parameter<ParamName::output>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
@@ -261,7 +271,6 @@ namespace lapis {
 	{
 		return _output.path();
 	}
-
 	bool Parameter<ParamName::output>::isDebugNoOutput() const
 	{
 		return _debugNoOutput.currentState();
@@ -296,6 +305,12 @@ namespace lapis {
 		if (ImGui::Button("Reset")) {
 			_crs.reset();
 		}
+
+		ImGui::SameLine();
+		ImGuiHelpMarker("Most of the time, Lapis can tell the projection and units of the laz files.\n\n"
+			"However, especially with very old (pre-2013) laz files, it can sometimes be wrong.\n\n"
+			"You can specify the correct information here.\n\n"
+			"Note that this will be applied to ALL las/laz files. You cannot specify one projection for some and another for others.\n\n");
 
 		_unit.renderGui();
 
@@ -364,6 +379,12 @@ namespace lapis {
 			_crs.reset();
 		}
 
+		ImGui::SameLine();
+		ImGuiHelpMarker("Most of the time, Lapis can telln the projection and units of the dem raster files.\n\n"
+			"However, sometimes the units are unexpected, or the projection isn't defined.\n\n"
+			"You can specify the correct information here.\n\n"
+			"Note that this will be applied to ALL DEM rasters. You cannot yet specify one projection for some and another for others.\n\n");
+
 		_unit.renderGui();
 
 		if (_displayWindow) {
@@ -401,7 +422,8 @@ namespace lapis {
 		return _unit.currentSelection();
 	}
 
-	Parameter<ParamName::outUnits>::Parameter() {
+	Parameter<ParamName::outUnits>::Parameter()
+	{
 		_unit.addOption("Meters", UnitRadio::METERS, LinearUnitDefs::meter);
 		_unit.addOption("International Feet", UnitRadio::INTFEET, LinearUnitDefs::foot);
 		_unit.addOption("US Survey Feet", UnitRadio::USFEET, LinearUnitDefs::surveyFoot);
@@ -443,6 +465,20 @@ namespace lapis {
 
 	Parameter<ParamName::alignment>::Parameter() 
 	{
+		_xorigin.addHelpText("The origin is what sometimes causes rasters with the same cellsize and CRS to not line up.\n\n"
+			"Most of the time, when you specify this, it's to ensure a match with some other specific raster.\n\n"
+			"You can specify the coordinates of the lower-left corner of any cell in the desired output grid.\n\n");
+		_yorigin.addHelpText("");
+		_origin.addHelpText("The origin is what sometimes causes rasters with the same cellsize and CRS to not line up.\n\n"
+			"Most of the time, when you specify this, it's to ensure a match with some other specific raster.\n\n"
+			"You can specify the coordinates of the lower-left corner of any cell in the desired output grid.\n\n");
+		_xres.addHelpText("The cellsize is the size of each pixel on a side.\n\n"
+			"This cellsize will be used for coarse output rasters, like point metrics, but not for fine output rasters, like the canopy surface model.\n\n");
+		_yres.addHelpText("");
+		_cellsize.addHelpText("The cellsize is the size of each pixel on a side.\n\n"
+			"This cellsize will be used for coarse output rasters, like point metrics, but not for fine output rasters, like the canopy surface model.\n\n");
+
+		_debugNoAlign.addHelpText("This checkbox should only be displayed in debug mode. If you see it in a public release, please contact the developer.");
 	}
 	void Parameter<ParamName::alignment>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
@@ -493,6 +529,12 @@ namespace lapis {
 		if (ImGui::Button("Specify Manually")) {
 			_displayManualWindow = true;
 		}
+
+		ImGui::SameLine();
+		ImGuiHelpMarker("This is how you specify a snap raster for the output of the run.\n\n"
+			"If you specify a raster file, the output will have the same cellsize, projection, and alignment as that file.\n\n"
+			"If you don't have a file with the alignment you want, you can also specify it manually.");
+
 		ImGui::Text("Output CRS:");
 		_crs.renderDisplayString();
 		ImGui::Text("Cellsize: ");
@@ -706,10 +748,14 @@ namespace lapis {
 			return;
 		}
 
-		ImGui::Checkbox("Different X/Y Resolution", &_xyResDiffCheck);
-		ImGui::Checkbox("Different X/Y Origin", &_xyOriginDiffCheck);
+		ImGui::Checkbox("Show Advanced Options", &_displayAdvanced);
 
-		if (_xyResDiffCheck) {
+		if (_displayAdvanced) {
+			ImGui::Checkbox("Different X/Y Resolution", &_xyResDiffCheck);
+			ImGui::Checkbox("Different X/Y Origin", &_xyOriginDiffCheck);
+		}
+
+		if (_displayAdvanced && _xyResDiffCheck) {
 			_xres.renderGui();
 			_yres.renderGui();
 		}
@@ -720,11 +766,11 @@ namespace lapis {
 			}
 		}
 
-		if (_xyOriginDiffCheck) {
+		if (_displayAdvanced && _xyOriginDiffCheck) {
 			_xorigin.renderGui();
 			_yorigin.renderGui();
 		}
-		else {
+		else if (_displayAdvanced) {
 			if (_origin.renderGui()) {
 				_xorigin.copyFrom(_origin);
 				_yorigin.copyFrom(_origin);
@@ -766,6 +812,14 @@ namespace lapis {
 		_smooth.addOption("No Smoothing", 1, 1);
 		_smooth.addOption("5x5", 5, 5);
 		_smooth.setSingleLine();
+
+		_footprint.addHelpText("This value indicates the estimated diameter of a lidar pulse as it strikes the canopy.\n\n"
+			"Each return will be considered a circle with this diameter for the purpose of constructing the canopy surface model.\n\n"
+			"If this behavior is undesirable, set the value to 0.");
+		_smooth.addHelpText("The desired smoothing for the output CSM.\n\n"
+			"If set to 3x3, each cell in the final raster will be equal to the average of that cell and its 8 neighbors in the pre-smoothing CSM.\n\n"
+			"If set to 5x5, it will use the average of those 9 cells and the 16 cells surrounding them.");
+		_doMetrics.addHelpText("If this is checked, Lapis will calculate summary metrics on the CSM itself, such as the mean and standard deviation of values.");
 	}
 	void Parameter<ParamName::csmOptions>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
@@ -894,6 +948,16 @@ namespace lapis {
 		_whichReturns.addCombo(DONT_SKIP, DONT_SKIP, 2, "Both");
 		_whichReturns.addCombo(DO_SKIP, DONT_SKIP, 0, "All Returns");
 		_whichReturns.addCombo(DONT_SKIP, DO_SKIP, 1, "First Returns");
+
+		_canopyCutoff.addHelpText("Many point metrics are either calculated only on canopy points, or treat canopy points specially in some other way.\n\n"
+			"A canopy point is defined as being above some specific height, which you specify here.");
+		_doStrata.addHelpText("Some metrics are calculated on specific height bands; for example, on all returns between 8 and 16 meters above the ground."
+			"These numbers specify those bands.");
+		_advMetrics.addHelpText("There are a very large number of point metrics that have been proposed over the years.\n\n"
+			"However, a much smaller subset suffice for the vast majority of applications.\n\n"
+			"This checkbox controls whether Lapis calculates the more limited set, or the full set.");
+		_whichReturns.addHelpText("Depending on the application, you may want point metrics to be calculated either on first returns only, or on all returns.\n\n"
+			"You can control that with this selection.");
 	}
 	void Parameter<ParamName::pointMetricOptions>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
@@ -1119,6 +1183,13 @@ namespace lapis {
 		_class.setState(7, false);
 		_class.setState(9, false);
 		_class.setState(18, false);
+
+		_minht.addHelpText("Ocassionally, points in a laz file will be so far above or below the ground as to be obvious errors.\n\n"
+		"You can specify those cutoffs here.");
+		_class.addHelpText("Your laz files may have classification information indicating a best guess at what the lidar pulse struck.\n\n"
+			"You can choose to exclude certain classifications from the analysis.");
+		_filterWithheld.addHelpText("Some points in laz files are marked as withheld, indicating that they should not be used.\n\n"
+			"For the vast majority of applications, they should be excluded, but you can choose to include them with this checkbox.");
 	}
 	void Parameter<ParamName::filters>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
@@ -1193,7 +1264,22 @@ namespace lapis {
 		return _maxht.getValueLogErrors();
 	}
 
-	Parameter<ParamName::whichProducts>::Parameter() {}
+	Parameter<ParamName::whichProducts>::Parameter() {
+		_doCsm.addHelpText("Calculate a canopy surface model.\n\n"
+			"A canopy surface model is a rasterized product usually produced at a fine (2m or smaller) resolution.\n\n"
+			"It indicates a best guess as to the height of the canopy in each pixel.");
+		_doPointMetrics.addHelpText("Calculate point metrics.\n\n"
+			"Point metrics are a rasterized product usually produced at a coarse (10m or large) resolution.\n\n"
+			"They represent summaries (such as the mean, standard deviation, etc) of the heights of the returns in each pixel.\n\n"
+			"They can give a good idea of the structure of the forest within the pixel.");
+		_doTao.addHelpText("Identify Tree-Approximate Objects (TAOs)\n\n"
+			"A TAO represents something that the algorithm believes to be an overstory tree.\n\n"
+			"No attempt is made to identify understory trees, and there is considerable inaccuracy even in the overstory.");
+		_doTopo.addHelpText("Calculate topographic metrics such as slope and aspect off of the DEM.");
+		_doFineInt.addHelpText("Calculate a fine-scale mean intensity image\n\n"
+			"Intensity is a measure of how bright a lidar pulse is. Chlorophyll is very bright in near infrared, so high intensity can indicate the presence of live vegetation.");
+		_debugNoAlloc.addHelpText("This checkbox should only be displayed in debug mode. If you see it in a public release, please contact the developer.");
+	}
 	void Parameter<ParamName::whichProducts>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
 		_doFineInt.addToCmd(visible, hidden);
@@ -1269,7 +1355,11 @@ namespace lapis {
 		return _debugNoAlloc.currentState();
 	}
 
-	Parameter<ParamName::computerOptions>::Parameter() {}
+	Parameter<ParamName::computerOptions>::Parameter() {
+		_thread.addHelpText("This controls how many independent threads to run the Lapis process on.\n\n"
+			"On most computers, this should be set to 2 or 3 below the number of logical cores on the machine.\n\n"
+			"If Lapis is causing your computer to slow down, considering lowering this.");
+	}
 	void Parameter<ParamName::computerOptions>::addToCmd(po::options_description& visible,
 		po::options_description& hidden) {
 		_thread.addToCmd(visible, hidden);
@@ -1309,6 +1399,14 @@ namespace lapis {
 		_segAlgo.setSingleLine();
 
 		_sameMinHt.setState(true);
+
+		_idAlgo.addHelpText("The algorithm for identifying trees. Only the 'high points' algorithm is supported currently.\n\n"
+			"High Points: This is a CSM-based algorith. A CSM pixel is considered a candidate for being the stem of a tree if it's higher than all 8 of its neighbors.\n"
+			"It is good for trees such as conifers with a well-defined tops.");
+		_segAlgo.addHelpText("The algorithm for segmenting the canopy between the identified trees. Only the watershed algorith is supported currently.\n\n"
+			"Watershed: expand each identified tree downwards from the center until it would have to go upwards again.\n"
+			"The watershed algorithm requires no parameterization");
+
 	}
 	void Parameter<ParamName::taoOptions>::addToCmd(po::options_description& visible,
 		po::options_description& hidden) {
@@ -1403,6 +1501,9 @@ namespace lapis {
 	Parameter<ParamName::fineIntOptions>::Parameter() {
 		_sameCellsize.setState(true);
 		_sameCutoff.setState(true);
+
+		_useCutoff.addHelpText("Depending on your application, you may want the mean intensity to include all returns, or just returns from trees.\n\b"
+			"As with point metrics, the canopy is defined as being returns that are at least a certain height above the ground.");
 	}
 	void Parameter<ParamName::fineIntOptions>::addToCmd(po::options_description& visible,
 		po::options_description& hidden) {
