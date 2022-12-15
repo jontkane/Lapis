@@ -158,6 +158,19 @@ namespace lapis {
 		//You can specify the datatype of the file, or leave it as GDT_Unknown to choose the one that corresponds to the template of the raster object.
 		void writeRaster(const std::string& file, const std::string driver = "GTiff", const T navalue = std::numeric_limits<T>::lowest());
 
+		Raster<T> resample(const Alignment& a, ExtractMethod method) {
+			Raster<T> out{ a };
+			for (cell_t cell = 0; cell < out.ncell(); ++cell) {
+				auto v = this->extract(out.xFromCell(cell), out.yFromCell(cell), method);
+				out[cell].has_value() = v.has_value();
+				out[cell].value() = v.value();
+			}
+			return out;
+		}
+		Raster<T> transformRaster(const CoordRef& crs, ExtractMethod method) {
+			return resample(this->transformAlignment(crs), method);
+		}
+
 		//basic element-wise artihmetic
 		template<class S>
 		Raster<T>& operator+=(const Raster<S>& rhs);
@@ -586,17 +599,6 @@ namespace lapis {
 		}
 		return *this;
 	}
-
-	/*
-comparators?
-minmax
-trim
-mask
-hasanyValue
-atXY/extract with coord object
-rasterview
-normalize
-resample*/
 }
 
 #endif

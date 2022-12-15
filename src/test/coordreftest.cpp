@@ -138,4 +138,18 @@ namespace lapis {
 			EXPECT_TRUE(source[i].isConsistentZUnits(against) == expected[i]) << "Failed on test " + std::to_string(i);
 		}
 	}
+
+	TEST(CoordRefTest, isProjected) {
+		CoordRef crs = "2927";
+		EXPECT_TRUE(crs.isProjected());
+
+		crs = "2927+5703";
+		EXPECT_TRUE(crs.isProjected());
+
+		crs = "4326";
+		EXPECT_FALSE(crs.isProjected());
+
+		crs = "4326+5703";
+		EXPECT_FALSE(crs.isProjected());
+	}
 }

@@ -113,7 +113,7 @@ namespace lapis {
 			}
 
 		private:
-			inline static const int MAXBUFFERSIZE = 256;
+			static constexpr int MAXBUFFERSIZE = 256;
 			LasIO _las;
 #pragma warning(suppress: 26495)
 			std::array<char, MAXBUFFERSIZE> _buffer;

@@ -25,6 +25,8 @@ namespace lapis {
 		template<class T>
 		void transformXYZ(std::vector<T>& points, size_t startIdx = 0);
 
+		CoordXY transformSingleXY(coord_t x, coord_t y);
+
 	private:
 		ProjPJWrapper _tr;
 		coord_t _convFactor;

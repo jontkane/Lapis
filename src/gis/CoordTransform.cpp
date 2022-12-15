@@ -8,7 +8,9 @@ CoordTransform::CoordTransform(const CoordRef& src, const CoordRef& dst) {
 	_needZConv = !src.isConsistentZUnits(dst);
 	_needXYConv = !src.isConsistentHoriz(dst);
 	if (_needXYConv) {
-		_tr = ProjPJWrapper(proj_create_crs_to_crs_from_pj(ProjContextByThread::get(), src.getPtr(), dst.getPtr(), nullptr, nullptr));
+		ProjPJWrapper temp = ProjPJWrapper(proj_create_crs_to_crs_from_pj(
+			ProjContextByThread::get(), src.getPtr(), dst.getPtr(), nullptr, nullptr));
+		_tr = ProjPJWrapper(proj_normalize_for_visualization(ProjContextByThread::get(), temp.ptr()));
 	}
 }
 
@@ -26,5 +28,14 @@ ProjPJWrapper& CoordTransform::getWrapper() {
 
 inline const ProjPJWrapper& CoordTransform::getWrapper() const {
 	return _tr;
+}
+CoordXY CoordTransform::transformSingleXY(coord_t x, coord_t y)
+{
+	proj_trans_generic(_tr.ptr(), PJ_FWD,
+		&x, 0, 1,
+		&y, 0, 1,
+		nullptr, 0, 0,
+		nullptr, 0, 0);
+	return { x,y };
 }
 }

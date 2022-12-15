@@ -248,4 +248,43 @@ namespace lapis {
 	bool operator!=(const Alignment& lhs, const Alignment& rhs) {
 		return !(lhs == rhs);
 	}
+
+	Alignment Alignment::transformAlignment(const CoordRef& crs) const {
+
+		if (_crs.isConsistentHoriz(crs)) {
+			Alignment out = *this;
+			out.defineCRS(crs);
+			return out;
+		}
+
+		CoordTransform crt{ _crs,crs };
+
+		//the strategy here is to transform the four corners of the extent, taking mins/maxes, and setting xres and yres to whatever they need to be to preserve nrow/ncol
+		//if xres and yres are equal in *this, and come out to within an epsilon of equal, they'll be set to their average to preserve square pixels
+		CoordXY lowerLeft = crt.transformSingleXY(xmin(), ymin());
+		CoordXY lowerRight = crt.transformSingleXY(xmax(), ymin());
+		CoordXY upperLeft = crt.transformSingleXY(xmin(), ymax());
+		CoordXY upperRight = crt.transformSingleXY(xmax(), ymax());
+
+		coord_t newxmin = std::min(lowerLeft.x, upperLeft.x);
+		coord_t newxmax = std::max(lowerRight.x, upperRight.x);
+		coord_t newymin = std::min(lowerLeft.y, lowerRight.y);
+		coord_t newymax = std::max(upperLeft.y, upperRight.y);
+
+		//these can happen if you switch from a CRS where the ymax is in the north to one where the ymax is in the south
+		//(or vice versa, or similarly for east/west)
+		if (newymin > newymax)
+			std::swap(newymin, newymax);
+		if (newxmin > newxmax)
+			std::swap(newxmin, newxmax);
+			
+		coord_t newxres = ncol() ? (newxmax - newxmin) / ncol() : 1;
+		coord_t newyres = nrow() ? (newymax - newymin) / nrow() : 1;
+
+		if (xres() == yres() && std::abs(newxres - newyres) < LAPIS_EPSILON) {
+			newxres = newyres = (newxres + newyres) / 2.;
+		}
+
+		return Alignment(newxmin, newymin, nrow(), ncol(), newxres, newyres, crs);
+	}
 }

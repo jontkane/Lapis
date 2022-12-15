@@ -192,6 +192,9 @@ namespace lapis {
 		//Returns the minimum and maximum row and column numbers that fall within the given extent, after aligning with the given snaptype
 		RowColExtent rowColExtent(const Extent& e, SnapType snap = SnapType::near) const;
 
+		//Returns an alignment in the given CRS which is as close as reasonable possible to this
+		Alignment transformAlignment(const CoordRef& crs) const;
+
 	protected:
 		coord_t _xres, _yres;
 		rowcol_t _nrow, _ncol;

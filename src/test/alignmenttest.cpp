@@ -287,4 +287,43 @@ namespace lapis {
 
 		EXPECT_ANY_THROW(extend(Alignment(0, 0, 10, 10, 10, 10, CoordRef("2967")), wrongproj));
 	}
+
+	TEST(AlignmentTest, transformAlignment) {
+		CoordRef feet = "2927";
+		CoordRef meters = "32610";
+		CoordRef degrees = "4326";
+
+		Alignment a = Alignment{ 950000,1400000,10,10,10,10,feet }; //having an extent which is in the usable zone of the CRS is important for heuristic-based tests
+		Alignment transformed = a.transformAlignment(feet);
+		EXPECT_EQ(a, transformed);
+
+		transformed = a.transformAlignment(CoordRef());
+		EXPECT_EQ(a.xmin(), transformed.xmin());
+		EXPECT_EQ(a.xmax(), transformed.xmax());
+		EXPECT_EQ(a.ymin(), transformed.ymin());
+		EXPECT_EQ(a.ymax(), transformed.ymax());
+		EXPECT_EQ(a.ncol(), transformed.ncol());
+		EXPECT_EQ(a.nrow(), transformed.nrow());
+		EXPECT_TRUE(transformed.crs().isEmpty());
+
+		transformed = a.transformAlignment(meters);
+		EXPECT_NEAR(transformed.xres(), 10*0.3048, 0.5); //you can distort the cellsize a lot when switching projections, hence the large epsilon here
+		EXPECT_EQ(transformed.xres(), transformed.yres());
+		EXPECT_EQ(a.ncol(), transformed.ncol());
+		EXPECT_EQ(a.nrow(), transformed.nrow());
+		Extent extentOnly = QuadExtent(a, meters).outerExtent();
+		EXPECT_NEAR(transformed.xmin(), extentOnly.xmin(), 1); //these two algorithms can be expected to drift a bit but shouldn't ever be too far off
+		EXPECT_NEAR(transformed.ymin(), extentOnly.ymin(), 1);
+
+		transformed = a.transformAlignment(degrees);
+		EXPECT_EQ(a.ncol(), transformed.ncol());
+		EXPECT_EQ(a.nrow(), transformed.nrow());
+		extentOnly = QuadExtent(a, degrees).outerExtent();
+		EXPECT_NEAR(transformed.xmin(), extentOnly.xmin(), 0.001);
+		EXPECT_NEAR(transformed.xmax(), extentOnly.xmax(), 0.001);
+		EXPECT_NEAR(transformed.ymin(), extentOnly.ymin(), 0.001);
+		EXPECT_NEAR(transformed.ymax(), extentOnly.ymax(), 0.001);
+
+
+	}
 }

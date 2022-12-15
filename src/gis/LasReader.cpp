@@ -25,6 +25,21 @@ namespace lapis {
 				}
 			}
 
+			//These lines should do nothing if the las file is well-constructed.
+			//However, if it isn't well constructed, a point off in the middle of nowhere could cause a crash if you don't check for it
+			if (x() < xmin()) {
+				continue;
+			}
+			if (x() > xmax()) {
+				continue;
+			}
+			if (y() < ymin()) {
+				continue;
+			}
+			if (y() > ymax()) {
+				continue;
+			}
+
 			if (!filtered) {
 				points.emplace_back(x(), y(), z(), intensity(), returnNumber());
 			}

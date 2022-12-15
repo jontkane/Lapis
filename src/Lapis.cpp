@@ -58,6 +58,19 @@ int APIENTRY WinMain(
 	_In_ int nShowCmd
 ) {
 
+	CoordRef feet = "2927";
+	CoordRef meters = "32610";
+	CoordRef degrees = "4326";
+
+	Alignment a = Alignment{ 950000,1400000,10,10,10,10,feet }; //having an extent which is in the usable zone of the CRS is important for heuristic-based tests
+	Alignment transformed = a.transformAlignment(feet);
+
+	transformed = a.transformAlignment(meters);
+	Extent extentOnly = QuadExtent(a, meters).outerExtent();
+
+	transformed = a.transformAlignment(degrees);
+	extentOnly = QuadExtent(a, degrees).outerExtent();
+
 	bool attachResult = AttachConsole(ATTACH_PARENT_PROCESS);
 	if (!attachResult) { //there is no parent console. Just open the GUI
 		renderFullGui();

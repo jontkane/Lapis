@@ -332,4 +332,22 @@ namespace lapis {
 		EXPECT_TRUE(test.has_value());
 		EXPECT_NEAR(exp, test.value(), LAPIS_EPSILON);
 	}
+
+	TEST_F(RasterTest, resample) {
+		Raster<double> r{ Alignment(0,0,3,3,1,1) };
+		for (cell_t cell = 0; cell < r.ncell(); ++cell) {
+			r[cell].has_value() = true;
+			r[cell].value() = (double)cell;
+		}
+		Alignment a{ -1,-1,2,2,2,2 };
+		Raster<double> out = r.resample(a, ExtractMethod::bilinear);
+		EXPECT_EQ(a, (Alignment)out);
+
+		double temp = -1;
+		for (cell_t cell = 0; cell < out.ncell(); ++cell) {
+			EXPECT_TRUE(out[cell].has_value());
+			EXPECT_GT(out[cell].value(), temp);
+			temp = out[cell].value();
+		}
+	}
 }

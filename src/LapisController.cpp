@@ -209,8 +209,10 @@ namespace lapis {
 
 
 			std::optional<Raster<csm_t>> thiscsm;
+			coord_t radius = data->footprintDiameter() / 2.;
+			Extent extentForCSM{ lasExt.ext.xmin() - radius,lasExt.ext.xmax() + radius,lasExt.ext.ymin() - radius,lasExt.ext.ymax() + radius };
 			if (data->doCsm()) {
-				thiscsm = Raster<csm_t>(crop(*data->csmAlign(), lasExt.ext, SnapType::out));
+				thiscsm = Raster<csm_t>(crop(*data->csmAlign(), extentForCSM, SnapType::out));
 			}
 
 			LAPIS_CHECK_ABORT;
@@ -271,9 +273,6 @@ namespace lapis {
 		//skipping a *lot* of if checks in a very time-intensive part of the run
 		if (frpmc && pmc) {
 			for (auto& p : points) {
-				if (!pmc->strictContains(p.x, p.y)) {
-					continue;
-				}
 				cell_t cell = pmc->cellFromXYUnsafe(p.x, p.y);
 
 				std::lock_guard lock{ data->cellMutex(cell) };
@@ -285,9 +284,6 @@ namespace lapis {
 		}
 		else if (pmc) {
 			for (auto& p : points) {
-				if (!pmc->strictContains(p.x, p.y)) {
-					continue;
-				}
 				cell_t cell = pmc->cellFromXYUnsafe(p.x, p.y);
 
 				std::lock_guard lock{ data->cellMutex(cell) };
@@ -296,9 +292,6 @@ namespace lapis {
 		}
 		else if (frpmc) {
 			for (auto& p : points) {
-				if (!pmc->strictContains(p.x, p.y)) {
-					continue;
-				}
 				cell_t cell = pmc->cellFromXYUnsafe(p.x, p.y);
 
 				std::lock_guard lock{ data->cellMutex(cell) };
@@ -344,9 +337,6 @@ namespace lapis {
 				coord_t x = p.x + direction.x;
 				coord_t y = p.y + direction.y;
 				coord_t z = p.z + direction.epsilon;
-				if (!csmv.strictContains(x, y)) {
-					continue;
-				}
 				cell_t cell = csmv.cellFromXYUnsafe(x, y);
 				if (!csmv[cell].has_value()) {
 					csmv[cell].has_value() = true;
@@ -363,9 +353,6 @@ namespace lapis {
 	{
 		coord_t cutoff = data->fineIntCanopyCutoff();
 		for (auto& p : points) {
-			if (!numerator.contains(p.x, p.y)) {
-				continue;
-			}
 			if (p.z < cutoff) {
 				continue;
 			}
