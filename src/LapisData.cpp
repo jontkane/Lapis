@@ -2,6 +2,7 @@
 #include"LapisData.hpp"
 #include"LapisLogger.hpp"
 #include"LapisParameters.hpp"
+#include"DemAlgos.hpp"
 
 namespace lapis {
 
@@ -81,33 +82,18 @@ namespace lapis {
 		}
 		_cellMuts = std::make_unique<std::vector<std::mutex>>(_cellMutCount);
 
-		LapisLogger& log = LapisLogger::getLogger();
-
-		double mem = estimateMemory();
-		mem = std::round(mem * 100.) / 100.;
-		std::ostringstream message;
-		message.precision(1);
-		message << std::fixed;
-		message << "Estimated memory usage: " << mem << " GB";
-		log.logMessage(message.str());
-
-		double hdd = estimateHardDrive();
-		message.str("");
-		message << "Estimated HDD space needed: " << hdd << " GB";
-		log.logMessage(message.str());
-
-
-		if (std::filesystem::is_directory(outFolder())) { //this should always be true unless a specific debug parameter is passed
-			double avail = static_cast<double>(std::filesystem::space(outFolder()).available);
-				avail /= 1024. * 1024. * 1024.;
-				message.str("");
-				message << "Hard drive space available: " << avail << " GB";
-				log.logMessage(message.str());
-		}
-
 		if (isAnyDebug()) {
 			needAbort = true;
 		}
+
+		cell_t targetNCell = tileFileSize() / std::max(sizeof(csm_t), sizeof(intensity_t));
+		rowcol_t targetNRowCol = (rowcol_t)std::sqrt(targetNCell);
+		coord_t tileRes = targetNRowCol * std::min(csmAlign()->xres(), fineIntAlign()->xres());
+		Alignment layoutAlign{ *csmAlign(),0,0,tileRes,tileRes};
+		layoutAlign = extend(layoutAlign, *fineIntAlign());
+		_layout = std::make_shared<Raster<bool>>(layoutAlign);
+
+		_logMemoryAndHDDUse();
 	}
 	void LapisData::cleanAfterRun()
 	{
@@ -149,6 +135,11 @@ namespace lapis {
 	}
 	std::shared_ptr<Alignment> LapisData::fineIntAlign() {
 		return _getRawParam<ParamName::fineIntOptions>().fineIntAlign();
+	}
+	shared_raster<bool> LapisData::layout()
+	{
+		prepareForRun();
+		return _layout;
 	}
 	shared_raster<int> LapisData::nLazRaster()
 	{
@@ -245,6 +236,11 @@ namespace lapis {
 	const std::set<DemFileAlignment>& LapisData::demList()
 	{
 		return _getRawParam<ParamName::dem>().demList();
+	}
+	std::shared_ptr<DemAlgorithm> LapisData::demAlgorithm()
+	{
+		static std::shared_ptr<DemAlgorithm> onlyAlgoRightNow = std::make_shared<VendorRaster>();
+		return onlyAlgoRightNow;
 	}
 	int LapisData::nThread()
 	{
@@ -727,33 +723,55 @@ namespace lapis {
 		auto& filterParam = _getRawParam<ParamName::filters>();
 		filterParam.prepareForRun();
 		auto& filtersVec = filters();
-		coord_t min_ht = minHt();
-		coord_t max_ht = maxHt();
 
 		LasReader sampleLas{ filename };
+		if (!lasCrsOverride().isEmpty()) {
+			sampleLas.defineCRS(lasCrsOverride());
+		}
+		if (!lasUnitOverride().isUnknown()) {
+			sampleLas.setZUnits(lasUnitOverride());
+		}
+
 		for (auto& filter : filtersVec) {
 			sampleLas.addFilter(filter);
 		}
 		di.pointsInSample = sampleLas.nPoints();
-		di.pointsAfterFilters = sampleLas.getPoints(di.pointsInSample).size();
 
-		sampleLas = LasReader{ di.successfulLas[0] };
-		CoordRef lasOverCrs = _getRawParam<ParamName::lasOverride>().crs();
-		if (!lasOverCrs.isEmpty()) {
-			sampleLas.defineCRS(lasOverCrs);
-		}
-		for (auto& filter : filtersVec) {
-			sampleLas.addFilter(filter);
-		}
-		sampleLas.setHeightLimits(min_ht, max_ht, getCurrentUnits());
-		CoordRef demOverCrs = _getRawParam<ParamName::demOverride>().crs();
-		for (auto& dem : demSet) {
-			sampleLas.addDEM(dem.filename, demOverCrs, demOverCrs.getZUnits());
-		}
-		di.pointsAfterDem = sampleLas.getPoints(di.pointsInSample).size();
+		LidarPointVector pointsAfterFilters = sampleLas.getPoints(di.pointsInSample);
+		di.pointsAfterFilters = pointsAfterFilters.size();
+		di.pointsAfterDem = demAlgorithm()->normalizeToGround(pointsAfterFilters, sampleLas).points.size();
 
+		pointsAfterFilters.clear();
+		pointsAfterFilters.shrink_to_fit();
 
 		filterParam.cleanAfterRun();
+	}
+
+	void LapisData::_logMemoryAndHDDUse()
+	{
+		LapisLogger& log = LapisLogger::getLogger();
+
+		double mem = estimateMemory();
+		mem = std::round(mem * 100.) / 100.;
+		std::ostringstream message;
+		message.precision(1);
+		message << std::fixed;
+		message << "Estimated memory usage: " << mem << " GB";
+		log.logMessage(message.str());
+
+		double hdd = estimateHardDrive();
+		message.str("");
+		message << "Estimated HDD space needed: " << hdd << " GB";
+		log.logMessage(message.str());
+
+
+		if (std::filesystem::is_directory(outFolder())) { //this should always be true unless a specific debug parameter is passed
+			double avail = static_cast<double>(std::filesystem::space(outFolder()).available);
+			avail /= 1024. * 1024. * 1024.;
+			message.str("");
+			message << "Hard drive space available: " << avail << " GB";
+			log.logMessage(message.str());
+		}
 	}
 
 	void LapisData::reportFailedLas(const std::string& s)

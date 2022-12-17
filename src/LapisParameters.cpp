@@ -182,7 +182,7 @@ namespace lapis {
 	}
 	void Parameter<ParamName::dem>::updateUnits() {}
 	void Parameter<ParamName::dem>::prepareForRun() {
-		if (_fileAligns.size()) {
+		if (_runPrepared) {
 			return;
 		}
 		if (!_specifiers.getSpecifiers().size()) {
@@ -194,10 +194,13 @@ namespace lapis {
 
 		CoordRef crsOver = d.demCrsOverride();
 		_fileAligns = iterateOverFileSpecifiers(_specifiers.getSpecifiers(), &tryDtmFile, crsOver, crsOver.getZUnits());
+
 		log.logMessage(std::to_string(_fileAligns.size()) + " Dem Files Found");
+		_runPrepared = true;
 	}
 	void Parameter<ParamName::dem>::cleanAfterRun() {
 		_fileAligns.clear();
+		_runPrepared = false;
 	}
 	const std::set<DemFileAlignment>& Parameter<ParamName::dem>::demList()
 	{

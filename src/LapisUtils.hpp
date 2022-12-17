@@ -24,15 +24,26 @@ namespace lapis {
 	//the exposed surface area of already-processed files is minimized, since that's a big source of memory usage
 	bool extentSorter(const Extent& lhs, const Extent& rhs);
 
-	std::string insertZeroes(int value, int maxvalue);
-
-
 	//returns a useful default for the number of concurrent threads to run
 	unsigned int defaultNThread();
 
 	void ImGuiHelpMarker(const char* desc);
 
-
+	template<typename WORKERFUNC>
+	inline void distributeWork(uint64_t& sofar, uint64_t max, const WORKERFUNC& func, std::mutex& mut) {
+		while (true) {
+			cell_t thisidx;
+			{
+				std::lock_guard lock(mut);
+				if (sofar >= max) {
+					break;
+				}
+				thisidx = sofar;
+				++sofar;
+			}
+			func(thisidx);
+		}
+	}
 }
 
 #endif

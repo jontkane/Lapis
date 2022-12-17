@@ -61,8 +61,6 @@ set(LAPIS_APP_SOURCES
 		src/pointmetriccalculator.hpp
 		src/csmalgos.hpp
 		src/csmalgos.cpp
-		src/LapisPrivate.hpp
-		src/LapisPrivate.cpp
 		src/lapistypedefs.hpp
 		src/lapisgui.hpp
 		src/lapisgui.cpp
@@ -74,6 +72,10 @@ set(LAPIS_APP_SOURCES
 		src/ParameterBase.hpp
 		src/CommonGuiElements.hpp
 		src/CommonGuiElements.cpp
+		src/DemAlgos.hpp
+		src/DemAlgos.cpp
+		src/ProductHandler.hpp
+		src/ProductHandler.cpp
 		)
 
 set(LAPIS_TEST_SOURCES

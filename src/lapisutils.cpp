@@ -23,7 +23,6 @@ namespace lapis {
 		return a.filename < b.filename;
 	}
 
-
 	bool extentSorter(const Extent& lhs, const Extent& rhs) {
 		if (lhs.ymax() != rhs.ymax()) {
 			return lhs.ymax() < rhs.ymax();
@@ -36,14 +35,6 @@ namespace lapis {
 		}
 		return lhs.xmin() < rhs.ymin();
 	}
-	
-	std::string insertZeroes(int value, int maxvalue)
-	{
-		size_t nDigits = (size_t)(std::log10(maxvalue) + 1);
-		size_t thisDigitCount = std::max(1ull, (size_t)(std::log10(value) + 1));
-		return std::string(nDigits - thisDigitCount, '0') + std::to_string(value);
-	}
-
 
 	//returns a useful default for the number of concurrent threads to run
 	unsigned int defaultNThread() {

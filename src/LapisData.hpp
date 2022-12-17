@@ -9,6 +9,8 @@
 
 namespace lapis {
 
+	class DemAlgorithm;
+
 	class LapisData {
 
 	public:
@@ -43,6 +45,7 @@ namespace lapis {
 		std::shared_ptr<Alignment> metricAlign();
 		std::shared_ptr<Alignment> csmAlign();
 		std::shared_ptr<Alignment> fineIntAlign();
+		shared_raster<bool> layout();
 
 		
 		shared_raster<int> nLazRaster();
@@ -75,6 +78,7 @@ namespace lapis {
 
 		const std::vector<LasFileExtent>& sortedLasList();
 		const std::set<DemFileAlignment>& demList();
+		std::shared_ptr<DemAlgorithm> demAlgorithm();
 
 		int nThread();
 		coord_t binSize();
@@ -178,9 +182,13 @@ namespace lapis {
 
 		std::vector<std::string> _failedLas;
 
+		shared_raster<bool> _layout;
+
 		void _checkLasDemOverlap(DataIssues& di, const std::set<LasFileExtent>& las, const std::set<DemFileAlignment>& dem);
 
 		void _checkSampleLas(DataIssues& di, const std::string& filename, const std::set<DemFileAlignment>& demSet);
+
+		void _logMemoryAndHDDUse();
 	};
 
 	template<ParamName N>

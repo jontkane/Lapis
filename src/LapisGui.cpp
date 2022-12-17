@@ -97,6 +97,7 @@ namespace lapis {
 		else {
 			if (ImGui::Button("Cancel")) {
 				d.needAbort = true;
+				LapisLogger::getLogger().setProgress(RunProgress::canceling);
 			}
 			displayLog();
 		}

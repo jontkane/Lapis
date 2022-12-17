@@ -112,6 +112,8 @@ namespace lapis {
 			{"*.*"},
 		std::unique_ptr<nfdnfilteritem_t>() };
 		std::set<DemFileAlignment> _fileAligns;
+
+		bool _runPrepared = false;
 	};
 
 	template<>

@@ -38,46 +38,18 @@ namespace lapis {
 
 		//Adds a filter which will be applied to every requested point. Points that fail the filter will be skipped.
 		//Filters will be sorted by their priority member, hopefully resulting in checks which are fast to check and fail more often being checked first
-		template<class T>
-		void addFilter(const std::shared_ptr<T>& filter);
+		void addFilter(const std::shared_ptr<LasFilter>& filter);
 
-		//This function will return up to n points from the LAS file.
-		//n is the maximum number of points to receive; various circumstances may cause the function to return fewer
-		//Memory will always be allocated for n points or for the number of points remaining in the file, whichever is lower
-		//However, fewer points than that may be returned if the number of points remaining that pass the filters is lower than the requested number of points
-		//After applying most filters, if any DTMs have been assigned to this reader, the points will be normalized to the ground
-		//Un-normalized points will be removed from the list and then filters that require a normalized height will be applied
+		//This function will return up to n points in the LAS file
+		//It will never return more than n points, but it may return less
+		//This happens if fewer than n points remain in the file, or if any of the next n points fail to pass a filter
+		//The capacity of the returned vector may be as high as n but will never exceed it
 		LidarPointVector getPoints(size_t n);
-
-		//This function sets a filter, applied after height normalization, to exclude points outside of a given height range
-		void setHeightLimits(coord_t minht, coord_t maxht, const Unit& units);
-
-		//This function adds a raster to the list of DTMs for this las
-		//Extent checking is done to ensure that as little data as possible is read
-		//The DTMs will be used in a priority order with the finest resolutions first
-		void addDEM(const std::string& file, const CoordRef& crsOverride = CoordRef(), const Unit& unitOverride = LinearUnitDefs::unkLinear);
-
-		//Returns a raster which is a resampling of the internal DEMs to the given alignment
-		//As with point normalization, finer-resolution DEMs are preferred
-		Raster<coord_t> unifiedDEM(const Alignment& a);
 
 	private:
 		std::vector<std::shared_ptr<LasFilter>> _filters;
 		std::vector<Raster<coord_t>> _dtms;
-		coord_t _minht = std::numeric_limits<coord_t>::lowest(), _maxht = std::numeric_limits<coord_t>::max();
-
-		LidarPointVector _tmp;
-
-		size_t _normalize(Raster<coord_t>& r, LidarPointVector& points, std::vector<bool>& alreadyNormalized);
-
-		LidarPointVector& _getTransformedPoints(LidarPointVector& points, const CoordRef& crs);
 	};
-
-	template<class T>
-	void LasReader::addFilter(const std::shared_ptr<T>& filter) {
-		_filters.push_back(std::dynamic_pointer_cast<LasFilter, T>(filter));
-		std::sort(_filters.begin(), _filters.end(), [](const auto& a, const auto& b)->bool {return a.get()->priority > b.get()->priority; });
-	}
 }
 
 #endif

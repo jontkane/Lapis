@@ -158,18 +158,24 @@ namespace lapis {
 		//You can specify the datatype of the file, or leave it as GDT_Unknown to choose the one that corresponds to the template of the raster object.
 		void writeRaster(const std::string& file, const std::string driver = "GTiff", const T navalue = std::numeric_limits<T>::lowest());
 
-		Raster<T> resample(const Alignment& a, ExtractMethod method) {
-			Raster<T> out{ a };
-			for (cell_t cell = 0; cell < out.ncell(); ++cell) {
-				auto v = this->extract(out.xFromCell(cell), out.yFromCell(cell), method);
-				out[cell].has_value() = v.has_value();
-				out[cell].value() = v.value();
-			}
-			return out;
-		}
-		Raster<T> transformRaster(const CoordRef& crs, ExtractMethod method) {
-			return resample(this->transformAlignment(crs), method);
-		}
+		//This function produces a new raster, with alignment a, where the values are what you get by extracting at the cell centers of this
+		Raster<T> resample(const Alignment& a, ExtractMethod method) const;
+		//This is resample, but the alignment is the result of transformAlignment
+		Raster<T> transformRaster(const CoordRef& crs, ExtractMethod method) const;
+
+		//This function takes another raster whose alignment is consistent with this one (same cellsize, origin, crs)
+		//For any overlapping cells where this is nodata, and the other raster isn't, replaces the value with the new value
+		//VALUECOMBINER is a functor that can take two Ts and return a T. In cases where both rasters have a value, the functor will be used to set the value
+		//the value in this is first, and the value in other is second, so you can distinguish them if needed
+		template<typename VALUECOMBINER>
+		void overlay(const Raster<T>& other, const VALUECOMBINER& combiner);
+
+		//this is similar to overlay, but instead of using a functor to decide the new value, the value is taken from whichever raster the cell is further from the edge of
+		//this is useful for combining two rasters that should be equal normally, but have edge effects
+		void overlayInside(const Raster<T>& other);
+
+		//returns true if has_value is true for any cell; false otherwise
+		bool hasAnyValue() const;
 
 		//basic element-wise artihmetic
 		template<class S>
@@ -514,6 +520,98 @@ namespace lapis {
 		auto band = wgd->GetRasterBand(1);
 		band->SetNoDataValue((double)navalue);
 		band->RasterIO(GF_Write, 0, 0, _ncol, _nrow, _data.value().data(), _ncol, _nrow, dataType, 0, 0);
+	}
+
+	template<class T>
+	Raster<T> Raster<T>::resample(const Alignment& a, ExtractMethod method) const {
+		Raster<T> out{ a };
+		for (cell_t cell = 0; cell < out.ncell(); ++cell) {
+			auto v = this->extract(out.xFromCell(cell), out.yFromCell(cell), method);
+			out[cell].has_value() = v.has_value();
+			out[cell].value() = v.value();
+		}
+		return out;
+	}
+	template<class T>
+	Raster<T> Raster<T>::transformRaster(const CoordRef& crs, ExtractMethod method) const {
+		return resample(this->transformAlignment(crs), method);
+	}
+
+	template<class T>
+	template<typename VALUECOMBINER>
+	void Raster<T>::overlay(const Raster<T>& other, const VALUECOMBINER& combiner) {
+		if (!consistentAlignment(other)) {
+			throw AlignmentMismatchException{ "Alignment mismatch in overlay" };
+		}
+		if (!overlaps(other)) {
+			return;
+		}
+
+		RowColExtent rcExt = rowColExtent(other); //snap type doesn't matter with consistent alignments
+
+		for (rowcol_t row = rcExt.minrow; row <= rcExt.maxrow; ++row) {
+			for (rowcol_t col = rcExt.mincol; col <= rcExt.maxcol; ++col) {
+				const auto otherValue = other.atRCUnsafe(row - rcExt.minrow, col - rcExt.mincol);
+				auto thisValue = atRCUnsafe(row, col);
+				if (!otherValue.has_value()) {
+					continue;
+				}
+				if (!thisValue.has_value()) {
+					thisValue.has_value() = true;
+					thisValue.value() = otherValue.value();
+					continue;
+				}
+				thisValue.value() = combiner(thisValue.value(), otherValue.value());
+			}
+		}
+	}
+
+	template<class T>
+	void Raster<T>::overlayInside(const Raster<T>& other) {
+		if (!consistentAlignment(other)) {
+			throw AlignmentMismatchException("Alignment mismatch in overlayInside");
+		}
+		if (!overlaps(other)) {
+			return;
+		}
+
+		RowColExtent rcExt = rowColExtent(other); //snap type doesn't matter with consistent alignments
+
+		auto distFromEdge = [](const Alignment& a, rowcol_t row, rowcol_t col) {
+			rowcol_t dist = std::min(col, row);
+			dist = std::min(dist, a.ncol() - 1 - col);
+			dist = std::min(dist, a.nrow() - 1 - row);
+			return dist;
+		};
+
+		for (rowcol_t row = rcExt.minrow; row <= rcExt.maxrow; ++row) {
+			for (rowcol_t col = rcExt.mincol; col <= rcExt.maxcol; ++col) {
+				const auto otherValue = other.atRCUnsafe(row - rcExt.minrow, col - rcExt.mincol);
+				auto thisValue = atRCUnsafe(row, col);
+				if (!otherValue.has_value()) {
+					continue;
+				}
+				if (!thisValue.has_value()) {
+					thisValue.has_value() = true;
+					thisValue.value() = otherValue.value();
+					continue;
+				}
+				
+				rowcol_t thisDistFromEdge = distFromEdge(*this, row, col);
+				rowcol_t otherDistFromEdge = distFromEdge(other, row - rcExt.minrow, col - rcExt.mincol);
+				thisValue.value() = thisDistFromEdge <= otherDistFromEdge ? thisValue.value() : otherValue.value();
+			}
+		}
+	}
+
+	template<class T>
+	bool Raster<T>::hasAnyValue() const {
+		for (cell_t cell = 0; cell < ncell(); ++cell) {
+			if (atCellUnsafe(cell).has_value()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 
