@@ -31,10 +31,10 @@ namespace lapis {
 	TEST_F(LapisDataTest, demFiles) {
 		std::string testFolder = LAPISTESTFILES;
 		prepareParamsNoSlowStuff({ "--dem=" + testFolder });
-		EXPECT_EQ(data().demList().size(), 3);
+		EXPECT_EQ(data().demList().size(), 5);
 
 		prepareParamsNoSlowStuff({"--dem=" + testFolder + "/*.img"});
-		EXPECT_EQ(data().demList().size(), 2);
+		EXPECT_EQ(data().demList().size(), 4);
 
 		prepareParamsNoSlowStuff({"--dem=" + testFolder + "/testraster.img"});
 		EXPECT_EQ(data().demList().size(), 1);

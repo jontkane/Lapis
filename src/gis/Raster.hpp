@@ -525,8 +525,10 @@ namespace lapis {
 	template<class T>
 	Raster<T> Raster<T>::resample(const Alignment& a, ExtractMethod method) const {
 		Raster<T> out{ a };
+		CoordTransform transform{ a.crs(),crs() };
 		for (cell_t cell = 0; cell < out.ncell(); ++cell) {
-			auto v = this->extract(out.xFromCell(cell), out.yFromCell(cell), method);
+			CoordXY xy = transform.transformSingleXY(out.xFromCellUnsafe(cell), out.yFromCellUnsafe(cell));
+			auto v = this->extract(xy.x, xy.y, method);
 			out[cell].has_value() = v.has_value();
 			out[cell].value() = v.value();
 		}

@@ -93,6 +93,7 @@ set(LAPIS_TEST_SOURCES
 		src/test/csmalgostest.cpp
 		src/test/RasterAlgosTest.cpp
 		src/test/lapisdatatest.cpp
+		src/test/demalgostest.cpp
 		)
 		
 set(LAPIS_IMGUI_SOURCES

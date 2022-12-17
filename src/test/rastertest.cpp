@@ -334,12 +334,12 @@ namespace lapis {
 	}
 
 	TEST_F(RasterTest, resample) {
-		Raster<double> r{ Alignment(0,0,3,3,1,1) };
+		Raster<double> r{ Alignment(0,0,3,3,1,1, CoordRef("2927")) };
 		for (cell_t cell = 0; cell < r.ncell(); ++cell) {
 			r[cell].has_value() = true;
 			r[cell].value() = (double)cell;
 		}
-		Alignment a{ -1,-1,2,2,2,2 };
+		Alignment a{ -1,-1,2,2,2,2, CoordRef("2927")};
 		Raster<double> out = r.resample(a, ExtractMethod::bilinear);
 		EXPECT_EQ(a, (Alignment)out);
 
@@ -349,6 +349,16 @@ namespace lapis {
 			EXPECT_GT(out[cell].value(), temp);
 			temp = out[cell].value();
 		}
+
+		out = r.transformRaster(CoordRef("2285"), ExtractMethod::bilinear);
+
+		EXPECT_EQ((Alignment)out, r.transformAlignment(CoordRef("2285")));
+
+		for (cell_t cell = 0; cell < out.ncell(); ++cell) {
+			EXPECT_TRUE(out[cell].has_value());
+			EXPECT_NEAR(out[cell].value(), r[cell].value(), 1.);
+		}
+
 	}
 
 	TEST_F(RasterTest, overlay) {

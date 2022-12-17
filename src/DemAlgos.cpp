@@ -6,6 +6,7 @@
 namespace lapis {
 	PointsAndDem VendorRaster::normalizeToGround(const LidarPointVector& points, const Extent& e)
 	{
+
 		LapisData& data = LapisData::getDataObject();
 		LapisLogger& log = LapisLogger::getLogger();
 
