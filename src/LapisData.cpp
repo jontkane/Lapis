@@ -88,9 +88,15 @@ namespace lapis {
 
 		cell_t targetNCell = tileFileSize() / std::max(sizeof(csm_t), sizeof(intensity_t));
 		rowcol_t targetNRowCol = (rowcol_t)std::sqrt(targetNCell);
-		coord_t tileRes = targetNRowCol * std::min(csmAlign()->xres(), fineIntAlign()->xres());
+		coord_t fineCellSize = csmAlign()->xres();
+		if (doFineInt()) {
+			fineCellSize = std::min(fineCellSize, fineIntAlign()->xres());
+		}
+		coord_t tileRes = targetNRowCol * fineCellSize;
 		Alignment layoutAlign{ *csmAlign(),0,0,tileRes,tileRes};
-		layoutAlign = extend(layoutAlign, *fineIntAlign());
+		if (doFineInt()) {
+			layoutAlign = extend(layoutAlign, *fineIntAlign());
+		}
 		_layout = std::make_shared<Raster<bool>>(layoutAlign);
 
 		_logMemoryAndHDDUse();

@@ -350,4 +350,103 @@ namespace lapis {
 			temp = out[cell].value();
 		}
 	}
+
+	TEST_F(RasterTest, overlay) {
+
+		Raster<cell_t> x{ Alignment(Extent(0,3,0,3),3,3) };
+		for (cell_t cell = 0; cell < x.ncell(); ++cell) {
+			x[cell].value() = cell;
+			if (cell % 2 == 1) {
+				x[cell].has_value() = true;
+			}
+		}
+		Raster<cell_t> y{ Alignment(Extent(1,4,-1,2),3,3) };
+		for (cell_t cell = 0; cell < y.ncell(); ++cell) {
+			y[cell].value() = cell;
+			if (cell > 2) {
+				y[cell].has_value() = true;
+			}
+		}
+		
+		x.overlay(y, [](cell_t a, cell_t b) {return a + b; });
+		std::vector<cell_t> exp_value = {
+			-9999, 1, -9999,
+			3, -9999, 5,
+			-9999, 10, 4
+		};
+		std::vector<bool> exp_has_value = {
+			false, true, false,
+			true, false, true,
+			false, true, true
+		};
+		
+		verifyRaster(x, exp_value, exp_has_value);
+
+		y = Raster<cell_t>{ Alignment(Extent(3,6,3,6),3,3) };
+		for (cell_t cell = 0; cell < y.ncell(); ++cell) {
+			y[cell].value() = cell;
+			y[cell].has_value() = true;
+		}
+		x.overlay(y, [](cell_t a, cell_t b) {return a + b; });
+
+		verifyRaster(x, exp_value, exp_has_value);
+
+		y = Raster<cell_t>{ Alignment(Extent(0.5,3.5,0.5,3.5),3,3) };
+		for (cell_t cell = 0; cell < y.ncell(); ++cell) {
+			y[cell].value() = cell;
+			y[cell].has_value() = true;
+		}
+		EXPECT_THROW(x.overlay(y, [](cell_t a, cell_t b) {return a + b; });, AlignmentMismatchException);
+	}
+
+	TEST_F(RasterTest, overlayInside) {
+		Raster<cell_t> x{ Alignment(Extent(0,3,0,3),3,3) };
+		for (cell_t cell = 0; cell < x.ncell(); ++cell) {
+			x[cell].value() = cell;
+			x[cell].has_value() = true;
+		}
+		x[0].has_value() = false;
+		x[2].has_value() = false;
+		x[6].has_value() = false;
+		x[8].has_value() = false;
+
+		Raster<cell_t> y{ Alignment(Extent(0,3,-1,2),3,3) };
+		for (cell_t cell = 0; cell < y.ncell(); ++cell) {
+			y[cell].value() = cell;
+			y[cell].has_value() = true;
+		}
+		y[0].has_value() = false;
+		y[2].has_value() = false;
+		y[5].has_value() = false;
+
+		x.overlayInside(y);
+
+		std::vector<cell_t> exp_value = {
+			-9999,1,-9999,
+			3,4,5,
+			3,4,-9999
+		};
+		std::vector<bool> exp_has_value = {
+			false,true,false,
+			true,true,true,
+			true,true,false
+		};
+		verifyRaster(x, exp_value, exp_has_value);
+
+		y = Raster<cell_t>{ Alignment(Extent(3,6,3,6),3,3) };
+		for (cell_t cell = 0; cell < y.ncell(); ++cell) {
+			y[cell].value() = cell;
+			y[cell].has_value() = true;
+		}
+		x.overlayInside(y);
+
+		verifyRaster(x, exp_value, exp_has_value);
+
+		y = Raster<cell_t>{ Alignment(Extent(0.5,3.5,0.5,3.5),3,3) };
+		for (cell_t cell = 0; cell < y.ncell(); ++cell) {
+			y[cell].value() = cell;
+			y[cell].has_value() = true;
+		}
+		EXPECT_THROW(x.overlayInside(y); , AlignmentMismatchException);
+	}
 }

@@ -30,7 +30,6 @@ namespace lapis{
 		std::string file = std::string(LAPISTESTFILES) + "largelaz.laz";
 		
 		LasReader lr{ file };
-		lr.setHeightLimits(1284, 1421, LinearUnitDefs::unkLinear); //all correctly-read points will get through but if values start reading garbage they'll fail this
 		
 		auto points = lr.getPoints(lr.nPoints());
 		EXPECT_EQ(points.size(), 169873);
@@ -77,21 +76,5 @@ namespace lapis{
 		lr.addFilter(std::make_shared<LasFilterWithheld>());
 		auto points = lr.getPoints(lr.nPoints());
 		EXPECT_EQ((size_t)37777, points.size());
-	}
-
-	TEST(LasReaderTest, normalize) {
-		std::string file = LAPISTESTFILES;
-		file = file + "testlaz14.laz";
-		LasReader lr{ file };
-
-		file = LAPISTESTFILES;
-		file = file + "testlazground.img";
-		lr.addDEM(file);
-
-		auto points = lr.getPoints(100);
-		EXPECT_EQ((size_t)93, points.size());
-		EXPECT_NEAR(299000.3, points[2].x, 0.1); //checking that adding a DTM doesn't mess with x or y
-		EXPECT_NEAR(0.09, points[1].z, 0.01);
-		EXPECT_NEAR(-0.05, points[92].z, 0.01);
 	}
 }

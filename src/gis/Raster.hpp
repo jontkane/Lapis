@@ -336,7 +336,7 @@ namespace lapis {
 	}
 	template<class T, class S>
 	inline auto operator+(const Raster<T>& lhs, const Raster<S>& rhs)->Raster<decltype(T() + S())> {
-		if (!lhs.consistentAlignment(rhs)) {
+		if (!lhs.isSameAlignment(rhs)) {
 			throw AlignmentMismatchException("");
 		}
 		using outtype = decltype(T() + S());
@@ -362,7 +362,7 @@ namespace lapis {
 	template<class T, class S>
 	inline auto operator-(const Raster<T>& lhs, const Raster<S>& rhs)->Raster<decltype(T() - S())>
 	{
-		if (!lhs.consistentAlignment(rhs)) {
+		if (!lhs.isSameAlignment(rhs)) {
 			throw AlignmentMismatchException("");
 		}
 		using outtype = decltype(T() - S());
@@ -387,7 +387,7 @@ namespace lapis {
 	}
 	template<class T, class S>
 	inline auto operator*(const Raster<T>& lhs, const Raster<S>& rhs)->Raster<decltype(T()* S())> {
-		if (!lhs.consistentAlignment(rhs)) {
+		if (!lhs.isSameAlignment(rhs)) {
 			throw AlignmentMismatchException("");
 		}
 		using outtype = decltype(T()* S());
@@ -418,7 +418,7 @@ namespace lapis {
 	}
 	template<class T, class S>
 	inline auto operator/(const Raster<T>& lhs, const Raster<S>& rhs)->Raster<decltype(T() / S())> {
-		if (!lhs.consistentAlignment(rhs)) {
+		if (!lhs.isSameAlignment(rhs)) {
 			throw AlignmentMismatchException("");
 		}
 		using outtype = decltype(T() / S());
@@ -599,7 +599,7 @@ namespace lapis {
 				
 				rowcol_t thisDistFromEdge = distFromEdge(*this, row, col);
 				rowcol_t otherDistFromEdge = distFromEdge(other, row - rcExt.minrow, col - rcExt.mincol);
-				thisValue.value() = thisDistFromEdge <= otherDistFromEdge ? thisValue.value() : otherValue.value();
+				thisValue.value() = thisDistFromEdge <= otherDistFromEdge ? otherValue.value() : thisValue.value();
 			}
 		}
 	}
@@ -617,7 +617,7 @@ namespace lapis {
 
 	template<class T> template<class S>
 	Raster<T>& Raster<T>::operator+=(const Raster<S>& rhs) {
-		if (!consistentAlignment(rhs)) {
+		if (!isSameAlignment(rhs)) {
 			throw AlignmentMismatchException("");
 		}
 		for (cell_t cell = 0; cell < ncell(); ++cell) {
@@ -635,7 +635,7 @@ namespace lapis {
 
 	template<class T> template<class S>
 	Raster<T>& Raster<T>::operator-=(const Raster<S>& rhs) {
-		if (!consistentAlignment(rhs)) {
+		if (!isSameAlignment(rhs)) {
 			throw AlignmentMismatchException("");
 		}
 		for (cell_t cell = 0; cell < ncell(); ++cell) {
@@ -653,7 +653,7 @@ namespace lapis {
 
 	template<class T> template<class S>
 	Raster<T>& Raster<T>::operator*=(const Raster<S>& rhs) {
-		if (!consistentAlignment(rhs)) {
+		if (!isSameAlignment(rhs)) {
 			throw AlignmentMismatchException("");
 		}
 		for (cell_t cell = 0; cell < ncell(); ++cell) {
@@ -671,7 +671,7 @@ namespace lapis {
 
 	template<class T> template<class S>
 	Raster<T>& Raster<T>::operator/=(const Raster<S>& rhs) {
-		if (!consistentAlignment(rhs)) {
+		if (!isSameAlignment(rhs)) {
 			throw AlignmentMismatchException("");
 		}
 		for (cell_t cell = 0; cell < ncell(); ++cell) {

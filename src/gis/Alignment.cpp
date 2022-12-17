@@ -108,7 +108,7 @@ namespace lapis {
 		return out;
 	}
 
-	bool Alignment::consistentAlignment(const Alignment& a) const {
+	bool Alignment::isSameAlignment(const Alignment& a) const {
 		bool consistent = true;
 		consistent = consistent && ((Extent)(*this) == (Extent)a);
 		consistent = consistent && (_nrow == a.nrow());
@@ -286,5 +286,25 @@ namespace lapis {
 		}
 
 		return Alignment(newxmin, newymin, nrow(), ncol(), newxres, newyres, crs);
+	}
+
+	bool Alignment::consistentAlignment(const Alignment& a) const {
+
+		auto closeEnough = [](coord_t a, coord_t b) {
+			return std::abs(a - b) < LAPIS_EPSILON;
+		};
+
+		bool consistent = true;
+
+		consistent = consistent && crs().isConsistentHoriz(a.crs());
+
+		consistent = consistent && closeEnough(xres(), a.xres());
+		consistent = consistent && closeEnough(yres(), a.yres());
+
+		//float imprecisions can cause one alignment to have an origin near 0 and the other to have an origin near its cellsize without meaningful difference
+		consistent = consistent && (closeEnough(xOrigin(), a.xOrigin()) || closeEnough(xres() - xOrigin(), a.xOrigin()));
+		consistent = consistent && (closeEnough(yOrigin(), a.yOrigin()) || closeEnough(yres() - yOrigin(), a.yOrigin()));
+
+		return consistent;
 	}
 }

@@ -49,10 +49,10 @@ namespace lapis {
 		out.dem = Raster<coord_t>{ Alignment(e,xOriginOfFinest,yOriginOfFinest,minRes,minRes) };
 		for (const Raster<coord_t>& dem : overlappingDems) {
 			Raster<coord_t> resampled;
-			if (!out.dem.consistentAlignment(dem)) {
+			if (!out.dem.isSameAlignment(dem)) {
 				resampled = dem.resample(out.dem, ExtractMethod::bilinear);
 			}
-			const Raster<coord_t>* useRaster = out.dem.consistentAlignment(dem) ? &dem : &resampled;
+			const Raster<coord_t>* useRaster = out.dem.isSameAlignment(dem) ? &dem : &resampled;
 
 			out.dem.overlay(*useRaster, [](coord_t a, coord_t b) {return a; });
 		}

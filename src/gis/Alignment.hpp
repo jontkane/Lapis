@@ -187,6 +187,9 @@ namespace lapis {
 
 		//Checks whether two alignments are "the same", in a slightly more permissive way than operator==.
 		//In particular, operator== requires them to have the same CRS. This function only requires them to have consistent CRS (so, one may be empty).
+		bool isSameAlignment(const Alignment& a) const;
+
+		//Checks whether two alignments are consistent; that is, have the same cellsize, origin, and a consistent crs
 		bool consistentAlignment(const Alignment& a) const;
 
 		//Returns the minimum and maximum row and column numbers that fall within the given extent, after aligning with the given snaptype
