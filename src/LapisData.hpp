@@ -5,13 +5,14 @@
 #include"app_pch.hpp"
 #include"ParameterBase.hpp"
 #include"LapisUtils.hpp"
-#include"MetricTypeDefs.hpp"
+#include"ParameterGetter.hpp"
+#include"LapisTypedefs.hpp"
 
 namespace lapis {
 
 	class DemAlgorithm;
 
-	class LapisData {
+	class LapisData : public ParameterGetter {
 
 	public:
 
@@ -27,83 +28,77 @@ namespace lapis {
 		};
 
 		void renderGui(ParamName pn);
-		void setPrevUnits(const Unit& u);
-		const Unit& getCurrentUnits() const;
-		const Unit& getPrevUnits() const;
-		const std::string& getUnitSingular() const;
-		const std::string& getUnitPlural() const;
-		void importBoostAndUpdateUnits();
 
+		void importBoostAndUpdateUnits();
 		void updateUnits();
 
 		void prepareForRun();
 		void cleanAfterRun();
 		void resetObject();
 
-		Extent fullExtent();
-		const CoordRef& userCrs();
-		std::shared_ptr<Alignment> metricAlign();
-		std::shared_ptr<Alignment> csmAlign();
-		std::shared_ptr<Alignment> fineIntAlign();
-		shared_raster<bool> layout();
+		const Unit& outUnits();
+		void setPrevUnits(const Unit& u);
+		const Unit& prevUnits();
+		const std::string& unitSingular();
+		const std::string& unitPlural();
 
-		
-		shared_raster<int> nLazRaster();
-		shared_raster<PointMetricCalculator> allReturnPMC();
-		shared_raster<PointMetricCalculator> firstReturnPMC();
+		const CoordRef& demCrsOverride();
+		const CoordRef& lasCrsOverride();
+		const Unit& demUnitOverride();
+		const Unit& lasUnitOverride();
+
+		const std::vector<Extent>& lasExtents();
+		LasReader getLas(size_t i);
+		const std::vector<Alignment>& demAligns();
+		Raster<coord_t> getDem(size_t i);
+		const std::shared_ptr<DemAlgorithm> demAlgorithm();
+
+		const Extent& fullExtent();
+		const CoordRef& userCrs();
+		const std::shared_ptr<Alignment> metricAlign();
+		const std::shared_ptr<Alignment> csmAlign();
+		const std::shared_ptr<Alignment> fineIntAlign();
+		shared_raster<bool> layout();
 
 		std::mutex& cellMutex(cell_t cell);
 		std::mutex& globalMutex();
-
-		std::vector<PointMetricRaster>& allReturnPointMetrics();
-		std::vector<PointMetricRaster>& firstReturnPointMetrics();
-		std::vector<StratumMetricRasters>& allReturnStratumMetrics();
-		std::vector<StratumMetricRasters>& firstReturnStratumMetrics();
-		std::vector<CSMMetric>& csmMetrics();
-		std::vector<TopoMetric>& topoMetrics();
-		shared_raster<coord_t> elevNum();
-		shared_raster<coord_t> elevDenom();
 
 		const std::vector<std::shared_ptr<LasFilter>>& filters();
 		coord_t minHt();
 		coord_t maxHt();
 
-		const CoordRef& lasCrsOverride();
-		const CoordRef& demCrsOverride();
-		const Unit& lasUnitOverride();
-		const Unit& demUnitOverride();
-
 		coord_t footprintDiameter();
 		int smooth();
-
-		const std::vector<LasFileExtent>& sortedLasList();
-		const std::set<DemFileAlignment>& demList();
-		std::shared_ptr<DemAlgorithm> demAlgorithm();
 
 		int nThread();
 		coord_t binSize();
 		size_t tileFileSize();
 
 		coord_t canopyCutoff();
+		const std::vector<coord_t>& strataBreaks();
+		const std::vector<std::string>& strataNames();
+
 		coord_t minTaoHt();
 		coord_t minTaoDist();
-		const std::vector<coord_t>& strataBreaks();
+		IdAlgo::IdAlgo taoIdAlgo();
+		SegAlgo::SegAlgo taoSegAlgo();
 
-		std::filesystem::path outFolder();
-		std::string name();
+		const std::filesystem::path& outFolder();
+		const std::string& name();
 
 		coord_t fineIntCanopyCutoff();
 
 		bool doPointMetrics();
 		bool doFirstReturnMetrics();
 		bool doAllReturnMetrics();
+		bool doAdvancedPointMetrics();
 		bool doCsm();
+		bool doCsmMetrics();
 		bool doTaos();
 		bool doFineInt();
 		bool doTopo();
 		bool doStratumMetrics();
 
-		bool isDebugNoAlloc();
 		bool isDebugNoAlign();
 		bool isDebugNoOutput();
 		bool isAnyDebug();
@@ -115,15 +110,11 @@ namespace lapis {
 		ParseResults parseArgs(const std::vector<std::string>& args);
 		ParseResults parseIni(const std::string& path);
 
-		std::ostream& writeOptions(std::ostream& out, ParamCategory cat);
+		std::ostream& writeOptions(std::ostream& out, ParamCategory cat) const;
 
 		static void silenceGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg) {}
 		static void logGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg);
 		static void logProjErrors(void* v, int i, const char* c);
-
-		double estimateMemory();
-
-		double estimateHardDrive();
 
 		struct DataIssues {
 			std::vector<std::string> failedLas;
@@ -148,7 +139,8 @@ namespace lapis {
 
 		DataIssues checkForDataIssues();
 
-		bool needAbort;
+		void setNeedAbortTrue();
+		bool getNeedAbort() const;
 
 		void reportFailedLas(const std::string& s);
 
@@ -162,6 +154,8 @@ namespace lapis {
 	private:
 
 		LapisData();
+		LapisData(const LapisData&) = delete;
+		LapisData(LapisData&&) = delete;
 		std::vector<std::unique_ptr<ParamBase>> _params;
 
 		//template trickery to get a loop over ParamName values recursively
@@ -184,11 +178,11 @@ namespace lapis {
 
 		shared_raster<bool> _layout;
 
+		bool _needAbort;
+
 		void _checkLasDemOverlap(DataIssues& di, const std::set<LasFileExtent>& las, const std::set<DemFileAlignment>& dem);
 
 		void _checkSampleLas(DataIssues& di, const std::string& filename, const std::set<DemFileAlignment>& demSet);
-
-		void _logMemoryAndHDDUse();
 	};
 
 	template<ParamName N>

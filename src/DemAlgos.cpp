@@ -10,9 +10,9 @@ namespace lapis {
 		LapisData& data = LapisData::getDataObject();
 		LapisLogger& log = LapisLogger::getLogger();
 
-		if (data.demList().size() == 0) {
+		if (data.demAligns().size() == 0) {
 			log.logMessage("No DEM files specified");
-			data.needAbort = true;
+			data.setNeedAbortTrue();
 			return PointsAndDem();
 		}
 
@@ -22,8 +22,8 @@ namespace lapis {
 		coord_t xOriginOfFinest = 0;
 		coord_t yOriginOfFinest = 0;
 		std::vector<Raster<coord_t>> overlappingDems;
-		for (const DemFileAlignment& demAlign : data.demList()) {
-			Alignment projAlign = demAlign.align.transformAlignment(e.crs());
+		for (size_t i = 0; i < data.demAligns().size(); ++i) {
+			Alignment projAlign = data.demAligns()[i].transformAlignment(e.crs());
 			if (!projAlign.overlaps(e)) {
 				continue;
 			}
@@ -33,7 +33,7 @@ namespace lapis {
 				yOriginOfFinest = projAlign.yOrigin();
 			}
 
-			Raster<coord_t> demOriginalProj = Raster<coord_t>(demAlign.filename, QuadExtent(e, demAlign.align.crs()).outerExtent(), SnapType::out);
+			Raster<coord_t> demOriginalProj = data.getDem(i);
 			if (!data.demCrsOverride().isEmpty()) {
 				demOriginalProj.defineCRS(data.demCrsOverride());
 			}

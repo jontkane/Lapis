@@ -1,23 +1,23 @@
 #include"app_pch.hpp"
 #include"ProductHandler.hpp"
 #include"PointMetricCalculator.hpp"
-#include"LapisData.hpp"
 #include"LapisLogger.hpp"
-#include"csmalgos.hpp"
 
 namespace lapis {
 
 	template<class T>
-	void writeRasterWithFullName(const std::filesystem::path& dir, const std::string& baseName, Raster<T>& r, OutputUnitLabel u) {
+	void writeRasterWithFullName(SharedParameterGetter* getter,
+		const std::filesystem::path& dir, const std::string& baseName,
+		Raster<T>& r, OutputUnitLabel u) {
+
 		namespace fs = std::filesystem;
-		LapisData& data = LapisData::getDataObject();
 		LapisLogger& log = LapisLogger::getLogger();
 
 		fs::create_directories(dir);
 		std::string unitString;
 		using oul = OutputUnitLabel;
 		if (u == oul::Default) {
-			Unit outUnit = data.metricAlign()->crs().getZUnits();
+			Unit outUnit = getter->outUnits();
 			std::regex meterregex{ ".*met.*",std::regex::icase };
 			std::regex footregex{ ".*f(o|e)(o|e)t.*",std::regex::icase };
 			if (std::regex_match(outUnit.name, meterregex)) {
@@ -33,7 +33,7 @@ namespace lapis {
 		else if (u == oul::Radian) {
 			unitString = "_Radians";
 		}
-		std::string runName = data.name().size() ? data.name() + "_" : "";
+		std::string runName = getter->name().size() ? getter->name() + "_" : "";
 		fs::path fullPath = dir / (runName + baseName + unitString + ".tif");
 
 		try{
@@ -55,9 +55,11 @@ namespace lapis {
 		}
 	}
 	template<class T>
-	Raster<T> getEmptyRasterFromTile(cell_t tile, const Alignment& a, coord_t minBufferMeters) {
-		std::shared_ptr<Alignment> layout = LapisData::getDataObject().layout();
-		std::shared_ptr<Alignment> metricAlign = LapisData::getDataObject().metricAlign();
+	Raster<T> getEmptyRasterFromTile(SharedParameterGetter* getter, cell_t tile,
+		const Alignment& a, coord_t minBufferMeters) {
+
+		std::shared_ptr<Alignment> layout = getter->layout();
+		std::shared_ptr<Alignment> metricAlign = getter->metricAlign();
 		Extent thistile = layout->extentFromCell(tile);
 
 		//The buffering ensures CSM metrics don't suffer from edge effects
@@ -68,22 +70,18 @@ namespace lapis {
 		Extent bufferExt = Extent(thistile.xmin() - bufferDist, thistile.xmax() + bufferDist, thistile.ymin() - bufferDist, thistile.ymax() + bufferDist);
 		return Raster<T>(crop(a, bufferExt, SnapType::ll));
 	}
-	std::string insertZeroes(int value, int maxvalue)
+
+	ProductHandler::ProductHandler(ParamGetter* p) : _sharedGetter(p)
 	{
-		size_t nDigits = (size_t)(std::log10(maxvalue) + 1);
-		size_t thisDigitCount = std::max(1ull, (size_t)(std::log10(value) + 1));
-		return std::string(nDigits - thisDigitCount, '0') + std::to_string(value);
+		if (p == nullptr) {
+			throw std::invalid_argument("ParamGetter is null");
+		}
 	}
-	std::string nameFromLayout(cell_t cell) {
-		const Alignment& layout = *LapisData::getDataObject().layout();
-		return "Col" + insertZeroes(layout.colFromCell(cell) + 1, layout.ncol()) +
-			"_Row" + insertZeroes(layout.rowFromCell(cell) + 1,layout.nrow());
-	}
-	std::filesystem::path ProductHandler::parentDir()
+	std::filesystem::path ProductHandler::parentDir() const
 	{
-		return LapisData::getDataObject().outFolder();
+		return _sharedGetter->outFolder();
 	}
-	std::filesystem::path ProductHandler::tempDir()
+	std::filesystem::path ProductHandler::tempDir() const
 	{
 		return parentDir() / "Temp";
 	}
@@ -96,147 +94,208 @@ namespace lapis {
 	}
 
 	template<bool ALL_RETURNS, bool FIRST_RETURNS>
-	void assignPointsToCalculators(const LidarPointVector& points)
+	void PointMetricHandler::_assignPointsToCalculators(const LidarPointVector& points)
 	{
-		LapisData& data = LapisData::getDataObject();
-		shared_raster<PointMetricCalculator> allReturnPMC = data.allReturnPMC();
-		shared_raster<PointMetricCalculator> firstReturnPMC = data.firstReturnPMC();
+		for (const LasPoint& p : points) {
+			cell_t cell = _getter->metricAlign()->cellFromXYUnsafe(p.x, p.y);
 
-		for (auto& p : points) {
-			cell_t cell = data.metricAlign()->cellFromXYUnsafe(p.x, p.y);
-
-			std::lock_guard lock{ data.cellMutex(cell) };
+			std::lock_guard lock{ _getter->cellMutex(cell) };
 			if constexpr (ALL_RETURNS) {
-				allReturnPMC->atCellUnsafe(cell).value().addPoint(p);
+				_allReturnPMC->atCellUnsafe(cell).value().addPoint(p);
 			}
 			if constexpr (FIRST_RETURNS) {
 				if (p.returnNumber == 1) {
-					firstReturnPMC->atCellUnsafe(cell).value().addPoint(p);
+					_firstReturnPMC->atCellUnsafe(cell).value().addPoint(p);
 				}
 			}
 		}
 	}
-	void processPMCCell(cell_t cell, PointMetricCalculator& pmc,
-		std::vector<PointMetricRaster>& metrics, std::vector<StratumMetricRasters>& stratumMetrics) {
-		for (PointMetricRaster& v : metrics) {
+	void PointMetricHandler::_processPMCCell(cell_t cell, PointMetricCalculator& pmc, ReturnType r) {
+
+		for (PointMetricRasters& v : _pointMetrics) {
 			MetricFunc& f = v.fun;
-			(pmc.*f)(v.rast, cell);
+			if (_getter->doAllReturnMetrics()) {
+				(pmc.*f)(v.rasters.get(r), cell);
+			}
 		}
-		for (StratumMetricRasters& v : stratumMetrics) {
+		for (StratumMetricRasters& v : _stratumMetrics) {
 			StratumFunc& f = v.fun;
 			for (size_t i = 0; i < v.rasters.size(); ++i) {
-				(pmc.*f)(v.rasters[i], cell, i);
+				(pmc.*f)(v.rasters[i].get(r), cell, i);
 			}
 		}
+
 		pmc.cleanUp();
 	}
-	void writePointMetricRasters(const std::filesystem::path& dir, std::vector<PointMetricRaster>& metrics,
-		std::vector<StratumMetricRasters>& stratumMetrics) {
-
-		LapisLogger& log = LapisLogger::getLogger();
-
-		for (PointMetricRaster& metric : metrics) {
-			writeRasterWithFullName(dir, metric.name, metric.rast, metric.unit);
-			log.incrementTask();
+	void PointMetricHandler::_writePointMetricRasters(const std::filesystem::path& dir, ReturnType r) {
+		for (PointMetricRasters& metric : _pointMetrics) {
+			writeRasterWithFullName(_getter, dir, metric.name, metric.rasters.get(r), metric.unit);
 		}
-		for (StratumMetricRasters& metric : stratumMetrics) {
-			for (size_t i = 0; i < metric.stratumNames.size(); ++i) {
-				writeRasterWithFullName(dir / "StratumMetrics", metric.baseName + metric.stratumNames[i], metric.rasters[i], metric.unit);
-				log.incrementTask();
+		for (StratumMetricRasters& metric : _stratumMetrics) {
+			for (size_t i = 0; i < metric.rasters.size(); ++i) {
+				writeRasterWithFullName(_getter, dir / "StratumMetrics", metric.baseName + _getter->strataNames()[i],
+					metric.rasters[i].get(r), metric.unit);
 			}
 		}
 	}
+	PointMetricHandler::PointMetricHandler(ParamGetter* p) : ProductHandler(p)
+	{
+		_getter = p;
 
-	PointMetricHandler::PointMetricHandler()
-	{}
+		if (!_getter->doPointMetrics()) {
+			return;
+		}
+
+		using pmc = PointMetricCalculator;
+		using oul = OutputUnitLabel;
+
+		pmc::setInfo(_getter->canopyCutoff(), _getter->maxHt(), _getter->binSize(), _getter->strataBreaks());
+
+		_nLaz = Raster<int>(*_getter->metricAlign());
+		for (const Extent& e : _getter->lasExtents()) {
+			for (cell_t cell : _nLaz.cellsFromExtent(e)) {
+				_nLaz[cell].has_value() = true;
+				_nLaz[cell].value()++;
+			}
+		}
+
+		if (_getter->doAllReturnMetrics()) {
+			_allReturnPMC = std::make_unique<Raster<pmc>>(*_getter->metricAlign());
+		}
+		if (_getter->doFirstReturnMetrics()) {
+			_firstReturnPMC = std::make_unique<Raster<pmc>>(*_getter->metricAlign());
+		}
+
+		auto addPointMetric = [&](const std::string& name, MetricFunc f, oul u) {
+			_pointMetrics.emplace_back(_getter, name, f, u);
+		};
+
+		addPointMetric("Mean_CanopyHeight", &pmc::meanCanopy, oul::Default);
+		addPointMetric("StdDev_CanopyHeight", &pmc::stdDevCanopy, oul::Default);
+		addPointMetric("25thPercentile_CanopyHeight", &pmc::p25Canopy, oul::Default);
+		addPointMetric("50thPercentile_CanopyHeight", &pmc::p50Canopy, oul::Default);
+		addPointMetric("75thPercentile_CanopyHeight", &pmc::p75Canopy, oul::Default);
+		addPointMetric("95thPercentile_CanopyHeight", &pmc::p95Canopy, oul::Default);
+		addPointMetric("TotalReturnCount", &pmc::returnCount, oul::Unitless);
+		addPointMetric("CanopyCover", &pmc::canopyCover, oul::Percent);
+		if (_getter->doAdvancedPointMetrics()) {
+			addPointMetric("CoverAboveMean", &pmc::coverAboveMean, oul::Percent);
+			addPointMetric("CanopyReliefRatio", &pmc::canopyReliefRatio, oul::Unitless);
+			addPointMetric("CanopySkewness", &pmc::skewnessCanopy, oul::Unitless);
+			addPointMetric("CanopyKurtosis", &pmc::kurtosisCanopy, oul::Unitless);
+			addPointMetric("05thPercentile_CanopyHeight", &pmc::p05Canopy, oul::Default);
+			addPointMetric("10thPercentile_CanopyHeight", &pmc::p10Canopy, oul::Default);
+			addPointMetric("15thPercentile_CanopyHeight", &pmc::p15Canopy, oul::Default);
+			addPointMetric("20thPercentile_CanopyHeight", &pmc::p20Canopy, oul::Default);
+			addPointMetric("30thPercentile_CanopyHeight", &pmc::p30Canopy, oul::Default);
+			addPointMetric("35thPercentile_CanopyHeight", &pmc::p35Canopy, oul::Default);
+			addPointMetric("40thPercentile_CanopyHeight", &pmc::p40Canopy, oul::Default);
+			addPointMetric("45thPercentile_CanopyHeight", &pmc::p45Canopy, oul::Default);
+			addPointMetric("55thPercentile_CanopyHeight", &pmc::p55Canopy, oul::Default);
+			addPointMetric("60thPercentile_CanopyHeight", &pmc::p60Canopy, oul::Default);
+			addPointMetric("65thPercentile_CanopyHeight", &pmc::p65Canopy, oul::Default);
+			addPointMetric("70thPercentile_CanopyHeight", &pmc::p70Canopy, oul::Default);
+			addPointMetric("80thPercentile_CanopyHeight", &pmc::p80Canopy, oul::Default);
+			addPointMetric("85thPercentile_CanopyHeight", &pmc::p85Canopy, oul::Default);
+			addPointMetric("90thPercentile_CanopyHeight", &pmc::p90Canopy, oul::Default);
+			addPointMetric("99thPercentile_CanopyHeight", &pmc::p99Canopy, oul::Default);
+		}
+
+		if (_getter->doStratumMetrics()) {
+			if (_getter->strataBreaks().size()) {
+				_stratumMetrics.emplace_back(_getter, "StratumCover_", &pmc::stratumCover, oul::Percent);
+				_stratumMetrics.emplace_back(_getter, "StratumReturnProportion_", &pmc::stratumPercent, oul::Percent);
+			}
+		}
+	}
 	void PointMetricHandler::handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index)
 	{
-		LapisData& data = LapisData::getDataObject();
-		if (!data.doPointMetrics()) {
+		if (!_getter->doPointMetrics()) {
 			return;
 		}
 
 		//This structure is kind of ugly and inelegant, but it ensures that all returns and first returns can share a call to cellFromXY
 		//without needing to pollute the loop with a bunch of if checks
 		//Right now, with only two booleans, the combinatorics are bearable; if it increases, then it probably won't be
-		if (data.doFirstReturnMetrics() && data.doAllReturnMetrics()) {
-			assignPointsToCalculators<true, true>(points);
+		if (_getter->doFirstReturnMetrics() && _getter->doAllReturnMetrics()) {
+			_assignPointsToCalculators<true, true>(points);
 		}
-		else if (data.doAllReturnMetrics()) {
-			assignPointsToCalculators<true, false>(points);
+		else if (_getter->doAllReturnMetrics()) {
+			_assignPointsToCalculators<true, false>(points);
 		}
-		else if (data.doFirstReturnMetrics()) {
-			assignPointsToCalculators<false, true>(points);
+		else if (_getter->doFirstReturnMetrics()) {
+			_assignPointsToCalculators<false, true>(points);
 		}
 
-		std::vector<cell_t> cells = data.nLazRaster()->cellsFromExtent(e, SnapType::out);
+		std::vector<cell_t> cells = _nLaz.cellsFromExtent(e, SnapType::out);
 		for (cell_t cell : cells) {
-			std::scoped_lock lock{ data.cellMutex(cell) };
-			shared_raster<int> nLaz = data.nLazRaster();
-			nLaz->atCellUnsafe(cell).value()--;
-			if (nLaz->atCellUnsafe(cell).value() != 0) {
+			std::scoped_lock lock{ _getter->cellMutex(cell) };
+			_nLaz.atCellUnsafe(cell).value()--;
+			if (_nLaz.atCellUnsafe(cell).value() != 0) {
 				break;
 			}
-			if (data.doAllReturnMetrics())
-				processPMCCell(cell, data.allReturnPMC()->atCellUnsafe(cell).value(),
-					data.allReturnPointMetrics(), data.allReturnStratumMetrics());
-
-			if (data.doFirstReturnMetrics())
-				processPMCCell(cell, data.firstReturnPMC()->atCellUnsafe(cell).value(),
-					data.firstReturnPointMetrics(), data.firstReturnStratumMetrics());
+			if (_getter->doAllReturnMetrics())
+				_processPMCCell(cell, _allReturnPMC->atCellUnsafe(cell).value(), ReturnType::ALL);
+			if (_getter->doFirstReturnMetrics())
+				_processPMCCell(cell, _firstReturnPMC->atCellUnsafe(cell).value(),ReturnType::FIRST);
 		}
 
 	}
 	void PointMetricHandler::handleTile(cell_t tile) {}
 	void PointMetricHandler::cleanup() {
-		LapisData& data = LapisData::getDataObject();
 		namespace fs = std::filesystem;
 
-		if (!data.doPointMetrics()) {
+		if (!_getter->doPointMetrics()) {
 			return;
 		}
 		
-		if (data.doAllReturnMetrics()) {
-			fs::path allReturnsMetricDir = data.doFirstReturnMetrics() ? pointMetricDir() / "AllReturns" : pointMetricDir();
-
-			writePointMetricRasters(allReturnsMetricDir,
-				data.allReturnPointMetrics(),
-				data.allReturnStratumMetrics());
+		if (_getter->doAllReturnMetrics()) {
+			fs::path allReturnsMetricDir = _getter->doFirstReturnMetrics() ? pointMetricDir() / "AllReturns" : pointMetricDir();
+			_writePointMetricRasters(allReturnsMetricDir, ReturnType::ALL);
 		}
-		if (data.doFirstReturnMetrics()) {
-			fs::path firstReturnsMetricDir = data.doAllReturnMetrics() ? pointMetricDir() / "FirstReturns" : pointMetricDir();
-
-			writePointMetricRasters(firstReturnsMetricDir,
-				data.firstReturnPointMetrics(),
-				data.firstReturnStratumMetrics());
+		if (_getter->doFirstReturnMetrics()) {
+			fs::path firstReturnsMetricDir = _getter->doAllReturnMetrics() ? pointMetricDir() / "FirstReturns" : pointMetricDir();
+			_writePointMetricRasters(firstReturnsMetricDir,ReturnType::FIRST);
 		}
 
-		data.allReturnPointMetrics().clear();
-		data.allReturnPointMetrics().shrink_to_fit();
-		data.allReturnStratumMetrics().clear();
-		data.allReturnStratumMetrics().shrink_to_fit();
+		_pointMetrics.clear();
+		_pointMetrics.shrink_to_fit();
 
-		data.firstReturnPointMetrics().clear();
-		data.firstReturnPointMetrics().shrink_to_fit();
-		data.firstReturnStratumMetrics().clear();
-		data.firstReturnStratumMetrics().shrink_to_fit();
+		_stratumMetrics.clear();
+		_stratumMetrics.shrink_to_fit();
 	}
-	std::filesystem::path PointMetricHandler::pointMetricDir()
+	std::filesystem::path ProductHandler::pointMetricDir() const
 	{
 		return parentDir() / "PointMetrics";
 	}
 
+	CsmHandler::CsmHandler(ParamGetter* p) : ProductHandler(p)
+	{
+		_getter = p;
+
+		if (!_getter->doCsmMetrics()) {
+			return;
+		}
+		using oul = OutputUnitLabel;
+
+		auto addMetric = [&](CsmMetricFunc fun, const std::string& name, oul unit) {
+			_csmMetrics.emplace_back(_getter, name, fun, unit);
+		};
+
+		addMetric(&viewMax<csm_t>, "MaxCSM", oul::Default);
+		addMetric(&viewMean<csm_t>, "MeanCSM", oul::Default);
+		addMetric(&viewStdDev<csm_t>, "StdDevCSM", oul::Default);
+		addMetric(&viewRumple<csm_t>, "RumpleCSM", oul::Unitless);
+	}
 	void CsmHandler::handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index)
 	{
-		LapisData& data = LapisData::getDataObject();
-
-		if (!data.doCsm()) {
+		if (!_getter->doCsm()) {
 			return;
 		}
 
-		const coord_t footprintRadius = data.footprintDiameter() / 2;
+		const coord_t footprintRadius = _getter->footprintDiameter() / 2;
 
-		Raster<csm_t> csm{ crop(*data.csmAlign(),
+		Raster<csm_t> csm{ crop(*_getter->csmAlign(),
 			Extent(e.xmin() - footprintRadius,e.xmax() + footprintRadius,e.ymin() - footprintRadius,e.ymax() + footprintRadius)) };
 
 
@@ -295,24 +354,23 @@ namespace lapis {
 	}
 	void CsmHandler::handleTile(cell_t tile) 
 	{
-		LapisData& data = LapisData::getDataObject();
-		if (!data.doCsm()) {
+		if (!_getter->doCsm()) {
 			return;
 		}
 
-		std::shared_ptr<Alignment> layout = data.layout();
-		std::shared_ptr<Alignment> csmAlign = data.csmAlign();
+		std::shared_ptr<Alignment> layout = _getter->layout();
+		std::shared_ptr<Alignment> csmAlign = _getter->csmAlign();
 
 		Extent thistile = layout->extentFromCell(tile);
 
-		Raster<csm_t> fullTile = getEmptyRasterFromTile<csm_t>(tile, *csmAlign, 30);
+		Raster<csm_t> fullTile = getEmptyRasterFromTile<csm_t>(_getter, tile, *csmAlign, 30);
 		
 		Extent extentWithData;
 		bool extentInit = false;
 
-		auto& lasFiles = data.sortedLasList();
-		for (size_t i = 0; i < lasFiles.size(); ++i) {
-			Extent thisext = lasFiles[i].ext;
+		const std::vector<Extent>& lasExtents = _getter->lasExtents();
+		for (size_t i = 0; i < lasExtents.size(); ++i) {
+			Extent thisext = lasExtents[i]; //intentional copy
 
 			//Because the geotiff format doesn't store the entire WKT, you will sometimes end up in the situation where the WKT you set
 			//and the WKT you get by writing and then reading a tif are not the same
@@ -354,51 +412,51 @@ namespace lapis {
 		}
 
 		int neighborsNeeded = 6;
-		fullTile = smoothAndFill(fullTile, data.smooth(), neighborsNeeded, {});
+		fullTile = smoothAndFill(fullTile, _getter->smooth(), neighborsNeeded, {});
 
-		for (CSMMetric& metric : data.csmMetrics()) {
-			Raster<metric_t> tileMetric = aggregate(fullTile, crop(*data.metricAlign(), fullTile, SnapType::out), metric.f);
-			metric.r.overlayInside(tileMetric);
+		for (CSMMetricRaster& metric : _csmMetrics) {
+			Raster<metric_t> tileMetric = aggregate(fullTile, crop(*_getter->metricAlign(), fullTile, SnapType::out), metric.fun);
+			metric.raster.overlayInside(tileMetric);
 		}
 		
 		Extent cropExt = layout->extentFromCell(tile); //unbuffered extent
 		cropExt = crop(cropExt, extentWithData);
 		fullTile = crop(fullTile, cropExt, SnapType::out);
 
-		std::string outname = "CanopySurfaceModel_" + nameFromLayout(tile);
-		writeRasterWithFullName(csmDir(), outname, fullTile, OutputUnitLabel::Default);
+		std::string outname = "CanopySurfaceModel_" + nameFromLayout(*_getter->layout(), tile);
+		writeRasterWithFullName(_getter, csmDir(), outname, fullTile, OutputUnitLabel::Default);
 	}
 	void CsmHandler::cleanup() 
 	{
-		LapisData& data = LapisData::getDataObject();
-
-		if (!data.doCsm()) {
+		if (!_getter->doCsm()) {
 			return;
 		}
 		std::filesystem::remove_all(csmTempDir());
 		deleteTempDirIfEmpty();
 
-		for (CSMMetric& metric : data.csmMetrics()) {
-			writeRasterWithFullName(csmMetricDir(), metric.name, metric.r, metric.unit);
+		for (CSMMetricRaster& metric : _csmMetrics) {
+			writeRasterWithFullName(_getter, csmMetricDir(), metric.name, metric.raster, metric.unit);
 		}
-		data.csmMetrics().clear();
-		data.csmMetrics().shrink_to_fit();
+		_csmMetrics.clear();
+		_csmMetrics.shrink_to_fit();
 	}
-	std::filesystem::path CsmHandler::csmTempDir()
+	std::filesystem::path ProductHandler::csmTempDir() const
 	{
 		return tempDir() / "CSM";
 	}
-	std::filesystem::path CsmHandler::csmDir()
+	std::filesystem::path ProductHandler::csmDir() const
 	{
 		return parentDir() / "CanopySurfaceModel";
 	}
-	std::filesystem::path CsmHandler::csmMetricDir()
+	std::filesystem::path ProductHandler::csmMetricDir() const
 	{
 		return parentDir() / "CanopyMetrics";
 	}
 
-	void writeHighPointsAsXYZArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& csm, const Extent& unbufferedExtent, cell_t tile) {
-		std::filesystem::path fileName = TaoHandler::taoTempDir() / (tile + ".tmp");
+	void TaoHandler::writeHighPointsAsXYZArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& csm,
+		const Extent& unbufferedExtent, cell_t tile) const {
+
+		std::filesystem::path fileName = taoTempDir() / (tile + ".tmp");
 		std::ofstream ofs{ fileName,std::ios::binary };
 
 		if (!ofs) {
@@ -416,8 +474,8 @@ namespace lapis {
 			ofs << x << y << csm[cell].value();
 		}
 	}
-	std::vector<CoordXYZ> readHighPointsFromXYZArray(cell_t tile) {
-		std::filesystem::path fileName = TaoHandler::taoTempDir() / (tile + ".tmp");
+	std::vector<CoordXYZ> TaoHandler::readHighPointsFromXYZArray(cell_t tile) const {
+		std::filesystem::path fileName = taoTempDir() / (tile + ".tmp");
 		std::ifstream ifs{ fileName,std::ios::binary };
 		if (!ifs) {
 			LapisLogger::getLogger().logMessage("Error reading from " + fileName.string());
@@ -435,12 +493,12 @@ namespace lapis {
 		}
 		return out;
 	}
-	void writeHighPointsAsShp(const Raster<taoid_t>& segments, cell_t tile) {
+	void TaoHandler::writeHighPointsAsShp(const Raster<taoid_t>& segments, cell_t tile) const {
 		namespace fs = std::filesystem;
 
 		GDALRegisterWrapper::allRegister();
-		fs::create_directories(TaoHandler::taoDir());
-		fs::path filename = (TaoHandler::taoDir() / ("TAOs_" + nameFromLayout(tile) + ".shp")).string();
+		fs::create_directories(taoDir());
+		fs::path filename = (taoDir() / ("TAOs_" + nameFromLayout(*_getter->layout(), tile) + ".shp")).string();
 
 		GDALDatasetWrapper outshp("ESRI Shapefile", filename.string().c_str(), 0, 0, GDT_Unknown);
 
@@ -503,11 +561,8 @@ namespace lapis {
 			layer->CreateFeature(feature.ptr);
 		}
 	}
-
 	void TaoHandler::_updateMap(const Raster<taoid_t>& segments, const std::vector<cell_t>& highPoints, const Extent& unbufferedExtent, cell_t tileidx)
 	{
-		LapisData& data = LapisData::getDataObject();
-		
 		auto doubleUnbuffer = [](coord_t bufferedValue, coord_t unbufferedValue) -> coord_t {
 			return 2. * unbufferedValue - unbufferedValue;
 		};
@@ -522,7 +577,7 @@ namespace lapis {
 
 
 		{
-			std::scoped_lock<std::mutex> lock(data.globalMutex());
+			std::scoped_lock<std::mutex> lock(_getter->globalMutex());
 			idMap.tileToLocalNames.emplace(tileidx, TaoIdMap::IDToCoord());
 		}
 		for (cell_t cell : highPoints) {
@@ -532,7 +587,7 @@ namespace lapis {
 				continue;
 			}
 			if (unbufferedExtent.contains(x, y)) { //this tao id is id that other tiles will have to match
-				std::scoped_lock<std::mutex> lock(data.globalMutex());
+				std::scoped_lock<std::mutex> lock(_getter->globalMutex());
 				idMap.coordsToFinalName.emplace(TaoIdMap::XY{ x,y }, segments[cell].value());
 			}
 			else { //this tao id will have to change eventually
@@ -544,7 +599,7 @@ namespace lapis {
 	{
 		LapisLogger& log = LapisLogger::getLogger();
 
-		std::string tileName = nameFromLayout(tile);
+		std::string tileName = nameFromLayout(*_getter->layout(), tile);
 		
 
 		Raster<taoid_t> segments;
@@ -571,24 +626,27 @@ namespace lapis {
 			}
 			v.value() = idMap.coordsToFinalName.at(localNameMap.at(v.value()));
 		}
-		writeRasterWithFullName(taoDir(), "Segments" + tileName, segments, OutputUnitLabel::Unitless);
+		writeRasterWithFullName(_getter, taoDir(), "Segments" + tileName, segments, OutputUnitLabel::Unitless);
 		writeHighPointsAsShp(segments, tile);
+	}
+	TaoHandler::TaoHandler(ParamGetter* p) : ProductHandler(p)
+	{
+		_getter = p;
 	}
 	void TaoHandler::handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index)
 	{
 	}
 	void TaoHandler::handleTile(cell_t tile) 
 	{
-		LapisData& data = LapisData::getDataObject();
 		LapisLogger& log = LapisLogger::getLogger();
-		if (!data.doTaos()) {
+		if (!_getter->doTaos()) {
 			return;
 		}
 
-		Alignment& layout = *data.layout();
+		Alignment& layout = *_getter->layout();
 
 		Extent unbufferedExtent = layout.extentFromCell(tile);
-		Raster<csm_t> bufferedCsm = getEmptyRasterFromTile<csm_t>(tile, *data.csmAlign(), 30.);
+		Raster<csm_t> bufferedCsm = getEmptyRasterFromTile<csm_t>(_getter, tile, *_getter->csmAlign(), 30.);
 		
 		rowcol_t row = layout.rowFromCellUnsafe(tile);
 		rowcol_t col = layout.colFromCellUnsafe(tile);
@@ -600,7 +658,7 @@ namespace lapis {
 				cell_t nudgedCell = layout.cellFromRowColUnsafe(nudgedRow, nudgedCol);
 				Extent nudgedExtent = crop(bufferedCsm, layout.extentFromCell(nudgedCell));
 
-				std::filesystem::path fileName = CsmHandler::csmDir() / ("CanopySurfaceModel_" + nameFromLayout(nudgedCell));
+				std::filesystem::path fileName = csmDir() / ("CanopySurfaceModel_" + nameFromLayout(*_getter->layout(), nudgedCell));
 
 				Raster<csm_t> nudgedCsm;
 				try {
@@ -619,7 +677,7 @@ namespace lapis {
 			return;
 		}
 
-		std::vector<cell_t> highPoints = identifyHighPointsWithMinDist(bufferedCsm, data.minTaoHt(), data.minTaoDist());
+		std::vector<cell_t> highPoints = identifyHighPointsWithMinDist(bufferedCsm, _getter->minTaoHt(), _getter->minTaoDist());
 		Raster<taoid_t> segments = watershedSegment(bufferedCsm, highPoints, tile, layout.ncell());
 		_updateMap(segments, highPoints, unbufferedExtent, tile);
 
@@ -628,59 +686,60 @@ namespace lapis {
 		segments = crop(segments, unbufferedExtent, SnapType::out);
 		maxHeight = crop(maxHeight, unbufferedExtent, SnapType::out);
 
-		std::string tileName = nameFromLayout(tile);
+		std::string tileName = nameFromLayout(*_getter->layout(), tile);
 
 		writeHighPointsAsXYZArray(highPoints, bufferedCsm, unbufferedExtent, tile);
 		writeTempRaster(taoTempDir(), "Segments_" + tileName, segments);
-		writeRasterWithFullName(taoDir(), "MaxHeight_" + tileName, maxHeight, OutputUnitLabel::Default);
+		writeRasterWithFullName(_getter, taoDir(), "MaxHeight_" + tileName, maxHeight, OutputUnitLabel::Default);
 		segments = Raster<taoid_t>();
 		maxHeight = Raster<csm_t>();
 	}
 	void TaoHandler::cleanup()
 	{
-		LapisData& data = LapisData::getDataObject();
 
-		if (!data.doTaos()) {
+		if (!_getter->doTaos()) {
 			return;
 		}
 
 		uint64_t sofar = 0;
 		auto threadfunc = [&]() {
-			distributeWork(sofar, data.layout()->ncell(), [&](cell_t tile) {this->_fixTaoIdsThread(tile); }, data.globalMutex());
+			distributeWork(sofar, _getter->layout()->ncell(), [&](cell_t tile) {this->_fixTaoIdsThread(tile); }, _getter->globalMutex());
 		};
 		std::vector<std::thread> threads;
-		for (int i = 0; i < data.nThread(); ++i) {
+		for (int i = 0; i < _getter->nThread(); ++i) {
 			threads.push_back(std::thread(threadfunc));
 		}
-		for (int i = 0; i < data.nThread(); ++i) {
+		for (int i = 0; i < _getter->nThread(); ++i) {
 			threads[i].join();
 		}
 
 		std::filesystem::remove_all(taoTempDir());
 		deleteTempDirIfEmpty();
 	}
-	std::filesystem::path TaoHandler::taoDir()
+	std::filesystem::path ProductHandler::taoDir() const
 	{
 		return parentDir() / "TreeApproximateObjects";
 	}
-
-	std::filesystem::path TaoHandler::taoTempDir()
+	std::filesystem::path ProductHandler::taoTempDir() const
 	{
 		return tempDir() / "TAO";
 	}
 
+	FineIntHandler::FineIntHandler(ParamGetter* p) : ProductHandler(p)
+	{
+		_getter = p;
+	}
 	void FineIntHandler::handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index)
 	{
-		LapisData& data = LapisData::getDataObject();
-		if (!data.doFineInt()) {
+		if (!_getter->doFineInt()) {
 			return;
 		}
 
-		Raster<intensity_t> numerator{ crop(*data.fineIntAlign(),e) };
+		Raster<intensity_t> numerator{ crop(*_getter->fineIntAlign(),e) };
 		Raster<intensity_t> denominator{ (Alignment)numerator };
 
-		coord_t cutoff = data.fineIntCanopyCutoff();
-		for (auto& p : points) {
+		coord_t cutoff = _getter->fineIntCanopyCutoff();
+		for (const LasPoint& p : points) {
 			if (p.z < cutoff) {
 				continue;
 			}
@@ -702,20 +761,20 @@ namespace lapis {
 	}
 	void FineIntHandler::handleTile(cell_t tile)
 	{
-		LapisData& data = LapisData::getDataObject();
-		if (!data.doFineInt()) {
+
+		if (!_getter->doFineInt()) {
 			return;
 		}
 
-		Raster<intensity_t> numerator = getEmptyRasterFromTile<intensity_t>(tile, *data.fineIntAlign(), 0.);
+		Raster<intensity_t> numerator = getEmptyRasterFromTile<intensity_t>(_getter, tile, *_getter->fineIntAlign(), 0.);
 		Raster<intensity_t> denominator{ (Alignment)numerator };
 
 		Extent extentWithData;
 		bool extentInit = false;
 
-		auto& lasFiles = data.sortedLasList();
-		for (size_t i = 0; i < lasFiles.size(); ++i) {
-			Extent thisext = lasFiles[i].ext;
+		const std::vector<Extent>& lasExtents = _getter->lasExtents();
+		for (size_t i = 0; i < lasExtents.size(); ++i) {
+			Extent thisext = lasExtents[i]; //intentional copy
 
 			//Because the geotiff format doesn't store the entire WKT, you will sometimes end up in the situation where the WKT you set
 			//and the WKT you get by writing and then reading a tif are not the same
@@ -751,60 +810,112 @@ namespace lapis {
 			return;
 		}
 
-		std::string tileName = nameFromLayout(tile);
+		std::string tileName = nameFromLayout(*_getter->layout(), tile);
 
 		Raster<intensity_t> meanIntensity = numerator / denominator;
 		meanIntensity = crop(meanIntensity, extentWithData);
-		writeRasterWithFullName(fineIntDir(), "MeanCanopyIntensity_" + tileName, meanIntensity, OutputUnitLabel::Unitless);
+		writeRasterWithFullName(_getter, fineIntDir(), "MeanCanopyIntensity_" + tileName, meanIntensity, OutputUnitLabel::Unitless);
 	}
 	void FineIntHandler::cleanup() {
 		std::filesystem::remove_all(fineIntTempDir());
 		deleteTempDirIfEmpty();
 	}
-	std::filesystem::path FineIntHandler::fineIntDir()
+	std::filesystem::path ProductHandler::fineIntDir() const
 	{
 		return  parentDir() / "Intensity";
 	}
-	std::filesystem::path FineIntHandler::fineIntTempDir()
+	std::filesystem::path ProductHandler::fineIntTempDir() const
 	{
 		return tempDir() / "Intensity";
 	}
 
-	void TopoHandler::handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index)
+	TopoHandler::TopoHandler(ParamGetter* p) : ProductHandler(p)
 	{
-		LapisData& data = LapisData::getDataObject();
-		if (!data.doTopo()) {
+		_getter = p;
+
+		if (!_getter->doTopo()) {
 			return;
 		}
 
-		Raster<coord_t> coarseSum = aggregate<coord_t, coord_t>(dem, *data.metricAlign(), &viewSum<coord_t>);
-		data.elevNum()->overlay(coarseSum, [](coord_t a, coord_t b) {return a + b; });
+		_elevNumerator = Raster<coord_t>(*_getter->metricAlign());
+		_elevDenominator = Raster<coord_t>(*_getter->metricAlign());
 
-		Raster<coord_t> coarseCount = aggregate<coord_t, coord_t>(dem, *data.metricAlign(), &viewCount<coord_t>);
-		data.elevDenom()->overlay(coarseCount, [](coord_t a, coord_t b) {return a + b; });
+		using oul = OutputUnitLabel;
+		_topoMetrics.emplace_back("Slope", viewSlope<coord_t, metric_t>, oul::Radian);
+		_topoMetrics.emplace_back("Aspect", viewSlope<coord_t, metric_t>, oul::Radian);
+
+	}
+	void TopoHandler::handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index)
+	{
+		if (!_getter->doTopo()) {
+			return;
+		}
+
+		Raster<coord_t> coarseSum = aggregate<coord_t, coord_t>(dem, *_getter->metricAlign(), &viewSum<coord_t>);
+		_elevNumerator.overlay(coarseSum, [](coord_t a, coord_t b) {return a + b; });
+
+		Raster<coord_t> coarseCount = aggregate<coord_t, coord_t>(dem, *_getter->metricAlign(), &viewCount<coord_t>);
+		_elevDenominator.overlay(coarseCount, [](coord_t a, coord_t b) {return a + b; });
 	}
 	void TopoHandler::handleTile(cell_t tile)
 	{
 	}
 	void TopoHandler::cleanup()
 	{
-		LapisData& data = LapisData::getDataObject();
-		if (!data.doTopo()) {
+
+		if (!_getter->doTopo()) {
 			return;
 		}
 
-		Raster<coord_t> elev = *data.elevNum() / *data.elevDenom();
+		Raster<coord_t> elev = _elevNumerator / _elevDenominator;
 		
-		writeRasterWithFullName(topoDir(), "Elevation", elev, OutputUnitLabel::Default);
+		writeRasterWithFullName(_getter, topoDir(), "Elevation", elev, OutputUnitLabel::Default);
 
-		for (auto& metric : data.topoMetrics()) {
-			Raster<metric_t> r = focal(elev, 3, metric.metric);
-			writeRasterWithFullName(topoDir(), metric.name, r, metric.unit);
+		for (TopoMetric& metric : _topoMetrics) {
+			Raster<metric_t> r = focal(elev, 3, metric.fun);
+			writeRasterWithFullName(_getter, topoDir(), metric.name, r, metric.unit);
 		}
 	}
-	std::filesystem::path TopoHandler::topoDir()
+	std::filesystem::path ProductHandler::topoDir() const
 	{
 		return parentDir() / "Topography";
+	}
+
+	PointMetricHandler::PointMetricRasters::PointMetricRasters(ParamGetter* getter, const std::string& name, MetricFunc fun, OutputUnitLabel unit)
+		: name(name), fun(fun), unit(unit), rasters(getter)
+	{
+	}
+	PointMetricHandler::StratumMetricRasters::StratumMetricRasters(ParamGetter* getter, const std::string& baseName, StratumFunc fun, OutputUnitLabel unit)
+		: baseName(baseName), fun(fun), unit(unit)
+	{
+		for (size_t i = 0; i < getter->strataBreaks().size() + 1; ++i) {
+			rasters.emplace_back(getter);
+		}
+	}
+	PointMetricHandler::TwoRasters::TwoRasters(ParamGetter* getter)
+	{
+		if (getter->doAllReturnMetrics()) {
+			all = Raster<metric_t>(*getter->metricAlign());
+		}
+		if (getter->doFirstReturnMetrics()) {
+			first = Raster<metric_t>(*getter->metricAlign());
+		}
+	}
+	Raster<metric_t>& PointMetricHandler::TwoRasters::get(ReturnType r)
+	{
+		if (r == ReturnType::ALL) {
+			return all.value();
+		}
+		return first.value();
+	}
+
+	CsmHandler::CSMMetricRaster::CSMMetricRaster(ParamGetter* getter, const std::string& name, CsmMetricFunc fun, OutputUnitLabel unit)
+		: name(name), fun(fun), unit(unit), raster(*getter->metricAlign())
+	{
+	}
+	TopoHandler::TopoMetric::TopoMetric(const std::string& name, TopoFunc fun, OutputUnitLabel unit)
+		: name(name), fun(fun), unit(unit)
+	{
 	}
 
 }

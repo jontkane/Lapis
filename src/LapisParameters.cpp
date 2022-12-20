@@ -30,12 +30,20 @@ namespace lapis {
 	}
 	void Parameter<ParamName::name>::updateUnits() {}
 	void Parameter<ParamName::name>::prepareForRun() {
+		if (_runPrepared) {
+			return;
+		}
+		_nameString = _name.getValue();
+		_runPrepared = true;
 	}
 	void Parameter<ParamName::name>::cleanAfterRun() {
+		_nameString.clear();
+		_runPrepared = false;
 	}
-	std::string Parameter<ParamName::name>::name()
+	const std::string& Parameter<ParamName::name>::name()
 	{
-		return _name.getValue();
+		prepareForRun();
+		return _nameString;
 	}
 
 	Parameter<ParamName::las>::Parameter() {
@@ -83,76 +91,68 @@ namespace lapis {
 		
 		CoordRef outCrs = d.userCrs();
 		if (outCrs.isEmpty()) {
-			for (auto& v : s) {
-				outCrs = v.ext.crs();
+			for (const LasFileExtent& e : s) {
+				outCrs = e.ext.crs();
 				if (!outCrs.isEmpty()) {
 					break;
 				}
 			}
 		}
 		
-		for (auto& v : s) {
-			LasExtent e = { QuadExtent(v.ext, outCrs).outerExtent(), v.ext.nPoints() };
-			_fileExtents.emplace_back(v.filename,e);
+		std::vector<LasFileExtent> fileExtentVector;
+
+		for (const LasFileExtent& l : s) {
+			LasExtent e = { QuadExtent(l.ext, outCrs).outerExtent(), l.ext.nPoints() };
+			fileExtentVector.emplace_back(l.filename,e);
 		}
-		std::sort(_fileExtents.begin(), _fileExtents.end());
-		log.logMessage(std::to_string(_fileExtents.size()) + " Las Files Found");
-		if (_fileExtents.size() == 0) {
-			d.needAbort = true;
+		std::sort(fileExtentVector.begin(), fileExtentVector.end());
+		log.logMessage(std::to_string(fileExtentVector.size()) + " Las Files Found");
+		if (fileExtentVector.size() == 0) {
+			d.setNeedAbortTrue();
 			log.logMessage("Aborting");
+		}
+
+		bool init = false;
+
+		for (const LasFileExtent& l : fileExtentVector) {
+			_lasFileNames.push_back(l.filename);
+			_lasExtents.push_back(l.ext);
+			if (!init) {
+				_fullExtent = l.ext;
+				init = true;
+			}
+			else {
+				_fullExtent = extend(_fullExtent, l.ext);
+			}
 		}
 
 		_runPrepared = true;
 	}
 	void Parameter<ParamName::las>::cleanAfterRun() {
-		_fileExtents.clear();
+		_lasExtents.clear();
+		_lasFileNames.clear();
+
+		_fullExtent = Extent();
 
 		_runPrepared = false;
 	}
-	Extent Parameter<ParamName::las>::getFullExtent() {
+	const Extent& Parameter<ParamName::las>::getFullExtent() {
 		prepareForRun();
-		auto& d = LapisData::getDataObject();
-		auto& log = LapisLogger::getLogger();
-
-
-		CoordRef crsOut = d.userCrs();
-
-		coord_t xmin = std::numeric_limits<coord_t>::max();
-		coord_t ymin = std::numeric_limits<coord_t>::max();
-		coord_t xmax = std::numeric_limits<coord_t>::lowest();
-		coord_t ymax = std::numeric_limits<coord_t>::lowest();
-		for (auto& l : _fileExtents) {
-			if (!crsOut.isConsistentHoriz(l.ext.crs())) {
-				Extent e = QuadExtent(l.ext, crsOut).outerExtent();
-				xmin = std::min(xmin, e.xmin());
-				xmax = std::max(xmax, e.xmax());
-				ymin = std::min(ymin, e.ymin());
-				ymax = std::max(ymax, e.ymax());
-			}
-			else {
-				if (crsOut.isEmpty() && !l.ext.crs().isEmpty()) {
-					const Unit& u = d.lasCrsOverride().getZUnits();
-					crsOut = l.ext.crs();
-					if (!u.isUnknown()) {
-						crsOut.setZUnits(u);
-					}
-				}
-				xmin = std::min(xmin, l.ext.xmin());
-				xmax = std::max(xmax, l.ext.xmax());
-				ymin = std::min(ymin, l.ext.ymin());
-				ymax = std::max(ymax, l.ext.ymax());
-			}
-		}
-		return Extent(xmin, xmax, ymin, ymax, crsOut);
+		return _fullExtent;
 	}
-	const std::vector<LasFileExtent>& Parameter<ParamName::las>::sortedLasExtents()
+	const std::vector<Extent>& Parameter<ParamName::las>::sortedLasExtents()
 	{
 		prepareForRun();
-		return _fileExtents;
+		return _lasExtents;
 	}
 	const std::set<std::string>& Parameter<ParamName::las>::currentFileSpecifiers() const
 	{
 		return _specifiers.getSpecifiers();
+	}
+
+	const std::vector<std::string>& Parameter<ParamName::las>::sortedLasFileNames()
+	{
+		return _lasFileNames;
 	}
 
 	Parameter<ParamName::dem>::Parameter() {
@@ -193,19 +193,30 @@ namespace lapis {
 		log.setProgress(RunProgress::findingDemFiles);
 
 		CoordRef crsOver = d.demCrsOverride();
-		_fileAligns = iterateOverFileSpecifiers(_specifiers.getSpecifiers(), &tryDtmFile, crsOver, crsOver.getZUnits());
+		std::set<DemFileAlignment> fileAligns = iterateOverFileSpecifiers(_specifiers.getSpecifiers(), &tryDtmFile, crsOver, crsOver.getZUnits());
+		log.logMessage(std::to_string(fileAligns.size()) + " Dem Files Found");
 
-		log.logMessage(std::to_string(_fileAligns.size()) + " Dem Files Found");
+		for (const DemFileAlignment& d : fileAligns) {
+			_demAligns.push_back(d.align);
+			_demFileNames.push_back(d.filename);
+		}
+
 		_runPrepared = true;
 	}
 	void Parameter<ParamName::dem>::cleanAfterRun() {
-		_fileAligns.clear();
+		_demFileNames.clear();
+		_demAligns.clear();
 		_runPrepared = false;
 	}
-	const std::set<DemFileAlignment>& Parameter<ParamName::dem>::demList()
+	const std::vector<Alignment>& Parameter<ParamName::dem>::demAligns()
 	{
 		prepareForRun();
-		return _fileAligns;
+		return _demAligns;
+	}
+	const std::vector<std::string>& Parameter<ParamName::dem>::demFileNames()
+	{
+		prepareForRun();
+		return _demFileNames;
 	}
 	const std::set<std::string>& Parameter<ParamName::dem>::currentFileSpecifiers() const
 	{
@@ -247,32 +258,43 @@ namespace lapis {
 	}
 	void Parameter<ParamName::output>::updateUnits() {}
 	void Parameter<ParamName::output>::prepareForRun() {
+
+		if (_runPrepared) {
+			return;
+		}
+
+		_outPath = _output.path();
+
 		LapisData& d = LapisData::getDataObject();
-		size_t maxFileLength = d.maxLapisFileName + _output.path().string().size() + d.name().size();
+		size_t maxFileLength = d.maxLapisFileName + _outPath.string().size() + d.name().size();
 		LapisLogger& log = LapisLogger::getLogger();
 		if (maxFileLength > d.maxTotalFilePath) {
 			log.logMessage("Total file path is too long");
 			log.logMessage("Aborting");
-			d.needAbort = true;
+			d.setNeedAbortTrue();
 		}
 		namespace fs = std::filesystem;
-		if (fs::is_directory(_output.path()) 
+		if (fs::is_directory(_outPath)
 			|| _debugNoOutput.currentState()) { //so the tests can feed a dummy value that doesn't trip the error detection
 			return;
 		}
 		try {
-			fs::create_directory(_output.path());
+			fs::create_directory(_outPath);
 		}
 		catch (fs::filesystem_error e) {
 			log.logMessage("Unable to create output directory");
 			log.logMessage("Aborting");
-			d.needAbort = true;
+			d.setNeedAbortTrue();
 		}
+		_runPrepared = true;
 	}
-	void Parameter<ParamName::output>::cleanAfterRun() {}
-	std::filesystem::path Parameter<ParamName::output>::path() const
+	void Parameter<ParamName::output>::cleanAfterRun() {
+		_runPrepared = false;
+	}
+	const std::filesystem::path& Parameter<ParamName::output>::path()
 	{
-		return _output.path();
+		prepareForRun();
+		return _outPath;
 	}
 	bool Parameter<ParamName::output>::isDebugNoOutput() const
 	{
@@ -548,7 +570,7 @@ namespace lapis {
 		else {
 			ImGui::Text(_cellsize.asText());
 			ImGui::SameLine();
-			ImGui::Text(LapisData::getDataObject().getUnitPlural().c_str());
+			ImGui::Text(LapisData::getDataObject().unitPlural().c_str());
 		}
 
 #ifndef NDEBUG
@@ -569,7 +591,7 @@ namespace lapis {
 				Alignment a{ _alignFileBoostString };
 
 				const Unit& src = a.crs().getXYUnits();
-				const Unit& dst = LapisData::getDataObject().getCurrentUnits();
+				const Unit& dst = LapisData::getDataObject().outUnits();
 
 				_xres.setValue(convertUnits(a.xres(), src, dst));
 				_yres.setValue(convertUnits(a.yres(), src, dst));
@@ -684,7 +706,7 @@ namespace lapis {
 			yorigin = _origin.getValueLogErrors();
 		}
 
-		const Unit& src = d.getCurrentUnits();
+		const Unit& src = d.outUnits();
 		Unit dst = e.crs().getXYUnits();
 		xres = convertUnits(xres, src, dst);
 		yres = convertUnits(yres, src, dst);
@@ -694,11 +716,10 @@ namespace lapis {
 		if (xres <= 0 || yres <= 0) {
 			log.logMessage("Cellsize must be positive");
 			log.logMessage("Aborting");
-			d.needAbort = true;
-			xres = 30; yres = 30; //just so this function can complete without further errors before LapisData handles the abort
+			d.setNeedAbortTrue();
 		}
 
-		if (d.needAbort) {
+		if (d.getNeedAbort()) {
 			return;
 		}
 
@@ -708,28 +729,11 @@ namespace lapis {
 #ifndef NDEBUG
 		log.logMessage("Out CRS: " + _align->crs().getShortName());
 #endif
-
-		_nLaz = std::make_shared<Raster<int>>(*_align);
-		auto& exts = d.sortedLasList();
-		for (auto& le : exts) {
-			std::vector<cell_t> cells = _nLaz->cellsFromExtent(le.ext, SnapType::out);
-			for (cell_t cell : cells) {
-				_nLaz->atCellUnsafe(cell).value()++;
-				_nLaz->atCellUnsafe(cell).has_value() = true;
-			}
-		}
-
 		_runPrepared = true;
 	}
 	void Parameter<ParamName::alignment>::cleanAfterRun() {
 		_align.reset();
-		_nLaz.reset();
 		_runPrepared = false;
-	}
-	std::shared_ptr<Raster<int>> Parameter<ParamName::alignment>::nLaz()
-	{
-		prepareForRun();
-		return _nLaz;
 	}
 	std::shared_ptr<Alignment> Parameter<ParamName::alignment>::metricAlign()
 	{
@@ -873,7 +877,7 @@ namespace lapis {
 		auto& d = LapisData::getDataObject();
 		auto& log = LapisLogger::getLogger();
 		const Alignment& metricAlign = *d.metricAlign();
-		const Unit& u = d.getCurrentUnits();
+		const Unit& u = d.outUnits();
 
 
 		if (!d.doCsm()) {
@@ -888,51 +892,30 @@ namespace lapis {
 		if (_footprint.getValueLogErrors() < 0) {
 			log.logMessage("Pulse diameter must be non-negative");
 			log.logMessage("Aborting");
-			d.needAbort = true;
+			d.setNeedAbortTrue();
 		}
 		if (_cellsize.getValueLogErrors() <= 0) {
 			log.logMessage("CSM Cellsize must be positive");
 			log.logMessage("Aborting");
-			d.needAbort = true;
+			d.setNeedAbortTrue();
 		}
 
-		if (d.needAbort) {
+		if (d.getNeedAbort()) {
 			return;
 		}
 		
 		coord_t cellsize = convertUnits(_cellsize.getValueLogErrors(), u, metricAlign.crs().getXYUnits());
 		_csmAlign = std::make_shared<Alignment>(metricAlign, metricAlign.xOrigin(), metricAlign.yOrigin(), cellsize, cellsize);
 
-		if (d.isDebugNoAlloc()) {
-			_runPrepared = true;
-			return;
-		}
-
-		if (_doMetrics.currentState()) {
-			const Alignment& a = *d.metricAlign();
-			using oul = OutputUnitLabel;
-
-			_csmMetrics.emplace_back(&viewMax<csm_t>, "MaxCSM", a, oul::Default);
-			_csmMetrics.emplace_back(&viewMean<csm_t>, "MeanCSM", a, oul::Default);
-			_csmMetrics.emplace_back(&viewStdDev<csm_t>, "StdDevCSM", a, oul::Default);
-			_csmMetrics.emplace_back(&viewRumple<csm_t>, "RumpleCSM", a, oul::Unitless);
-		}
-
 		_runPrepared = true;
 	}
 	void Parameter<ParamName::csmOptions>::cleanAfterRun() {
 		_csmAlign.reset();
-		_csmMetrics.clear();
 		_runPrepared = false;
 	}
 	int Parameter<ParamName::csmOptions>::smooth() const
 	{
 		return _smooth.currentSelection();
-	}
-	std::vector<CSMMetric>& Parameter<ParamName::csmOptions>::csmMetrics()
-	{
-		prepareForRun();
-		return _csmMetrics;
 	}
 	std::shared_ptr<Alignment> Parameter<ParamName::csmOptions>::csmAlign()
 	{
@@ -943,6 +926,11 @@ namespace lapis {
 	coord_t Parameter<ParamName::csmOptions>::footprintDiameter() const
 	{
 		return _footprint.getValueLogErrors();
+	}
+
+	bool Parameter<ParamName::csmOptions>::doCsmMetrics() const
+	{
+		return _doMetrics.currentState();
 	}
 
 	Parameter<ParamName::pointMetricOptions>::Parameter() {
@@ -1019,64 +1007,16 @@ namespace lapis {
 
 		auto& d = LapisData::getDataObject();
 
-		using oul = OutputUnitLabel;
-		using pmc = PointMetricCalculator;
-
 		LapisLogger& log = LapisLogger::getLogger();
 		if (_canopyCutoff.getValueLogErrors() < 0) {
 			log.logMessage("Canopy cutoff is negative. Is this intentional?");
 		}
 
-		if (d.isDebugNoAlloc()) {
-			_runPrepared = true;
-			return;
-		}
 		if (!d.doPointMetrics()) {
 			_runPrepared = true;
 			return;
 		}
 
-		const Alignment& a = *d.metricAlign();
-		auto addMetric = [&](const std::string& name, MetricFunc f, oul u) {
-			if (doAllReturns()) {
-				_allReturnPointMetrics.emplace_back(name, f, a, u);
-			}
-			if (doFirstReturns()) {
-				_firstReturnPointMetrics.emplace_back(name, f, a, u);
-			}
-		};
-
-		addMetric("Mean_CanopyHeight", &pmc::meanCanopy, oul::Default);
-		addMetric("StdDev_CanopyHeight", &pmc::stdDevCanopy, oul::Default);
-		addMetric("25thPercentile_CanopyHeight", &pmc::p25Canopy, oul::Default);
-		addMetric("50thPercentile_CanopyHeight", &pmc::p50Canopy, oul::Default);
-		addMetric("75thPercentile_CanopyHeight", &pmc::p75Canopy, oul::Default);
-		addMetric("95thPercentile_CanopyHeight", &pmc::p95Canopy, oul::Default);
-		addMetric("TotalReturnCount", &pmc::returnCount, oul::Unitless);
-		addMetric("CanopyCover", &pmc::canopyCover, oul::Percent);
-
-		if (_advMetrics.currentState()) {
-			addMetric("CoverAboveMean", &pmc::coverAboveMean, oul::Percent);
-			addMetric("CanopyReliefRatio", &pmc::canopyReliefRatio, oul::Unitless);
-			addMetric("CanopySkewness", &pmc::skewnessCanopy, oul::Unitless);
-			addMetric("CanopyKurtosis", &pmc::kurtosisCanopy, oul::Unitless);
-			addMetric("05thPercentile_CanopyHeight", &pmc::p05Canopy, oul::Default);
-			addMetric("10thPercentile_CanopyHeight", &pmc::p10Canopy, oul::Default);
-			addMetric("15thPercentile_CanopyHeight", &pmc::p15Canopy, oul::Default);
-			addMetric("20thPercentile_CanopyHeight", &pmc::p20Canopy, oul::Default);
-			addMetric("30thPercentile_CanopyHeight", &pmc::p30Canopy, oul::Default);
-			addMetric("35thPercentile_CanopyHeight", &pmc::p35Canopy, oul::Default);
-			addMetric("40thPercentile_CanopyHeight", &pmc::p40Canopy, oul::Default);
-			addMetric("45thPercentile_CanopyHeight", &pmc::p45Canopy, oul::Default);
-			addMetric("55thPercentile_CanopyHeight", &pmc::p55Canopy, oul::Default);
-			addMetric("60thPercentile_CanopyHeight", &pmc::p60Canopy, oul::Default);
-			addMetric("65thPercentile_CanopyHeight", &pmc::p65Canopy, oul::Default);
-			addMetric("70thPercentile_CanopyHeight", &pmc::p70Canopy, oul::Default);
-			addMetric("80thPercentile_CanopyHeight", &pmc::p80Canopy, oul::Default);
-			addMetric("85thPercentile_CanopyHeight", &pmc::p85Canopy, oul::Default);
-			addMetric("90thPercentile_CanopyHeight", &pmc::p90Canopy, oul::Default);
-			addMetric("99thPercentile_CanopyHeight", &pmc::p99Canopy, oul::Default);
-		}
 		if (_doStrata.currentState()) {
 			if (_strata.cachedValues().size()) {
 				auto to_string_with_precision = [](coord_t v)->std::string {
@@ -1090,43 +1030,19 @@ namespace lapis {
 					s.erase(s.find_last_not_of('.') + 1, std::string::npos);
 					return s;
 				};
-				std::vector<std::string> stratumNames;
 				const std::vector<coord_t>& strata = _strata.cachedValues();
-				stratumNames.push_back("LessThan" + to_string_with_precision(strata[0]));
+				_strataNames.push_back("LessThan" + to_string_with_precision(strata[0]));
 				for (size_t i = 1; i < strata.size(); ++i) {
-					stratumNames.push_back(to_string_with_precision(strata[i - 1]) + "To" + to_string_with_precision(strata[i]));
+					_strataNames.push_back(to_string_with_precision(strata[i - 1]) + "To" + to_string_with_precision(strata[i]));
 				}
-				stratumNames.push_back("GreaterThan" + to_string_with_precision(strata[strata.size() - 1]));
-
-				if (doAllReturns()) {
-					_allReturnStratumMetrics.emplace_back("StratumCover_", stratumNames, &pmc::stratumCover, a, oul::Percent);
-					_allReturnStratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &pmc::stratumPercent, a, oul::Percent);
-				}
-				if (doFirstReturns()) {
-					_firstReturnStratumMetrics.emplace_back("StratumCover_", stratumNames, &pmc::stratumCover, a, oul::Percent);
-					_firstReturnStratumMetrics.emplace_back("StratumReturnProportion_", stratumNames, &pmc::stratumPercent, a, oul::Percent);
-				}
+				_strataNames.push_back("GreaterThan" + to_string_with_precision(strata[strata.size() - 1]));
 			}
-		}
-
-		if (doAllReturns()) {
-			_allReturnCalculators = std::make_shared<Raster<PointMetricCalculator>>(a);
-		}
-		if (doFirstReturns()) {
-			_firstReturnCalculators = std::make_shared<Raster<PointMetricCalculator>>(a);
 		}
 
 		_runPrepared = true;
 	}
 	void Parameter<ParamName::pointMetricOptions>::cleanAfterRun() {
 		_runPrepared = false;
-
-		_allReturnPointMetrics.clear();
-		_firstReturnPointMetrics.clear();
-		_allReturnStratumMetrics.clear();
-		_firstReturnStratumMetrics.clear();
-		_allReturnCalculators.reset();
-		_firstReturnCalculators.reset();
 	}
 	bool Parameter<ParamName::pointMetricOptions>::doAllReturns() const
 	{
@@ -1136,39 +1052,14 @@ namespace lapis {
 	{
 		return _whichReturns.currentState(FIRST_RETURNS) == DONT_SKIP;
 	}
-	std::vector<StratumMetricRasters>& Parameter<ParamName::pointMetricOptions>::firstReturnStratumMetrics()
-	{
-		prepareForRun();
-		return _firstReturnStratumMetrics;
-	}
-	std::vector<StratumMetricRasters>& Parameter<ParamName::pointMetricOptions>::allReturnStratumMetrics()
-	{
-		prepareForRun();
-		return _allReturnStratumMetrics;
-	}
-	std::vector<PointMetricRaster>& Parameter<ParamName::pointMetricOptions>::firstReturnPointMetrics()
-	{
-		prepareForRun();
-		return _firstReturnPointMetrics;
-	}
-	std::vector<PointMetricRaster>& Parameter<ParamName::pointMetricOptions>::allReturnPointMetrics()
-	{
-		prepareForRun();
-		return _allReturnPointMetrics;
-	}
-	shared_raster<PointMetricCalculator> Parameter<ParamName::pointMetricOptions>::firstReturnCalculators()
-	{
-		prepareForRun();
-		return _firstReturnCalculators;
-	}
-	shared_raster<PointMetricCalculator> Parameter<ParamName::pointMetricOptions>::allReturnCalculators()
-	{
-		prepareForRun();
-		return _allReturnCalculators;
-	}
 	const std::vector<coord_t>& Parameter<ParamName::pointMetricOptions>::strata() const
 	{
 		return _strata.cachedValues();
+	}
+	const std::vector<std::string>& Parameter<ParamName::pointMetricOptions>::strataNames() 
+	{
+		prepareForRun();
+		return _strataNames;
 	}
 	coord_t Parameter<ParamName::pointMetricOptions>::canopyCutoff() const
 	{
@@ -1177,6 +1068,11 @@ namespace lapis {
 	bool Parameter<ParamName::pointMetricOptions>::doStratumMetrics() const
 	{
 		return _doStrata.currentState();
+	}
+
+	bool Parameter<ParamName::pointMetricOptions>::doAdvancedPointMetrics() const
+	{
+		return _advMetrics.currentState();
 	}
 
 	Parameter<ParamName::filters>::Parameter() {
@@ -1239,7 +1135,7 @@ namespace lapis {
 			LapisLogger& log = LapisLogger::getLogger();
 			log.logMessage("Low outlier must be less than high outlier");
 			log.logMessage("Aborting");
-			LapisData::getDataObject().needAbort = true;
+			LapisData::getDataObject().setNeedAbortTrue();
 			return;
 		}
 		if (_filterWithheld.currentState()) {
@@ -1281,7 +1177,6 @@ namespace lapis {
 		_doTopo.addHelpText("Calculate topographic metrics such as slope and aspect off of the DEM.");
 		_doFineInt.addHelpText("Calculate a fine-scale mean intensity image\n\n"
 			"Intensity is a measure of how bright a lidar pulse is. Chlorophyll is very bright in near infrared, so high intensity can indicate the presence of live vegetation.");
-		_debugNoAlloc.addHelpText("This checkbox should only be displayed in debug mode. If you see it in a public release, please contact the developer.");
 	}
 	void Parameter<ParamName::whichProducts>::addToCmd(po::options_description& visible,
 		po::options_description& hidden){
@@ -1290,8 +1185,6 @@ namespace lapis {
 		_doPointMetrics.addToCmd(visible, hidden);
 		_doTao.addToCmd(visible, hidden);
 		_doTopo.addToCmd(visible, hidden);
-
-		_debugNoAlloc.addToCmd(visible, hidden);
 	}
 	std::ostream& Parameter<ParamName::whichProducts>::printToIni(std::ostream& o){
 		_doFineInt.printToIni(o);
@@ -1318,10 +1211,6 @@ namespace lapis {
 		}
 		_doTopo.renderGui();
 		_doFineInt.renderGui();
-
-#ifndef NDEBUG
-		_debugNoAlloc.renderGui();
-#endif
 	}
 	void Parameter<ParamName::whichProducts>::importFromBoost() {
 		_doFineInt.importFromBoost();
@@ -1329,7 +1218,6 @@ namespace lapis {
 		_doPointMetrics.importFromBoost();
 		_doTao.importFromBoost();
 		_doTopo.importFromBoost();
-		_debugNoAlloc.importFromBoost();
 	}
 	void Parameter<ParamName::whichProducts>::updateUnits() {}
 	void Parameter<ParamName::whichProducts>::prepareForRun() {}
@@ -1353,9 +1241,6 @@ namespace lapis {
 	bool Parameter<ParamName::whichProducts>::doFineInt() const
 	{
 		return _doFineInt.currentState();
-	}
-	bool Parameter<ParamName::whichProducts>::isDebug() const {
-		return _debugNoAlloc.currentState();
 	}
 
 	Parameter<ParamName::computerOptions>::Parameter() {
@@ -1386,7 +1271,7 @@ namespace lapis {
 			LapisLogger& log = LapisLogger::getLogger();
 			log.logMessage("Number of threads must be positive");
 			log.logMessage("Aborting");
-			LapisData::getDataObject().needAbort = true;
+			LapisData::getDataObject().setNeedAbortTrue();
 		}
 	}
 	void Parameter<ParamName::computerOptions>::cleanAfterRun() {}
@@ -1486,7 +1371,7 @@ namespace lapis {
 		if (_mindist.getValueLogErrors() < 0) {
 			log.logMessage("Minimum TAO Distance cannot be negative");
 			log.logMessage("Aborting");
-			LapisData::getDataObject().needAbort = true;
+			LapisData::getDataObject().setNeedAbortTrue();
 			return;
 		}
 	}
@@ -1499,6 +1384,16 @@ namespace lapis {
 	coord_t Parameter<ParamName::taoOptions>::minTaoDist() const
 	{
 		return _mindist.getValueLogErrors();
+	}
+
+	IdAlgo::IdAlgo Parameter<ParamName::taoOptions>::taoIdAlgo() const
+	{
+		return _idAlgo.currentSelection();
+	}
+
+	SegAlgo::SegAlgo Parameter<ParamName::taoOptions>::taoSegAlgo() const
+	{
+		return _segAlgo.currentSelection();
 	}
 
 	Parameter<ParamName::fineIntOptions>::Parameter() {
@@ -1603,7 +1498,7 @@ namespace lapis {
 			if (cellsize <= 0) {
 				log.logMessage("Fine Intensity Cellsize is Negative");
 				log.logMessage("Aborting");
-				d.needAbort = true;
+				d.setNeedAbortTrue();
 				return;
 			}
 		}
@@ -1642,55 +1537,8 @@ namespace lapis {
 	void Parameter<ParamName::topoOptions>::renderGui() {}
 	void Parameter<ParamName::topoOptions>::importFromBoost() {}
 	void Parameter<ParamName::topoOptions>::updateUnits() {}
-	void Parameter<ParamName::topoOptions>::prepareForRun() {
-
-		LapisData& d = LapisData::getDataObject();
-
-		if (_runPrepared) {
-			return;
-		}
-		if (!d.doTopo()) {
-			_runPrepared = true;
-			return;
-		}
-		if (d.isDebugNoAlloc()) {
-			_runPrepared = true;
-			return;
-		}
-
-		const Alignment& a = *d.metricAlign();
-
-		using oul = OutputUnitLabel;
-
-		_elevNumerator = std::make_shared<Raster<coord_t>>(a);
-		_elevDenominator = std::make_shared<Raster<coord_t>>(a);
-		_topoMetrics.push_back({ viewSlope<coord_t,metric_t>,"Slope",oul::Radian });
-		_topoMetrics.push_back({ viewAspect<coord_t,metric_t>,"Aspect",oul::Radian });
-
-		_runPrepared = true;
-	}
-	void Parameter<ParamName::topoOptions>::cleanAfterRun() {
-		_elevNumerator.reset();
-		_elevDenominator.reset();
-		_topoMetrics.clear();
-		_topoMetrics.shrink_to_fit();
-		_runPrepared = false;
-	}
-	std::shared_ptr<Raster<coord_t>>Parameter<ParamName::topoOptions>::elevNumerator()
-	{
-		prepareForRun();
-		return _elevNumerator;
-	}
-	std::shared_ptr<Raster<coord_t>> Parameter<ParamName::topoOptions>::elevDenominator()
-	{
-		prepareForRun();
-		return _elevDenominator;
-	}
-	std::vector<TopoMetric>& Parameter<ParamName::topoOptions>::topoMetrics()
-	{
-		prepareForRun();
-		return _topoMetrics;
-	}
+	void Parameter<ParamName::topoOptions>::prepareForRun() {}
+	void Parameter<ParamName::topoOptions>::cleanAfterRun() {}
 
 	template<class T>
 	std::set<T> iterateOverFileSpecifiers(const std::set<std::string>& specifiers, fileSpecOpen<T> openFunc,

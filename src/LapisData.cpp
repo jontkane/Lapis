@@ -12,7 +12,7 @@ namespace lapis {
 		static LapisData d;
 		return d;
 	}
-	LapisData::LapisData() : needAbort(false)
+	LapisData::LapisData() : _needAbort(false)
 	{
 #ifndef NDEBUG
 		CPLSetErrorHandler(LapisData::logGDALErrors);
@@ -37,19 +37,19 @@ namespace lapis {
 	{
 		_prevUnits = u;
 	}
-	const Unit& LapisData::getCurrentUnits() const
+	const Unit& LapisData::outUnits() 
 	{
 		return _getRawParam<ParamName::outUnits>().unit();
 	}
-	const Unit& LapisData::getPrevUnits() const
+	const Unit& LapisData::prevUnits() 
 	{
 		return _prevUnits;
 	}
-	const std::string& LapisData::getUnitSingular() const
+	const std::string& LapisData::unitSingular() 
 	{
 		return _getRawParam<ParamName::outUnits>().unitSingularName();
 	}
-	const std::string& LapisData::getUnitPlural() const
+	const std::string& LapisData::unitPlural() 
 	{
 		return _getRawParam<ParamName::outUnits>().unitPluralName();
 	}
@@ -67,23 +67,24 @@ namespace lapis {
 		for (size_t i = 0; i < _params.size(); ++i) {
 			_params[i]->updateUnits();
 		}
-		setPrevUnits(getCurrentUnits());
+		setPrevUnits(outUnits());
 	}
 	void LapisData::prepareForRun()
 	{
+		_needAbort = false;
 		for (size_t i = 0; i < _params.size(); ++i) {
 #ifndef NDEBUG
 			LapisLogger::getLogger().logMessage("Preparing parameter: " + std::to_string(i));
 #endif
 			_params[i]->prepareForRun();
-			if (needAbort) {
+			if (getNeedAbort()) {
 				return;
 			}
 		}
 		_cellMuts = std::make_unique<std::vector<std::mutex>>(_cellMutCount);
 
 		if (isAnyDebug()) {
-			needAbort = true;
+			setNeedAbortTrue();
 		}
 
 		cell_t targetNCell = tileFileSize() / std::max(sizeof(csm_t), sizeof(intensity_t));
@@ -98,8 +99,6 @@ namespace lapis {
 			layoutAlign = extend(layoutAlign, *fineIntAlign());
 		}
 		_layout = std::make_shared<Raster<bool>>(layoutAlign);
-
-		_logMemoryAndHDDUse();
 	}
 	void LapisData::cleanAfterRun()
 	{
@@ -107,7 +106,7 @@ namespace lapis {
 			_params[i]->cleanAfterRun();
 		}
 		_cellMuts.reset();
-		needAbort = false;
+		_needAbort = false;
 	}
 	void LapisData::resetObject() {
 		_params.clear();
@@ -118,28 +117,28 @@ namespace lapis {
 		for (size_t i = 0; i < _params.size(); ++i) {
 			_params[i]->importFromBoost();
 		}
-		needAbort = false;
+		_needAbort = false;
 	}
 
-	Extent LapisData::fullExtent()
+	const Extent& LapisData::fullExtent()
 	{
 		return _getRawParam<ParamName::las>().getFullExtent();
 	}
 
-	const CoordRef& LapisData::userCrs()
+	const CoordRef& LapisData::userCrs() 
 	{
 		return _getRawParam<ParamName::alignment>().getCurrentOutCrs();
 	}
 
-	std::shared_ptr<Alignment> LapisData::metricAlign()
+	const std::shared_ptr<Alignment> LapisData::metricAlign()
 	{
 		return _getRawParam<ParamName::alignment>().metricAlign();
 	}
-	std::shared_ptr<Alignment> LapisData::csmAlign()
+	const std::shared_ptr<Alignment> LapisData::csmAlign()
 	{
 		return _getRawParam<ParamName::csmOptions>().csmAlign();
 	}
-	std::shared_ptr<Alignment> LapisData::fineIntAlign() {
+	const std::shared_ptr<Alignment> LapisData::fineIntAlign() {
 		return _getRawParam<ParamName::fineIntOptions>().fineIntAlign();
 	}
 	shared_raster<bool> LapisData::layout()
@@ -147,18 +146,7 @@ namespace lapis {
 		prepareForRun();
 		return _layout;
 	}
-	shared_raster<int> LapisData::nLazRaster()
-	{
-		return _getRawParam<ParamName::alignment>().nLaz();
-	}
-	shared_raster<PointMetricCalculator> LapisData::allReturnPMC()
-	{
-		return _getRawParam<ParamName::pointMetricOptions>().allReturnCalculators();
-	}
-	shared_raster<PointMetricCalculator> LapisData::firstReturnPMC()
-	{
-		return _getRawParam<ParamName::pointMetricOptions>().firstReturnCalculators();
-	}
+
 	std::mutex& LapisData::cellMutex(cell_t cell)
 	{
 		return (*_cellMuts)[cell % _cellMutCount];
@@ -167,47 +155,17 @@ namespace lapis {
 	{
 		return _globalMut;
 	}
-	std::vector<PointMetricRaster>& LapisData::allReturnPointMetrics()
-	{
-		return _getRawParam<ParamName::pointMetricOptions>().allReturnPointMetrics();
-	}
-	std::vector<PointMetricRaster>& LapisData::firstReturnPointMetrics()
-	{
-		return _getRawParam<ParamName::pointMetricOptions>().firstReturnPointMetrics();
-	}
-	std::vector<StratumMetricRasters>& LapisData::allReturnStratumMetrics()
-	{
-		return _getRawParam<ParamName::pointMetricOptions>().allReturnStratumMetrics();
-	}
-	std::vector<StratumMetricRasters>& LapisData::firstReturnStratumMetrics()
-	{
-		return _getRawParam<ParamName::pointMetricOptions>().firstReturnStratumMetrics();
-	}
-	std::vector<CSMMetric>& LapisData::csmMetrics()
-	{
-		return _getRawParam<ParamName::csmOptions>().csmMetrics();
-	}
-	std::vector<TopoMetric>& LapisData::topoMetrics()
-	{
-		return _getRawParam<ParamName::topoOptions>().topoMetrics();
-	}
-	shared_raster<coord_t> LapisData::elevNum()
-	{
-		return _getRawParam<ParamName::topoOptions>().elevNumerator();
-	}
-	shared_raster<coord_t> LapisData::elevDenom()
-	{
-		return _getRawParam<ParamName::topoOptions>().elevDenominator();
-	}
+
+
 	const std::vector<std::shared_ptr<LasFilter>>& LapisData::filters()
 	{
 		return _getRawParam<ParamName::filters>().filters();
 	}
-	coord_t LapisData::minHt()
+	coord_t LapisData::minHt() 
 	{
 		return _getRawParam<ParamName::filters>().minht();
 	}
-	coord_t LapisData::maxHt()
+	coord_t LapisData::maxHt() 
 	{
 		return _getRawParam<ParamName::filters>().maxht();
 	}
@@ -223,44 +181,69 @@ namespace lapis {
 	{
 		return _getRawParam<ParamName::lasOverride>().zUnits();
 	}
+	const std::vector<Extent>& LapisData::lasExtents()
+	{
+		return _getRawParam<ParamName::las>().sortedLasExtents();
+	}
+	LasReader LapisData::getLas(size_t i)
+	{
+		LasReader lr{ _getRawParam<ParamName::las>().sortedLasFileNames()[i] };
+		if (!lasCrsOverride().isEmpty()) {
+			lr.defineCRS(lasCrsOverride());
+		}
+		if (!lasUnitOverride().isUnknown()) {
+			lr.setZUnits(lasUnitOverride());
+		}
+		for (auto& filter : filters()) {
+			lr.addFilter(filter);
+		}
+		return lr;
+	}
+	const std::vector<Alignment>& LapisData::demAligns()
+	{
+		return _getRawParam<ParamName::dem>().demAligns();
+	}
+	Raster<coord_t> LapisData::getDem(size_t i)
+	{
+		Raster<coord_t> dem{ _getRawParam<ParamName::dem>().demFileNames()[i] };
+		if (!demCrsOverride().isEmpty()) {
+			dem.defineCRS(demCrsOverride());
+		}
+		if (!demUnitOverride().isUnknown()) {
+			dem.setZUnits(demUnitOverride());
+		}
+		return dem;
+	}
 	const Unit& LapisData::demUnitOverride()
 	{
 		return _getRawParam<ParamName::demOverride>().zUnits();
 	}
-	coord_t LapisData::footprintDiameter()
+	coord_t LapisData::footprintDiameter() 
 	{
 		return _getRawParam<ParamName::csmOptions>().footprintDiameter();
 	}
-	int LapisData::smooth()
+	int LapisData::smooth() 
 	{
 		return _getRawParam<ParamName::csmOptions>().smooth();
 	}
-	const std::vector<LasFileExtent>& LapisData::sortedLasList()
-	{
-		return _getRawParam<ParamName::las>().sortedLasExtents();
-	}
-	const std::set<DemFileAlignment>& LapisData::demList()
-	{
-		return _getRawParam<ParamName::dem>().demList();
-	}
-	std::shared_ptr<DemAlgorithm> LapisData::demAlgorithm()
+	const std::shared_ptr<DemAlgorithm> LapisData::demAlgorithm() 
 	{
 		static std::shared_ptr<DemAlgorithm> onlyAlgoRightNow = std::make_shared<VendorRaster>();
 		return onlyAlgoRightNow;
 	}
-	int LapisData::nThread()
+	int LapisData::nThread() 
 	{
 		return _getRawParam<ParamName::computerOptions>().nThread();
 	}
 	coord_t LapisData::binSize()
 	{
-		return convertUnits(0.01, LinearUnitDefs::meter, getCurrentUnits());
+		return convertUnits(0.01, LinearUnitDefs::meter, outUnits());
 	}
-	size_t LapisData::tileFileSize()
+	size_t LapisData::tileFileSize() 
 	{
 		return 500ll * 1024 * 1024; //500 MB
 	}
-	coord_t LapisData::canopyCutoff()
+	coord_t LapisData::canopyCutoff() 
 	{
 		return _getRawParam<ParamName::pointMetricOptions>().canopyCutoff();
 	}
@@ -270,16 +253,28 @@ namespace lapis {
 	coord_t LapisData::minTaoDist() {
 		return _getRawParam<ParamName::taoOptions>().minTaoDist();
 	}
-	const std::vector<coord_t>& LapisData::strataBreaks()
+	IdAlgo::IdAlgo LapisData::taoIdAlgo()
+	{
+		return _getRawParam<ParamName::taoOptions>().taoIdAlgo();
+	}
+	SegAlgo::SegAlgo LapisData::taoSegAlgo()
+	{
+		return _getRawParam<ParamName::taoOptions>().taoSegAlgo();
+	}
+	const std::vector<coord_t>& LapisData::strataBreaks() 
 	{
 		static std::vector<coord_t> empty;
 		return doStratumMetrics() ? _getRawParam<ParamName::pointMetricOptions>().strata() : empty;
 	}
-	std::filesystem::path LapisData::outFolder()
+	const std::vector<std::string>& LapisData::strataNames()
+	{
+		return _getRawParam<ParamName::pointMetricOptions>().strataNames();
+	}
+	const std::filesystem::path& LapisData::outFolder()
 	{
 		return _getRawParam<ParamName::output>().path();
 	}
-	std::string LapisData::name()
+	const std::string& LapisData::name()
 	{
 		return _getRawParam<ParamName::name>().name();
 	}
@@ -298,9 +293,17 @@ namespace lapis {
 	{
 		return _getRawParam<ParamName::pointMetricOptions>().doAllReturns();
 	}
+	bool LapisData::doAdvancedPointMetrics()
+	{
+		return _getRawParam<ParamName::pointMetricOptions>().doAdvancedPointMetrics();
+	}
 	bool LapisData::doCsm()
 	{
 		return _getRawParam<ParamName::whichProducts>().doCsm();
+	}
+	bool LapisData::doCsmMetrics()
+	{
+		return _getRawParam<ParamName::csmOptions>().doCsmMetrics();
 	}
 	bool LapisData::doTaos()
 	{
@@ -314,29 +317,22 @@ namespace lapis {
 	{
 		return _getRawParam<ParamName::whichProducts>().doTopo();
 	}
-
 	bool LapisData::doStratumMetrics()
 	{
 		return _getRawParam<ParamName::pointMetricOptions>().doStratumMetrics();
-	}
-
-	bool LapisData::isDebugNoAlloc() {
-		return _getRawParam<ParamName::whichProducts>().isDebug();
 	}
 
 	bool LapisData::isDebugNoAlign()
 	{
 		return _getRawParam<ParamName::alignment>().isDebug();
 	}
-
 	bool LapisData::isDebugNoOutput()
 	{
 		return _getRawParam<ParamName::output>().isDebugNoOutput();
 	}
-
 	bool LapisData::isAnyDebug()
 	{
-		return isDebugNoAlign() || isDebugNoAlloc() || isDebugNoOutput();
+		return isDebugNoAlign() || isDebugNoOutput();
 	}
 
 	LapisData::ParseResults LapisData::parseArgs(const std::vector<std::string>& args)
@@ -435,7 +431,7 @@ namespace lapis {
 			return ParseResults::invalidOpts;
 		}
 	}
-	std::ostream& LapisData::writeOptions(std::ostream& out, ParamCategory cat)
+	std::ostream& LapisData::writeOptions(std::ostream& out, ParamCategory cat) const
 	{
 		switch (cat) {
 		case ParamCategory::computer:
@@ -462,124 +458,6 @@ namespace lapis {
 
 	inline void LapisData::logProjErrors(void* v, int i, const char* c) {
 		LapisLogger::getLogger().logMessage(c);
-	}
-
-	double LapisData::estimateMemory()
-	{
-		cell_t metricNCell = metricAlign()->ncell();
-		double metricMem = 0;
-		metricMem += sizeof(int) * metricNCell; //nlaz
-		metricMem += allReturnPointMetrics().size() * sizeof(metric_t) * metricNCell;
-		metricMem += firstReturnPointMetrics().size() * sizeof(metric_t) * metricNCell;
-		metricMem += allReturnStratumMetrics().size() * (strataBreaks().size() + 1) * sizeof(metric_t) * metricNCell;
-		metricMem += firstReturnStratumMetrics().size() * (strataBreaks().size() + 1) * sizeof(metric_t) * metricNCell;
-		metricMem += csmMetrics().size() * sizeof(metric_t) * metricNCell;
-		metricMem += topoMetrics().size() * sizeof(metric_t) * metricNCell;
-
-		if (doTopo())
-			metricMem += sizeof(coord_t) * metricNCell * 2; //elevation numerator and denominator
-		if (doAllReturnMetrics())
-			metricMem += sizeof(PointMetricCalculator) * metricNCell;
-		if (doFirstReturnMetrics())
-			metricMem += sizeof(PointMetricCalculator) * metricNCell;
-
-		double perThread = 0;
-		double meanPointsPerTile = 0;
-		double meanArea = 0;
-		for (auto& l : sortedLasList()) {
-			meanPointsPerTile += l.ext.nPoints();
-			meanArea += (l.ext.ymax() - l.ext.ymin()) * (l.ext.xmax() - l.ext.xmin());
-		}
-		meanPointsPerTile /= sortedLasList().size();
-		meanArea /= sortedLasList().size();
-		perThread += sizeof(LasPoint) * meanPointsPerTile * 2; //while figuring out which points pass filters, a copy of the data is made
-
-		coord_t demCellArea = std::numeric_limits<coord_t>::max();
-		for (auto& d : demList()) {
-			demCellArea = std::min(demCellArea, d.align.xres() * d.align.yres());
-		}
-		perThread += sizeof(coord_t) * meanArea / demCellArea;
-
-		coord_t csmCellArea = csmAlign()->xres() * csmAlign()->yres();
-		perThread += meanArea / csmCellArea * sizeof(csm_t);
-
-		if (doTopo()) {
-			perThread += meanArea / csmCellArea * sizeof(coord_t); //temporary csm-scale elevation raster
-			perThread += sizeof(coord_t) * metricNCell * 2; //inputs to elevation numerator and denominator
-		}
-
-		if(doFineInt()) {
-			perThread += meanArea / csmCellArea * sizeof(intensity_t) * 2;
-		}
-
-		double sparseHistEst = convertUnits(50, LinearUnitDefs::meter, metricAlign()->crs().getXYUnits()) / binSize() * sizeof(int);
-		sparseHistEst *= meanArea / (metricAlign()->xres() * metricAlign()->yres());
-		perThread += sparseHistEst;
-
-		perThread *= 1.1; //there's a ton of ephemeral memory usage and difficult-to-estimate stuff so I'll just inflate by 10% to be safe
-		return (perThread * nThread() + metricMem) / 1024. / 1024. / 1024.;
-	}
-	double LapisData::estimateHardDrive()
-	{
-		cell_t metricNCell = 0;
-		cell_t csmNCell = 0;
-
-		//essentially the same logic as cellsFromExtent but doesn't allocate the actual list of cells
-		auto nCellsInOverlap = [&](const Alignment& a, const Extent& e)->size_t {
-			if (!a.overlaps(e)) {
-				return 0;
-			}
-			Extent alignE = a.alignExtent(e, SnapType::out);
-			alignE = crop(alignE, a);
-
-			//Bringing the extent in slightly so you don't have to deal with the edge of the extent aligning with the edges of this object's cells.
-			alignE = Extent(alignE.xmin() + 0.25 * a.xres(), alignE.xmax() - 0.25 * a.xres(),
-				alignE.ymin() + 0.25 * a.yres(), alignE.ymax() - 0.25 * a.yres());
-
-			//The mins and maxes are *inclusive*
-			size_t mincol = a.colFromX(alignE.xmin());
-			size_t maxcol = a.colFromX(alignE.xmax());
-			size_t minrow = a.rowFromY(alignE.ymax());
-			size_t maxrow = a.rowFromY(alignE.ymin());
-			return (maxcol - mincol + 1) * (maxrow - minrow + 1);
-		};
-
-		//tifs are good at compressing large blocks of nodata so I'm going to pretend nodata has no hard drive usage
-		//I'm wildly overestimating everywhere else so it should be fine
-		for (auto& l : sortedLasList()) {
-			metricNCell += nCellsInOverlap(*metricAlign(), l.ext);
-			csmNCell += nCellsInOverlap(*csmAlign(), l.ext);
-		}
-
-		double usage = 0;
-		if (doCsm()) {
-			usage += csmNCell * sizeof(csm_t) * 2;
-			usage += metricNCell * sizeof(metric_t) * csmMetrics().size();
-		}
-		if (doAllReturnMetrics()) {
-			usage += metricNCell * sizeof(metric_t) * allReturnPointMetrics().size();
-			usage += metricNCell * sizeof(metric_t) * allReturnStratumMetrics().size() * (strataBreaks().size() + 1);
-		}
-		if (doFirstReturnMetrics()) {
-			usage += metricNCell * sizeof(metric_t) * firstReturnPointMetrics().size();
-			usage += metricNCell * sizeof(metric_t) * firstReturnStratumMetrics().size() * (strataBreaks().size() + 1);
-		}
-
-		if (doTopo()) {
-			usage += metricNCell * sizeof(metric_t) * (topoMetrics().size() + 1);
-		}
-		
-		if (doFineInt()) {
-			usage += csmNCell * sizeof(intensity_t) * 3;
-		}
-		if (doTaos()) {
-			usage += csmNCell * (sizeof(csm_t) + 2 * sizeof(taoid_t));
-
-			//this estimate is a bit of hack and way overestimating, to get at the size of the high point polygons.
-			//estimating 3% of points are TAOs (empirical 1%) and each TAO uses 200 bytes (empirical 177)
-			usage += csmNCell * 0.03 * 200;
-		}
-		return usage / 1024. / 1024. / 1024.;
 	}
 
 	LapisData::DataIssues LapisData::checkForDataIssues() {
@@ -637,6 +515,16 @@ namespace lapis {
 			_checkSampleLas(out, out.successfulLas[0], demSet);
 		}
 		return out;
+	}
+
+	void LapisData::setNeedAbortTrue()
+	{
+		_needAbort = true;
+	}
+
+	bool LapisData::getNeedAbort() const
+	{
+		return _needAbort;
 	}
 
 	void LapisData::_checkLasDemOverlap(DataIssues& di, const std::set<LasFileExtent>& las, const std::set<DemFileAlignment>& dem)
@@ -751,33 +639,6 @@ namespace lapis {
 		pointsAfterFilters.shrink_to_fit();
 
 		filterParam.cleanAfterRun();
-	}
-
-	void LapisData::_logMemoryAndHDDUse()
-	{
-		LapisLogger& log = LapisLogger::getLogger();
-
-		double mem = estimateMemory();
-		mem = std::round(mem * 100.) / 100.;
-		std::ostringstream message;
-		message.precision(1);
-		message << std::fixed;
-		message << "Estimated memory usage: " << mem << " GB";
-		log.logMessage(message.str());
-
-		double hdd = estimateHardDrive();
-		message.str("");
-		message << "Estimated HDD space needed: " << hdd << " GB";
-		log.logMessage(message.str());
-
-
-		if (std::filesystem::is_directory(outFolder())) { //this should always be true unless a specific debug parameter is passed
-			double avail = static_cast<double>(std::filesystem::space(outFolder()).available);
-			avail /= 1024. * 1024. * 1024.;
-			message.str("");
-			message << "Hard drive space available: " << avail << " GB";
-			log.logMessage(message.str());
-		}
 	}
 
 	void LapisData::reportFailedLas(const std::string& s)

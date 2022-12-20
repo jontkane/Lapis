@@ -447,7 +447,7 @@ namespace lapis {
 	public:
 		struct SingleButton {
 			std::string display;
-			VALUE value;
+			VALUE value = VALUE();
 		};
 
 		RadioSelect(const std::string& guiDesc, const std::string& cmdName);

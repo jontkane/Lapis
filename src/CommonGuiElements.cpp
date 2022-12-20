@@ -278,10 +278,10 @@ namespace lapis {
 		ImGui::SameLine();
 		LapisData& data = LapisData::getDataObject();
 		if (std::atof(_buffer.data()) == 1.f) {
-			ImGui::Text(data.getUnitSingular().c_str());
+			ImGui::Text(data.unitSingular().c_str());
 		}
 		else {
-			ImGui::Text(data.getUnitPlural().c_str());
+			ImGui::Text(data.unitPlural().c_str());
 		}
 		if (_helpText.size()) {
 			ImGui::SameLine();
@@ -303,8 +303,8 @@ namespace lapis {
 	void NumericTextBoxWithUnits::updateUnits()
 	{
 		LapisData& data = LapisData::getDataObject();
-		const Unit& src = data.getPrevUnits();
-		const Unit& dst = data.getCurrentUnits();
+		const Unit& src = data.prevUnits();
+		const Unit& dst = data.outUnits();
 		try {
 			double v = std::stod(_buffer.data());
 			v = convertUnits(v, src, dst);
@@ -331,7 +331,7 @@ namespace lapis {
 		catch (std::invalid_argument e) {
 			log.logMessage("Error reading value of " + _guiDesc);
 			log.logMessage("Aborting");
-			LapisData::getDataObject().needAbort = true;
+			LapisData::getDataObject().setNeedAbortTrue();
 			return std::nan("");
 		}
 	}
@@ -400,7 +400,7 @@ namespace lapis {
 		for (size_t i = 0; i < _buffers.size(); ++i) {
 			ImGui::Text(_buffers[i].asText());
 			ImGui::SameLine();
-			ImGui::Text(LapisData::getDataObject().getUnitPlural().c_str());
+			ImGui::Text(LapisData::getDataObject().unitPlural().c_str());
 		}
 		return changed;
 	}
@@ -440,7 +440,7 @@ namespace lapis {
 	void MultiNumericTextBoxWithUnits::updateUnits()
 	{
 		LapisData& d = LapisData::getDataObject();
-		if (d.getPrevUnits().convFactor != d.getCurrentUnits().convFactor) {
+		if (d.prevUnits().convFactor != d.outUnits().convFactor) {
 			for (size_t i = 0; i < _buffers.size(); ++i) {
 				_buffers[i].updateUnits();
 			}
@@ -572,7 +572,7 @@ namespace lapis {
 		catch (std::invalid_argument e) {
 			log.logMessage("Error reading value of " + _guiDesc);
 			log.logMessage("Aborting");
-			LapisData::getDataObject().needAbort = true;
+			LapisData::getDataObject().setNeedAbortTrue();
 			return 1;
 		}
 	}

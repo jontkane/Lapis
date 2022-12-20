@@ -7,13 +7,13 @@ namespace chr = std::chrono;
 namespace fs = std::filesystem;
 
 #define LAPIS_CHECK_ABORT_AND_DEALLOC \
-if (data.needAbort) { \
+if (data.getNeedAbort()) { \
 	data.cleanAfterRun(); \
 	_isRunning = false; \
 	return; \
 }
 #define LAPIS_CHECK_ABORT \
-if (LapisData::getDataObject().needAbort) { \
+if (LapisData::getDataObject().getNeedAbort()) { \
 	return; \
 }
 
@@ -35,20 +35,18 @@ namespace lapis {
 		writeParams();
 		LAPIS_CHECK_ABORT_AND_DEALLOC;
 
-		PointMetricCalculator::setInfo(data.canopyCutoff(), data.maxHt(), data.binSize(), data.strataBreaks());
-
 		std::vector<std::unique_ptr<ProductHandler>> handlers;
-		handlers.push_back(std::make_unique<PointMetricHandler>());
-		handlers.push_back(std::make_unique<CsmHandler>());
-		handlers.push_back(std::make_unique<TaoHandler>());
-		handlers.push_back(std::make_unique<FineIntHandler>());
-		handlers.push_back(std::make_unique<TopoHandler>());
+		handlers.push_back(std::make_unique<PointMetricHandler>(&data));
+		handlers.push_back(std::make_unique<CsmHandler>(&data));
+		handlers.push_back(std::make_unique<TaoHandler>(&data));
+		handlers.push_back(std::make_unique<FineIntHandler>(&data));
+		handlers.push_back(std::make_unique<TopoHandler>(&data));
 
 		log.setProgress(RunProgress::lasFiles);
 		uint64_t soFar = 0;
 		std::vector<std::thread> threads;
 		auto lasThreadFunc = [&]() {
-			distributeWork(soFar, data.sortedLasList().size(), [&](size_t n) {this->lasThread(handlers, n); }, data.globalMutex());
+			distributeWork(soFar, data.lasExtents().size(), [&](size_t n) {this->lasThread(handlers, n); }, data.globalMutex());
 		};
 		for (int i = 0; i < data.nThread(); ++i) {
 			threads.push_back(std::thread(lasThreadFunc));
@@ -146,24 +144,13 @@ namespace lapis {
 		LapisLogger& log = LapisLogger::getLogger();
 
 		LasReader lr;
-		std::string filename = data.sortedLasList()[n].filename;
 		try {
-			lr = LasReader(filename);
+			lr = data.getLas(n);
 		}
 		catch (InvalidLasFileException e) {
-			log.logMessage("Error opening " + filename);
+			log.logMessage(e.what());
 		}
 		LAPIS_CHECK_ABORT;
-
-		if (!data.lasCrsOverride().isEmpty()) {
-			lr.defineCRS(data.lasCrsOverride());
-		}
-		if (!data.lasUnitOverride().isUnknown()) {
-			lr.setZUnits(data.lasUnitOverride());
-		}
-		for (auto& f : data.filters()) {
-			lr.addFilter(f);
-		}
 
 		LidarPointVector points = lr.getPoints(lr.nPoints());
 		LAPIS_CHECK_ABORT;
@@ -239,12 +226,12 @@ namespace lapis {
 		OGRFieldDefn rowField("Row", OFTInteger);
 		layer->CreateField(&rowField);
 		for (cell_t cell = 0; cell < layout.ncell(); ++cell) {
-			std::string name = nameFromLayout(cell);
+			std::string name = nameFromLayout(layout, cell);
 			if (!layout.atCell(cell).has_value()) {
 				continue;
 			}
 			OGRFeatureWrapper feature(layer);
-			feature->SetField("Name", nameFromLayout(cell).c_str());
+			feature->SetField("Name", nameFromLayout(layout, cell).c_str());
 			feature->SetField("ID", cell);
 			feature->SetField("Column", layout.colFromCell(cell)+1);
 			feature->SetField("Row", layout.rowFromCell(cell)+1);

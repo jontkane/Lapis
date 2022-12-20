@@ -4,7 +4,6 @@
 
 #include"app_pch.hpp"
 #include"LapisUtils.hpp"
-#include"MetricTypeDefs.hpp"
 #include"ParameterBase.hpp"
 #include"CommonGuiElements.hpp"
 
@@ -31,11 +30,14 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
-		std::string name();
+		const std::string& name();
 
 	private:
 		TextBox _name{ "Name of Run:","name",
 		"The name of the run. If specified, will be included in the filenames and metadata." };
+
+		std::string _nameString;
+		bool _runPrepared = false;
 	};
 
 	template<>
@@ -59,9 +61,10 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
-		Extent getFullExtent();
-		const std::vector<LasFileExtent>& sortedLasExtents();
+		const Extent& getFullExtent();
+		const std::vector<Extent>& sortedLasExtents();
 		const std::set<std::string>& currentFileSpecifiers() const;
+		const std::vector<std::string>& sortedLasFileNames();
 
 	private:
 		FileSpecifierSet _specifiers{ "Las","las",
@@ -72,7 +75,9 @@ namespace lapis {
 			"This option can be specified multiple times",
 			{"*.las","*.laz"},std::make_unique<nfdnfilteritem_t>(L"LAS Files", L"las,laz") };
 
-		std::vector<LasFileExtent> _fileExtents;
+		std::vector<std::string> _lasFileNames;
+		std::vector<Extent> _lasExtents;
+		Extent _fullExtent;
 
 		bool _runPrepared = false;
 	};
@@ -98,7 +103,8 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
-		const std::set<DemFileAlignment>& demList();
+		const std::vector<Alignment>& demAligns();
+		const std::vector<std::string>& demFileNames();
 		const std::set<std::string>& currentFileSpecifiers() const;
 
 	private:
@@ -111,7 +117,9 @@ namespace lapis {
 			"Most raster formats are supported, but arcGIS .gdb geodatabases are not" ,
 			{"*.*"},
 		std::unique_ptr<nfdnfilteritem_t>() };
-		std::set<DemFileAlignment> _fileAligns;
+
+		std::vector<Alignment> _demAligns;
+		std::vector<std::string> _demFileNames;
 
 		bool _runPrepared = false;
 	};
@@ -137,13 +145,16 @@ namespace lapis {
 		void prepareForRun() override;
 		void cleanAfterRun() override;
 
-		std::filesystem::path path() const;
+		const std::filesystem::path& path();
 		bool isDebugNoOutput() const;
 
 	private:
 		FolderTextInput _output{ "Output Folder:","output",
 			"The output folder to store results in" };
 		CheckBox _debugNoOutput{ "Debug no Output","debug-no-output" };
+
+		std::filesystem::path _outPath;
+		bool _runPrepared = false;
 	};
 
 	template<>
@@ -312,7 +323,6 @@ namespace lapis {
 		bool _displayAdvanced = false;
 
 		std::shared_ptr<Alignment> _align;
-		std::shared_ptr<Raster<int>> _nLaz;
 
 		void _manualWindow();
 		void _errorWindow();
@@ -341,9 +351,9 @@ namespace lapis {
 		void cleanAfterRun() override;
 
 		int smooth() const;
-		std::vector<CSMMetric>& csmMetrics();
 		std::shared_ptr<Alignment> csmAlign();
 		coord_t footprintDiameter() const;
+		bool doCsmMetrics() const;
 
 	private:
 		NumericTextBoxWithUnits _footprint{ "Diameter of Pulse Footprint:","footprint",0.4 };
@@ -356,8 +366,6 @@ namespace lapis {
 		bool _showAdvanced = false;
 
 		std::shared_ptr<Alignment> _csmAlign;
-
-		std::vector<CSMMetric> _csmMetrics;
 
 		bool _runPrepared = false;
 	};
@@ -385,17 +393,11 @@ namespace lapis {
 		bool doAllReturns() const;
 		bool doFirstReturns() const;
 
-		std::vector<StratumMetricRasters>& firstReturnStratumMetrics();
-		std::vector<StratumMetricRasters>& allReturnStratumMetrics();
-		std::vector<PointMetricRaster>& firstReturnPointMetrics();
-		std::vector<PointMetricRaster>& allReturnPointMetrics();
-
-		shared_raster<PointMetricCalculator> firstReturnCalculators();
-		shared_raster<PointMetricCalculator> allReturnCalculators();
-
 		const std::vector<coord_t>& strata() const;
+		const std::vector<std::string>& strataNames();
 		coord_t canopyCutoff() const;
 		bool doStratumMetrics() const;
+		bool doAdvancedPointMetrics() const;
 
 	private:
 		NumericTextBoxWithUnits _canopyCutoff{ "Canopy Cutoff:","canopy",2,
@@ -412,13 +414,7 @@ namespace lapis {
 		static constexpr bool DONT_SKIP = false;
 		RadioDoubleBoolean _whichReturns{ "skip-first-returns","skip-all-returns" };
 
-		std::vector<PointMetricRaster> _allReturnPointMetrics;
-		std::vector<PointMetricRaster> _firstReturnPointMetrics;
-		std::vector<StratumMetricRasters> _allReturnStratumMetrics;
-		std::vector<StratumMetricRasters> _firstReturnStratumMetrics;
-
-		std::shared_ptr<Raster<PointMetricCalculator>> _allReturnCalculators;
-		std::shared_ptr<Raster<PointMetricCalculator>> _firstReturnCalculators;
+		std::vector<std::string> _strataNames;
 
 		bool _runPrepared = false;
 	};
@@ -500,8 +496,6 @@ namespace lapis {
 		InvertedCheckBox _doTopo{ "Topographic Metrics","skip-topo" };
 		CheckBox _doFineInt{ "Fine-Scale Intensity Image","fine-int",
 		"Create a canopy mean intensity raster with the same resolution as the CSM" };
-
-		CheckBox _debugNoAlloc{ "Debug No Alloc","debug-no-alloc-raster" };
 	};
 
 	template<>
@@ -558,12 +552,15 @@ namespace lapis {
 		coord_t minTaoHt() const;
 		coord_t minTaoDist() const;
 
+		IdAlgo::IdAlgo taoIdAlgo() const;
+		SegAlgo::SegAlgo taoSegAlgo() const;
+
 	private:
 
 		NumericTextBoxWithUnits _minht{ "","min-tao-ht",2 };
 		NumericTextBoxWithUnits _mindist{ "Minimum Distance Between Trees:","min-tao-dist",0 };
-		RadioSelect<IdAlgoDecider, int> _idAlgo{ "Tree ID Algorithm:","id-algo" };
-		RadioSelect<SegAlgoDecider, int> _segAlgo{ "Canopy Segmentation Algorithm:","seg-algo" };
+		RadioSelect<IdAlgoDecider, IdAlgo::IdAlgo> _idAlgo{ "Tree ID Algorithm:","id-algo" };
+		RadioSelect<SegAlgoDecider, SegAlgo::SegAlgo> _segAlgo{ "Canopy Segmentation Algorithm:","seg-algo" };
 		RadioBoolean _sameMinHt{ "tao-same-min-ht","Same as Point Metric Canopy Cutoff","Other:" };
 	};
 
@@ -623,17 +620,6 @@ namespace lapis {
 
 		void prepareForRun() override;
 		void cleanAfterRun() override;
-
-		std::shared_ptr<Raster<coord_t>> elevNumerator();
-		std::shared_ptr<Raster<coord_t>> elevDenominator();
-		std::vector<TopoMetric>& topoMetrics();
-
-	private:
-		std::vector<TopoMetric> _topoMetrics;
-		std::shared_ptr<Raster<coord_t>> _elevNumerator;
-		std::shared_ptr<Raster<coord_t>> _elevDenominator;
-
-		bool _runPrepared = false;
 	};
 
 	template<class T>

@@ -29,6 +29,8 @@ namespace lapis {
 
 	void ImGuiHelpMarker(const char* desc);
 
+	std::string nameFromLayout(const Alignment& layout, cell_t cell);
+
 	template<typename WORKERFUNC>
 	inline void distributeWork(uint64_t& sofar, uint64_t max, const WORKERFUNC& func, std::mutex& mut) {
 		while (true) {

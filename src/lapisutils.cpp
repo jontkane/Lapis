@@ -55,4 +55,15 @@ namespace lapis {
 			ImGui::EndTooltip();
 		}
 	}
+
+	std::string insertZeroes(int value, int maxvalue)
+	{
+		size_t nDigits = (size_t)(std::log10(maxvalue) + 1);
+		size_t thisDigitCount = std::max(1ull, (size_t)(std::log10(value) + 1));
+		return std::string(nDigits - thisDigitCount, '0') + std::to_string(value);
+	}
+	std::string nameFromLayout(const Alignment& layout, cell_t cell) {
+		return "Col" + insertZeroes(layout.colFromCell(cell) + 1, layout.ncol()) +
+			"_Row" + insertZeroes(layout.rowFromCell(cell) + 1, layout.nrow());
+	}
 }

@@ -41,14 +41,13 @@ namespace lapis {
 	};
 
 	namespace IdAlgo {
-		enum {
-			
+		enum IdAlgo {
 			OTHER,
 			HIGHPOINT,
 		};
 	}
 	namespace SegAlgo {
-		enum {
+		enum SegAlgo {
 			OTHER,
 			WATERSHED,
 		};

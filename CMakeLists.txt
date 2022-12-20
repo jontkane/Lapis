@@ -68,7 +68,6 @@ set(LAPIS_APP_SOURCES
 		src/LapisParameters.cpp
 		src/LapisData.hpp
 		src/LapisData.cpp
-		src/MetricTypeDefs.hpp
 		src/ParameterBase.hpp
 		src/CommonGuiElements.hpp
 		src/CommonGuiElements.cpp

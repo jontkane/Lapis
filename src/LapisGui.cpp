@@ -76,7 +76,7 @@ namespace lapis {
 
 		if (!lgo.isRunning()) {
 			d.updateUnits();
-			d.setPrevUnits(d.getCurrentUnits());
+			d.setPrevUnits(d.outUnits());
 			if (ImGui::BeginTabItem("Run")) {
 				runTab();
 				ImGui::EndTabItem();
@@ -96,7 +96,7 @@ namespace lapis {
 		}
 		else {
 			if (ImGui::Button("Cancel")) {
-				d.needAbort = true;
+				d.setNeedAbortTrue();
 				LapisLogger::getLogger().setProgress(RunProgress::canceling);
 			}
 			displayLog();
