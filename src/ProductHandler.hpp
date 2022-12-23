@@ -18,8 +18,9 @@ namespace lapis {
 
 		//this function can assume that all points pass all filters, are normalized to the ground
 		//are in the same projection (including Z units) as the extent, and are contained in the extent
-		virtual void handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index) = 0;
-		virtual void handleTile(cell_t tile) = 0;
+		virtual void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) = 0;
+		virtual void handleDem(const Raster<coord_t>& dem, size_t index) = 0;
+		virtual void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) = 0;
 		virtual void cleanup() = 0;
 
 		std::filesystem::path parentDir() const;
@@ -41,11 +42,12 @@ namespace lapis {
 
 	class PointMetricHandler : public ProductHandler {
 	public:
-		using ParamGetter = FullPointMetricParameterGetter;
+		using ParamGetter = PointMetricParameterGetter;
 		PointMetricHandler(ParamGetter* p);
 
-		void handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index) override;
-		void handleTile(cell_t tile) override;
+		void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) override;
+		void handleDem(const Raster<coord_t>& dem, size_t index) override;
+		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
 		void cleanup() override;
 
 	//protected to make testing easier
@@ -100,12 +102,15 @@ namespace lapis {
 
 	class CsmHandler : public ProductHandler {
 	public:
-		using ParamGetter = FullCsmParameterGetter;
+		using ParamGetter = CsmParameterGetter;
 		CsmHandler(ParamGetter* p);
 
-		void handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index) override;
-		void handleTile(cell_t tile) override;
+		void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) override;
+		void handleDem(const Raster<coord_t>& dem, size_t index) override;
+		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
 		void cleanup() override;
+
+		Raster<csm_t> getBufferedCsm(cell_t tile) const;
 
 	protected:
 		using CsmMetricFunc = ViewFunc<csm_t, metric_t>;
@@ -123,34 +128,38 @@ namespace lapis {
 		ParamGetter* _getter;
 	};
 
-	//This class must be placed *after* CsmHandler in the order they're run
 	class TaoHandler : public ProductHandler {
 	public:
-		using ParamGetter = FullTaoParameterGetter;
+		using ParamGetter = TaoParameterGetter;
 		TaoHandler(ParamGetter* p);
 
-		void handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index) override;
-		void handleTile(cell_t tile) override;
+		void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) override;
+		void handleDem(const Raster<coord_t>& dem, size_t index) override;
+		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
 		void cleanup() override;
+
+	protected:
+		TaoIdMap idMap;
+
+		void _writeHighPointsAsXYZArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& csm, const Extent& unbufferedExtent, cell_t tile) const;
+		std::vector<CoordXYZ> _readHighPointsFromXYZArray(cell_t tile) const;
 
 	private:
 		ParamGetter* _getter;
 
-		TaoIdMap idMap;
 		void _updateMap(const Raster<taoid_t>& segments, const std::vector<cell_t>& highPoints, const Extent& unbufferedExtent, cell_t tileidx);
 		void _fixTaoIdsThread(cell_t tile) const;
-		void writeHighPointsAsShp(const Raster<taoid_t>& segments, cell_t tile) const;
-		void writeHighPointsAsXYZArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& csm, const Extent& unbufferedExtent, cell_t tile) const;
-		std::vector<CoordXYZ> readHighPointsFromXYZArray(cell_t tile) const;
+		void _writeHighPointsAsShp(const Raster<taoid_t>& segments, cell_t tile) const;
 	};
 
 	class FineIntHandler : public ProductHandler {
 	public:
-		using ParamGetter = FullFineIntParameterGetter;
+		using ParamGetter = FineIntParameterGetter;
 		FineIntHandler(ParamGetter* p);
 
-		void handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index) override;
-		void handleTile(cell_t tile) override;
+		void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) override;
+		void handleDem(const Raster<coord_t>& dem, size_t index) override;
+		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
 		void cleanup() override;
 
 	private:
@@ -159,11 +168,12 @@ namespace lapis {
 
 	class TopoHandler : public ProductHandler {
 	public:
-		using ParamGetter = FullTopoParameterGetter;
+		using ParamGetter = TopoParameterGetter;
 		TopoHandler(ParamGetter* p);
 
-		void handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index) override;
-		void handleTile(cell_t tile) override;
+		void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) override;
+		void handleDem(const Raster<coord_t>& dem, size_t index) override;
+		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
 		void cleanup() override;
 
 	protected:

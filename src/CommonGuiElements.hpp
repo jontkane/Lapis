@@ -334,7 +334,6 @@ namespace lapis {
 		std::string _boostString;
 		std::vector<char> _buffer = std::vector<char>(256);
 		NFD::UniquePathU8 _nfdFolder;
-		std::filesystem::path _cachedPath;
 	};
 
 	class CRSInput : public CmdGuiElement {

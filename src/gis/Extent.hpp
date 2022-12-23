@@ -82,9 +82,9 @@ namespace lapis {
 
 	//This function creates a new extent object with only the overlapping area of the two given extents
 	//If they do not touch, this will throw an exception
-	Extent crop(const Extent& base, const Extent& e);
+	Extent cropExtent(const Extent& base, const Extent& e);
 	//This function creates a new extent object which is the smallest extent to encompass both of the given extents
-	Extent extend(const Extent& base, const Extent& e);
+	Extent extendExtent(const Extent& base, const Extent& e);
 
 	//This function creates a new extent in which the two mins are reduced by bufferSize,
 	//And the two maxes are increased by the same amount

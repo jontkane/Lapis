@@ -59,7 +59,7 @@ namespace lapis {
 
 	template<class T>
 	CropView<T>::CropView(Raster<T>* parent, const Extent& e, const SnapType snap) :
-		Alignment(crop((Alignment)*parent, e, snap)), _parent(parent) {
+		Alignment(cropAlignment(*parent, e, snap)), _parent(parent) {
 		_rowoffset = parent->rowFromY(_ymax - (_yres / 2));
 		_coloffset = parent->colFromX(_xmin + (_xres / 2));
 	}

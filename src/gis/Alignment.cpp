@@ -88,7 +88,7 @@ namespace lapis {
 			return out;
 		}
 		Extent alignE = alignExtent(e, snap);
-		alignE = crop(alignE, *this);
+		alignE = cropExtent(alignE, *this);
 
 		//Bringing the extent in slightly so you don't have to deal with the edge of the extent aligning with the edges of this object's cells.
 		alignE = Extent(alignE.xmin() + 0.25 * _xres, alignE.xmax() - 0.25 * _xres,
@@ -189,7 +189,7 @@ namespace lapis {
 		_yres = std::abs(geotrans[5]);
 	}
 
-	Alignment crop(const Alignment& a, const Extent& e, SnapType snap) {
+	Alignment cropAlignment(const Alignment& a, const Extent& e, SnapType snap) {
 		if (!a.crs().isConsistentHoriz(e.crs())) {
 			throw CRSMismatchException();
 		}
@@ -197,20 +197,20 @@ namespace lapis {
 			throw OutsideExtentException();
 		}
 		Extent cropE = a.alignExtent(e, snap);
-		cropE = crop(cropE, a);
+		cropE = cropExtent(cropE, a);
 		rowcol_t nrow = (rowcol_t)std::round((cropE.ymax() - cropE.ymin()) / a.yres());
 		rowcol_t ncol = (rowcol_t)std::round((cropE.xmax() - cropE.xmin()) / a.xres());
 		return Alignment(cropE, nrow, ncol);
 	}
 
-	Alignment extend(const Alignment& a, const Extent& e, SnapType snap) {
+	Alignment extendAlignment(const Alignment& a, const Extent& e, SnapType snap) {
 		if (!a.crs().isConsistentHoriz(e.crs())) {
 			throw CRSMismatchException();
 		}
 		if (e.xmin() >= a.xmin() && e.xmax() <= a.xmax() && e.ymin() >= a.ymin() && e.ymax() <= a.ymax()) {
 			return a;
 		}
-		Extent extE = extend(e, a);
+		Extent extE = extendExtent(e, a);
 		extE = a.alignExtent(extE, snap);
 		rowcol_t precols = 0, postcols = 0, prerows = 0, postrows = 0;
 		if (extE.xmin() < a.xmin()) {
@@ -226,14 +226,6 @@ namespace lapis {
 			prerows = (rowcol_t)round((extE.ymax() - a.ymax()) / a.yres());
 		}
 		return Alignment(extE, a.nrow() + postrows + prerows, a.ncol() + postcols + precols);
-	}
-
-	Alignment crop(const Alignment& a, const Extent& e) {
-		return crop(a, e, SnapType::near);
-	}
-
-	Alignment extend(const Alignment& a, const Extent& e) {
-		return extend(a, e, SnapType::near);
 	}
 
 	bool operator==(const Alignment& lhs, const Alignment& rhs) {

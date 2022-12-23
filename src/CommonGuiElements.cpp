@@ -775,6 +775,7 @@ namespace lapis {
 			_boostString.erase(_buffer.size() - 1, std::string::npos);
 		}
 		strncpy_s(_buffer.data(), _buffer.size(), _boostString.c_str(), _buffer.size());
+		_boostString.clear();
 		return true;
 	}
 	std::filesystem::path FolderTextInput::path() const

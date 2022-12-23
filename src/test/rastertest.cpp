@@ -44,7 +44,7 @@ namespace lapis {
 		EXPECT_TRUE(r[2457].has_value());
 
 		Extent e{ (r.xmin() + r.xmax()) / 2,r.xmax(),(r.ymin() + r.ymax()) / 2,r.ymax() };
-		r = Raster<int>(file, e);
+		r = Raster<int>(file, e, SnapType::near);
 		EXPECT_FALSE(r[0].has_value());
 		EXPECT_EQ(145, r[915].value());
 		EXPECT_TRUE(r[915].has_value());
@@ -251,7 +251,7 @@ namespace lapis {
 		verifyRaster(rhs / 0, expVal, expHasVal);
 	}
 
-	TEST_F(RasterTest, crop) {
+	TEST_F(RasterTest, cropRaster) {
 		Alignment a{ Extent(0,3,0,3),3,3 };
 		Raster<int> r{ a };
 		for (int i = 0; i < r.ncell(); ++i) {
@@ -263,20 +263,20 @@ namespace lapis {
 		Extent overlaps{ -1,1.9,-1,1.9 };
 		Extent noOverlap{ -2,-1,-2,-1 };
 
-		auto rtest = crop(r, contained);
-		EXPECT_EQ((Alignment)rtest, crop((Alignment)r, contained));
+		Raster<int> rtest = cropRaster(r, contained, SnapType::near);
+		EXPECT_EQ((Alignment)rtest, cropAlignment(r, contained, SnapType::near));
 		std::vector<int> expVal = { 3,4,6,7 };
 		std::vector<bool> expHasVal = { false,true,false,true };
 		verifyRaster(rtest, expVal, expHasVal);
 
-		rtest = crop(r, overlaps);
-		EXPECT_EQ((Alignment)rtest, crop((Alignment)r, contained));
+		rtest = cropRaster(r, overlaps, SnapType::near);
+		EXPECT_EQ((Alignment)rtest, cropAlignment(r, contained, SnapType::near));
 		verifyRaster(rtest, expVal, expHasVal);
 
-		EXPECT_ANY_THROW(crop(r, noOverlap));
+		EXPECT_ANY_THROW(cropRaster(r, noOverlap, SnapType::near));
 	}
 
-	TEST_F(RasterTest, extend) {
+	TEST_F(RasterTest, extendRaster) {
 		Alignment a{ Extent(0,2,0,2),2,2 };
 		Raster<int> r{ a };
 		for (int i = 0; i < r.ncell(); ++i) {
@@ -288,17 +288,17 @@ namespace lapis {
 		Extent overlaps{ -1,1.9,-1,1.9 };
 		Extent noOverlap{ -1,-0.1,-1,-0.1 };
 
-		auto rtest = extend(r, contained);
+		Raster<int> rtest = extendRaster(r, contained, SnapType::near);
 		EXPECT_EQ(r, rtest);
 
-		rtest = extend(r, overlaps);
+		rtest = extendRaster(r, overlaps, SnapType::near);
 		std::vector<int> expVal = { -1,0,1,-1,2,3,-1,-1,-1 };
 		std::vector<bool> expHasVal = { false,false,true,false,true,false,false,false,false };
-		EXPECT_EQ((Alignment)rtest, extend((Alignment)r, overlaps));
+		EXPECT_EQ((Alignment)rtest, extendAlignment((Alignment)r, overlaps, SnapType::near));
 		verifyRaster(rtest, expVal, expHasVal);
 
-		rtest = extend(r, noOverlap);
-		EXPECT_EQ((Alignment)rtest, extend((Alignment)r, overlaps));
+		rtest = extendRaster(r, noOverlap, SnapType::near);
+		EXPECT_EQ((Alignment)rtest, extendAlignment((Alignment)r, overlaps, SnapType::near));
 		verifyRaster(rtest, expVal, expHasVal);
 	}
 

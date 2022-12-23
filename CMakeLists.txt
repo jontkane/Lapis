@@ -75,6 +75,7 @@ set(LAPIS_APP_SOURCES
 		src/DemAlgos.cpp
 		src/ProductHandler.hpp
 		src/ProductHandler.cpp
+		src/ParameterGetter.hpp
 		)
 
 set(LAPIS_TEST_SOURCES
@@ -93,6 +94,13 @@ set(LAPIS_TEST_SOURCES
 		src/test/RasterAlgosTest.cpp
 		src/test/lapisdatatest.cpp
 		src/test/demalgostest.cpp
+		src/test/FineIntTest.cpp
+		src/test/ParameterSpoofer.cpp
+		src/test/ParameterSpoofer.hpp
+		src/test/PointMetricHandlerTest.cpp
+		src/test/TaoHandlerTest.cpp
+		src/test/TopoHandlerTest.cpp
+		src/test/CsmHandlerTest.cpp
 		)
 		
 set(LAPIS_IMGUI_SOURCES

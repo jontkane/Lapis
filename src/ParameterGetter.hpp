@@ -23,7 +23,7 @@ namespace lapis {
 		virtual const std::vector<Extent>& lasExtents() = 0;
 	};
 
-	class PointMetricParameterGetter {
+	class PointMetricParameterGetter : public virtual SharedParameterGetter {
 	public:
 		virtual bool doPointMetrics() = 0;
 		virtual bool doFirstReturnMetrics() = 0;
@@ -37,9 +37,7 @@ namespace lapis {
 		virtual const std::vector<std::string>& strataNames() = 0;
 	};
 
-	class FullPointMetricParameterGetter : public virtual SharedParameterGetter, public PointMetricParameterGetter {};
-
-	class CsmParameterGetter {
+	class CsmParameterGetter : public virtual SharedParameterGetter {
 	public:
 		virtual const std::shared_ptr<Alignment> csmAlign() = 0;
 		virtual coord_t footprintDiameter() = 0;
@@ -48,9 +46,7 @@ namespace lapis {
 		virtual bool doCsmMetrics() = 0;
 	};
 
-	class FullCsmParameterGetter : public virtual SharedParameterGetter, public CsmParameterGetter {};
-
-	class TaoParameterGetter {
+	class TaoParameterGetter : public virtual CsmParameterGetter {
 	public:
 		virtual coord_t minTaoHt() = 0;
 		virtual coord_t minTaoDist() = 0;
@@ -59,30 +55,23 @@ namespace lapis {
 		virtual SegAlgo::SegAlgo taoSegAlgo()= 0;
 	};
 
-	class FullTaoParameterGetter : public virtual SharedParameterGetter, public virtual CsmParameterGetter, public TaoParameterGetter {};
-
-	class FineIntParameterGetter {
+	class FineIntParameterGetter : public virtual SharedParameterGetter {
 	public:
 		virtual const std::shared_ptr<Alignment> fineIntAlign() = 0;
 		virtual coord_t fineIntCanopyCutoff() = 0;
 		virtual bool doFineInt() = 0;
 	};
 
-	class FullFineIntParameterGetter : public virtual SharedParameterGetter, public FineIntParameterGetter {};
-
-	class TopoParameterGetter {
+	class TopoParameterGetter : public virtual SharedParameterGetter {
 	public:
 		virtual bool doTopo() = 0;
 	};
-	
-	class FullTopoParameterGetter : public virtual SharedParameterGetter, public TopoParameterGetter {};
 
 	class ParameterGetter :
-		public FullPointMetricParameterGetter,
-		public FullCsmParameterGetter,
-		public FullTaoParameterGetter,
-		public FullFineIntParameterGetter,
-		public FullTopoParameterGetter
+		public PointMetricParameterGetter,
+		public TaoParameterGetter,
+		public FineIntParameterGetter,
+		public TopoParameterGetter
 	{};
 }
 

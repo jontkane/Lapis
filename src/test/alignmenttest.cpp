@@ -183,26 +183,26 @@ namespace lapis {
 	TEST(AlignmentTest, rowColExtent) {
 		auto a = Alignment(Extent(0, 100, 0, 100, CoordRef("2967")), 10, 10);
 		auto e = Extent(0, 30, 0, 30);
-		auto rc = a.rowColExtent(e);
+		auto rc = a.rowColExtent(e, SnapType::near);
 		EXPECT_EQ(0, rc.mincol);
 		EXPECT_EQ(2, rc.maxcol);
 		EXPECT_EQ(7, rc.minrow);
 		EXPECT_EQ(9, rc.maxrow);
 
 		e = Extent(-50, 30, -50, 30);
-		rc = a.rowColExtent(e);
+		rc = a.rowColExtent(e, SnapType::near);
 		EXPECT_EQ(0, rc.mincol);
 		EXPECT_EQ(2, rc.maxcol);
 		EXPECT_EQ(7, rc.minrow);
 		EXPECT_EQ(9, rc.maxrow);
 
 		e = Extent(200, 300, 200, 300);
-		EXPECT_ANY_THROW(a.rowColExtent(e));
+		EXPECT_ANY_THROW(a.rowColExtent(e, SnapType::near));
 
 		e = Extent(0, 30, 0, 30, CoordRef("2966"));
-		EXPECT_ANY_THROW(a.rowColExtent(e));
+		EXPECT_ANY_THROW(a.rowColExtent(e, SnapType::near));
 
-		rc = a.rowColExtent(a);
+		rc = a.rowColExtent(a, SnapType::near);
 		EXPECT_EQ(0, rc.mincol);
 		EXPECT_EQ(a.ncol() - 1, rc.maxcol);
 		EXPECT_EQ(0, rc.minrow);
@@ -226,33 +226,33 @@ namespace lapis {
 		Extent misaligned{ 19.9, 40.1, 30.1, 59.9 }; // slightly misaligned
 		Extent wrongproj{ 20, 40, 30, 50, CoordRef("2966") }; // wrong projection
 
-		Alignment toTest = crop(a, contained);
+		Alignment toTest = cropAlignment(a, contained, SnapType::near);
 		verifyAlignment(toTest, Extent(20, 40, 30, 50), 2, 2);
 
-		toTest = crop(a, overlaps);
+		toTest = cropAlignment(a, overlaps, SnapType::near);
 		verifyAlignment(toTest, Extent(0, 40, 30, 100), 7, 4);
 
-		EXPECT_ANY_THROW(crop(a, nooverlap));
+		EXPECT_ANY_THROW(cropAlignment(a, nooverlap, SnapType::near));
 
-		toTest = crop(a, contains);
+		toTest = cropAlignment(a, contains, SnapType::near);
 		verifyAlignment(toTest, Extent(0, 100, 0, 100), 10, 10);
 
-		toTest = crop(a, misaligned);
+		toTest = cropAlignment(a, misaligned, SnapType::near);
 		verifyAlignment(toTest, Extent(20, 40, 30, 60), 3, 2);
 
-		toTest = crop(a, misaligned, SnapType::out);
+		toTest = cropAlignment(a, misaligned, SnapType::out);
 		verifyAlignment(toTest, Extent(10, 50, 30, 60), 3, 4);
 
-		toTest = crop(a, misaligned, SnapType::in);
+		toTest = cropAlignment(a, misaligned, SnapType::in);
 		verifyAlignment(toTest, Extent(20, 40, 40, 50), 1, 2);
 
-		toTest = crop(a, misaligned, SnapType::ll);
+		toTest = cropAlignment(a, misaligned, SnapType::ll);
 		verifyAlignment(toTest, Extent(10, 40, 30, 50), 2, 3);
 
-		EXPECT_ANY_THROW(crop(Alignment(0, 0, 10, 10, 10, 10, CoordRef("2967")), wrongproj));
+		EXPECT_ANY_THROW(cropAlignment(Alignment(0, 0, 10, 10, 10, 10, CoordRef("2967")), wrongproj, SnapType::near));
 	}
 
-	TEST(AlignmentTest, extend) {
+	TEST(AlignmentTest, extendAlignment) {
 		Alignment a{ 0, 0, 10, 10, 10, 10 };
 		Extent overlaps{ 50, 150, 50, 150 }; // overlaps a
 		Extent contained{ 10, 90, 10, 90 }; // contained in a
@@ -261,31 +261,31 @@ namespace lapis {
 		Extent misalign{ 49.9, 150.1, 50.1, 149.9 }; // slightly misaligned
 		Extent wrongproj{ 50, 150, 50, 150, CoordRef("2966") }; // wrong projection
 
-		Alignment toTest = extend(a, overlaps);
+		Alignment toTest = extendAlignment(a, overlaps, SnapType::near);
 		verifyAlignment(toTest, Extent(0, 150, 0, 150), 15, 15);
 
-		toTest = extend(a, contained);
+		toTest = extendAlignment(a, contained, SnapType::near);
 		verifyAlignment(toTest, Extent(0, 100, 0, 100), 10, 10);
 
-		toTest = extend(a, contains);
+		toTest = extendAlignment(a, contains, SnapType::near);
 		verifyAlignment(toTest, Extent(-10, 110, -10, 110), 12, 12);
 
-		toTest = extend(a, nooverlap);
+		toTest = extendAlignment(a, nooverlap, SnapType::near);
 		verifyAlignment(toTest, Extent(0, 150, 0, 150), 15, 15);
 
-		toTest = extend(a, misalign);
+		toTest = extendAlignment(a, misalign, SnapType::near);
 		verifyAlignment(toTest, Extent(0, 150, 0, 150), 15, 15);
 
-		toTest = extend(a, misalign, SnapType::in);
+		toTest = extendAlignment(a, misalign, SnapType::in);
 		verifyAlignment(toTest, Extent(0, 150, 0, 140), 14, 15);
 
-		toTest = extend(a, misalign, SnapType::out);
+		toTest = extendAlignment(a, misalign, SnapType::out);
 		verifyAlignment(toTest, Extent(0, 160, 0, 150), 15, 16);
 
-		toTest = extend(a, misalign, SnapType::ll);
+		toTest = extendAlignment(a, misalign, SnapType::ll);
 		verifyAlignment(toTest, Extent(0, 150, 0, 140), 14, 15);
 
-		EXPECT_ANY_THROW(extend(Alignment(0, 0, 10, 10, 10, 10, CoordRef("2967")), wrongproj));
+		EXPECT_ANY_THROW(extendExtent(Alignment(0, 0, 10, 10, 10, 10, CoordRef("2967")), wrongproj));
 	}
 
 	TEST(AlignmentTest, transformAlignment) {

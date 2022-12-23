@@ -73,9 +73,6 @@ namespace lapis {
 	{
 		_needAbort = false;
 		for (size_t i = 0; i < _params.size(); ++i) {
-#ifndef NDEBUG
-			LapisLogger::getLogger().logMessage("Preparing parameter: " + std::to_string(i));
-#endif
 			_params[i]->prepareForRun();
 			if (getNeedAbort()) {
 				return;
@@ -96,7 +93,7 @@ namespace lapis {
 		coord_t tileRes = targetNRowCol * fineCellSize;
 		Alignment layoutAlign{ *csmAlign(),0,0,tileRes,tileRes};
 		if (doFineInt()) {
-			layoutAlign = extend(layoutAlign, *fineIntAlign());
+			layoutAlign = extendAlignment(layoutAlign, *fineIntAlign(), SnapType::out);
 		}
 		_layout = std::make_shared<Raster<bool>>(layoutAlign);
 	}
@@ -143,7 +140,6 @@ namespace lapis {
 	}
 	shared_raster<bool> LapisData::layout()
 	{
-		prepareForRun();
 		return _layout;
 	}
 
@@ -570,7 +566,7 @@ namespace lapis {
 		Extent fullExtent = lasExtents[0];
 		for (size_t i = 1; i < lasExtents.size(); ++i) {
 			lasExtents[i] = QuadExtent(lasExtents[i], outCrs).outerExtent();
-			fullExtent = extend(fullExtent, lasExtents[i]);
+			fullExtent = extendExtent(fullExtent, lasExtents[i]);
 		}
 		coord_t cellsize = convertUnits(30, LinearUnitDefs::meter, outCrs.getXYUnits());
 		Alignment fullAlign = Alignment(fullExtent, 0, 0, cellsize, cellsize);
@@ -579,13 +575,13 @@ namespace lapis {
 
 		for (auto& e : lasExtents) {
 			Extent projE = QuadExtent(e, lasCovers.crs()).outerExtent();
-			for (auto& cell : fullAlign.cellsFromExtent(projE)) {
+			for (auto& cell : fullAlign.cellsFromExtent(projE, SnapType::out)) {
 				lasCovers[cell].value() = true;
 			}
 		}
 		for (auto& e : demExtents) {
 			Extent projE = QuadExtent(e, lasCovers.crs()).outerExtent();
-			for (auto& cell : fullAlign.cellsFromExtent(projE)) {
+			for (auto& cell : fullAlign.cellsFromExtent(projE, SnapType::out)) {
 				demCovers[cell].value() = true;
 			}
 		}
@@ -606,7 +602,7 @@ namespace lapis {
 			for (size_t j = i + 1; j < lasExtents.size(); ++j) {
 				Extent& compareExtent = lasExtents[j];
 				if (thisExtent.overlaps(compareExtent)) {
-					Extent cr = crop(thisExtent, compareExtent);
+					Extent cr = cropExtent(thisExtent, compareExtent);
 					di.overlapArea += (cr.ymax() - cr.ymin()) * (cr.xmax() - cr.xmin());
 				}
 			}

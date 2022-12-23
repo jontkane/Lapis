@@ -122,7 +122,7 @@ namespace lapis {
 				init = true;
 			}
 			else {
-				_fullExtent = extend(_fullExtent, l.ext);
+				_fullExtent = extendExtent(_fullExtent, l.ext);
 			}
 		}
 
@@ -186,6 +186,7 @@ namespace lapis {
 			return;
 		}
 		if (!_specifiers.getSpecifiers().size()) {
+			_runPrepared = true;
 			return;
 		}
 		auto& d = LapisData::getDataObject();
@@ -274,8 +275,8 @@ namespace lapis {
 			d.setNeedAbortTrue();
 		}
 		namespace fs = std::filesystem;
-		if (fs::is_directory(_outPath)
-			|| _debugNoOutput.currentState()) { //so the tests can feed a dummy value that doesn't trip the error detection
+		if (_debugNoOutput.currentState()) {
+			_runPrepared = true;
 			return;
 		}
 		try {
@@ -720,6 +721,7 @@ namespace lapis {
 		}
 
 		if (d.getNeedAbort()) {
+			_runPrepared = true;
 			return;
 		}
 
@@ -901,11 +903,20 @@ namespace lapis {
 		}
 
 		if (d.getNeedAbort()) {
+			_runPrepared = true;
 			return;
 		}
 		
 		coord_t cellsize = convertUnits(_cellsize.getValueLogErrors(), u, metricAlign.crs().getXYUnits());
-		_csmAlign = std::make_shared<Alignment>(metricAlign, metricAlign.xOrigin(), metricAlign.yOrigin(), cellsize, cellsize);
+		Alignment csmAlign{ metricAlign, metricAlign.xOrigin(), metricAlign.yOrigin(), cellsize, cellsize };
+		coord_t footprintRadius = _footprint.getValueLogErrors() / 2.;
+		csmAlign = extendAlignment(csmAlign,
+			Extent(csmAlign.xmin() - footprintRadius,
+				csmAlign.xmax() + footprintRadius,
+				csmAlign.ymin() - footprintRadius,
+				csmAlign.ymax() + footprintRadius),
+			SnapType::out);
+		_csmAlign = std::make_shared<Alignment>(csmAlign);
 
 		_runPrepared = true;
 	}
@@ -1136,6 +1147,7 @@ namespace lapis {
 			log.logMessage("Low outlier must be less than high outlier");
 			log.logMessage("Aborting");
 			LapisData::getDataObject().setNeedAbortTrue();
+			_runPrepared = true;
 			return;
 		}
 		if (_filterWithheld.currentState()) {
@@ -1385,12 +1397,10 @@ namespace lapis {
 	{
 		return _mindist.getValueLogErrors();
 	}
-
 	IdAlgo::IdAlgo Parameter<ParamName::taoOptions>::taoIdAlgo() const
 	{
 		return _idAlgo.currentSelection();
 	}
-
 	SegAlgo::SegAlgo Parameter<ParamName::taoOptions>::taoSegAlgo() const
 	{
 		return _segAlgo.currentSelection();
@@ -1499,6 +1509,7 @@ namespace lapis {
 				log.logMessage("Fine Intensity Cellsize is Negative");
 				log.logMessage("Aborting");
 				d.setNeedAbortTrue();
+				_runPrepared = true;
 				return;
 			}
 		}
@@ -1540,6 +1551,9 @@ namespace lapis {
 	void Parameter<ParamName::topoOptions>::prepareForRun() {}
 	void Parameter<ParamName::topoOptions>::cleanAfterRun() {}
 
+	template<class T>
+	using fileSpecOpen = void(const std::filesystem::path&, std::set<T>&,
+		const CoordRef& crs, const Unit& u);
 	template<class T>
 	std::set<T> iterateOverFileSpecifiers(const std::set<std::string>& specifiers, fileSpecOpen<T> openFunc,
 		const CoordRef& crs, const Unit& u)

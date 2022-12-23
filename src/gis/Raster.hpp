@@ -23,7 +23,7 @@ namespace lapis {
 		virtual ~Raster() noexcept = default;
 
 		//creates a raster from the given alignment, and fills it with missing values
-		Raster(const Alignment& a) : Alignment(a) {
+		explicit Raster(const Alignment& a) : Alignment(a) {
 			_data.resize(ncell());
 		}
 
@@ -31,7 +31,7 @@ namespace lapis {
 		Raster(const std::string& filename, const int band = 1);
 
 		//Constructs a raster from a GDAL-readable file, while only reading data that falls within the specified extent
-		Raster(const std::string& filename, const Extent& e, SnapType snap = SnapType::near, const int band = 1);
+		Raster(const std::string& filename, const Extent& e, SnapType snap, const int band = 1);
 
 		//disallow copy and move constructors from rasters with different templates. This will call the Raster(const Alignment& a) signature, which is very confusing
 		//by deleting them, that just won't even compile--do an explicit cast to Alignment if you want that behavior
@@ -252,17 +252,17 @@ namespace lapis {
 
 	//Like the crop and extend functions for Alignment, but also copies in the data from the given raster to the corresponding x/y locations in the new raster
 	template<class T>
-	inline Raster<T> crop(const Raster<T>& r, const Extent& e, const SnapType snap) {
+	inline Raster<T> cropRaster(const Raster<T>& r, const Extent& e, const SnapType snap) {
 		if (!r.crs().isConsistentHoriz(e.crs())) {
 			throw CRSMismatchException();
 		}
 		Extent snapE = r.alignExtent(e, snap);
-		Alignment a = crop((Alignment)r, snapE);
+		Alignment a = cropAlignment((Alignment)r, snapE, snap);
 		if (snapE == (Extent)r) {
 			return r;
 		}
 		Raster<T> out = Raster<T>(a);
-		auto rc = r.rowColExtent(snapE);
+		auto rc = r.rowColExtent(snapE, snap);
 
 		for (rowcol_t row = 0; row < out.nrow(); ++row) {
 			for (rowcol_t col = 0; col < out.ncol(); ++col) {
@@ -274,18 +274,14 @@ namespace lapis {
 		}
 		return out;
 	}
-	template<class T>
-	inline Raster<T> crop(const Raster<T>& r, const Extent& e) {
-		return crop(r, e, SnapType::near);
-	}
 
 	template<class T>
-	inline Raster<T> extend(const Raster<T>& r, const Extent& e, const SnapType snap) {
+	inline Raster<T> extendRaster(const Raster<T>& r, const Extent& e, const SnapType snap) {
 		if (!r.crs().isConsistentHoriz(e.crs())) {
 			throw CRSMismatchException();
 		}
 		Extent snapE = r.alignExtent(e, snap);
-		Alignment a = extend((Alignment)r, snapE);
+		Alignment a = extendAlignment((Alignment)r, snapE, snap);
 		if (snapE == (Extent)r) {
 			return r;
 		}
@@ -316,10 +312,6 @@ namespace lapis {
 			}
 		}
 		return out;
-	}
-	template<class T>
-	inline Raster<T> extend(const Raster<T>& r, const Extent& e) {
-		return extend(r, e, SnapType::near);
 	}
 
 	template<class T, class S>
@@ -472,7 +464,7 @@ namespace lapis {
 
 		Alignment a = Alignment(filename);
 		Extent snapE = a.alignExtent(e, snap);
-		snapE = crop(snapE, a);
+		snapE = cropExtent(snapE, a);
 		auto rc = a.rowColExtent(snapE, snap);
 
 		_crs = a.crs();
@@ -549,7 +541,7 @@ namespace lapis {
 			return;
 		}
 
-		RowColExtent rcExt = rowColExtent(other); //snap type doesn't matter with consistent alignments
+		RowColExtent rcExt = rowColExtent(other, SnapType::near); //snap type shouldn't matter with consistent alignments, but 'near' will correct for floating point issues
 
 		for (rowcol_t row = rcExt.minrow; row <= rcExt.maxrow; ++row) {
 			for (rowcol_t col = rcExt.mincol; col <= rcExt.maxcol; ++col) {
@@ -577,7 +569,7 @@ namespace lapis {
 			return;
 		}
 
-		RowColExtent rcExt = rowColExtent(other); //snap type doesn't matter with consistent alignments
+		RowColExtent rcExt = rowColExtent(other, SnapType::near); //snap type doesn't matter with consistent alignments, but 'near' will correct for floating point issues
 
 		auto distFromEdge = [](const Alignment& a, rowcol_t row, rowcol_t col) {
 			rowcol_t dist = std::min(col, row);

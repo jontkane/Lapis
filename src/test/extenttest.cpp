@@ -130,12 +130,12 @@ namespace lapis {
 		};
 
 		for (int i = 0; i < tests.size(); ++i) {
-			extentSame(extend(base, tests[i]), expExtend[i]);
+			extentSame(extendExtent(base, tests[i]), expExtend[i]);
 			if (i < 3) {
-				extentSame(crop(base, tests[i]), expCrop[i]);
+				extentSame(cropExtent(base, tests[i]), expCrop[i]);
 			}
 			else {
-				EXPECT_ANY_THROW(crop(base, tests[i]));
+				EXPECT_ANY_THROW(cropExtent(base, tests[i]));
 			}
 		}
 	}

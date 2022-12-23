@@ -173,10 +173,10 @@ namespace lapis {
 		//If snap is out, xmin and ymin will round down, and xmax and ymax will round up
 		//If snap is in, xmin and ymin will round up, and xmax and ymax will round down
 		//If snap is ll, all four values will round down
-		Extent alignExtent(const Extent& e, const SnapType snap = SnapType::near) const;
+		Extent alignExtent(const Extent& e, const SnapType snap) const;
 
 		//Returns a list of cells which fall inside the given extent, after aligning with the given snaptype
-		std::vector<cell_t> cellsFromExtent(const Extent& e, const SnapType snap = SnapType::near) const;
+		std::vector<cell_t> cellsFromExtent(const Extent& e, const SnapType snap) const;
 
 		//Returns the extent of the cell with the given index
 		Extent extentFromCell(const cell_t cell) const {
@@ -193,7 +193,7 @@ namespace lapis {
 		bool consistentAlignment(const Alignment& a) const;
 
 		//Returns the minimum and maximum row and column numbers that fall within the given extent, after aligning with the given snaptype
-		RowColExtent rowColExtent(const Extent& e, SnapType snap = SnapType::near) const;
+		RowColExtent rowColExtent(const Extent& e, SnapType snap) const;
 
 		//Returns an alignment in the given CRS which is as close as reasonable possible to this
 		Alignment transformAlignment(const CoordRef& crs) const;
@@ -247,13 +247,9 @@ namespace lapis {
 
 	//returns an alignment with the same origin and resolution as the given alignment, and an extent which is
 	//the same as an extent-crop of a and e, after using alignExtent on e
-	Alignment crop(const Alignment& a, const Extent& e, SnapType snap);
-	//defaults to SnapType::near. Spun out into a different function to ensure the right signature is called when the first element is an alignment
-	Alignment crop(const Alignment& a, const Extent& e);
+	Alignment cropAlignment(const Alignment& a, const Extent& e, SnapType snap);
 
-	Alignment extend(const Alignment& a, const Extent& e, SnapType snap);
-	//defaults to SnapType::near. Spun out into a different function to ensure the right signature is called when the first element is an alignment
-	Alignment extend(const Alignment& a, const Extent& e);
+	Alignment extendAlignment(const Alignment& a, const Extent& e, SnapType snap);
 
 	bool operator==(const Alignment& lhs, const Alignment& rhs);
 	bool operator!=(const Alignment& lhs, const Alignment& rhs);

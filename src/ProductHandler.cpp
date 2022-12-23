@@ -68,7 +68,7 @@ namespace lapis {
 			bufferDist = std::max(std::max(metricAlign->xres(), metricAlign->yres()), bufferDist);
 		}
 		Extent bufferExt = Extent(thistile.xmin() - bufferDist, thistile.xmax() + bufferDist, thistile.ymin() - bufferDist, thistile.ymax() + bufferDist);
-		return Raster<T>(crop(a, bufferExt, SnapType::ll));
+		return Raster<T>(cropAlignment(a, bufferExt, SnapType::ll));
 	}
 
 	ProductHandler::ProductHandler(ParamGetter* p) : _sharedGetter(p)
@@ -76,6 +76,7 @@ namespace lapis {
 		if (p == nullptr) {
 			throw std::invalid_argument("ParamGetter is null");
 		}
+		std::filesystem::remove_all(tempDir());
 	}
 	std::filesystem::path ProductHandler::parentDir() const
 	{
@@ -142,6 +143,8 @@ namespace lapis {
 	{
 		_getter = p;
 
+		std::filesystem::remove_all(pointMetricDir());
+
 		if (!_getter->doPointMetrics()) {
 			return;
 		}
@@ -153,7 +156,7 @@ namespace lapis {
 
 		_nLaz = Raster<int>(*_getter->metricAlign());
 		for (const Extent& e : _getter->lasExtents()) {
-			for (cell_t cell : _nLaz.cellsFromExtent(e)) {
+			for (cell_t cell : _nLaz.cellsFromExtent(e, SnapType::out)) {
 				_nLaz[cell].has_value() = true;
 				_nLaz[cell].value()++;
 			}
@@ -208,7 +211,7 @@ namespace lapis {
 			}
 		}
 	}
-	void PointMetricHandler::handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index)
+	void PointMetricHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
 	{
 		if (!_getter->doPointMetrics()) {
 			return;
@@ -232,7 +235,7 @@ namespace lapis {
 			std::scoped_lock lock{ _getter->cellMutex(cell) };
 			_nLaz.atCellUnsafe(cell).value()--;
 			if (_nLaz.atCellUnsafe(cell).value() != 0) {
-				break;
+				continue;
 			}
 			if (_getter->doAllReturnMetrics())
 				_processPMCCell(cell, _allReturnPMC->atCellUnsafe(cell).value(), ReturnType::ALL);
@@ -241,7 +244,10 @@ namespace lapis {
 		}
 
 	}
-	void PointMetricHandler::handleTile(cell_t tile) {}
+	void PointMetricHandler::handleDem(const Raster<coord_t>& dem, size_t index)
+	{
+	}
+	void PointMetricHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) {}
 	void PointMetricHandler::cleanup() {
 		namespace fs = std::filesystem;
 
@@ -273,6 +279,9 @@ namespace lapis {
 	{
 		_getter = p;
 
+		std::filesystem::remove_all(csmDir());
+		std::filesystem::remove_all(csmTempDir());
+
 		if (!_getter->doCsmMetrics()) {
 			return;
 		}
@@ -287,7 +296,7 @@ namespace lapis {
 		addMetric(&viewStdDev<csm_t>, "StdDevCSM", oul::Default);
 		addMetric(&viewRumple<csm_t>, "RumpleCSM", oul::Unitless);
 	}
-	void CsmHandler::handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index)
+	void CsmHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
 	{
 		if (!_getter->doCsm()) {
 			return;
@@ -295,8 +304,9 @@ namespace lapis {
 
 		const coord_t footprintRadius = _getter->footprintDiameter() / 2;
 
-		Raster<csm_t> csm{ crop(*_getter->csmAlign(),
-			Extent(e.xmin() - footprintRadius,e.xmax() + footprintRadius,e.ymin() - footprintRadius,e.ymax() + footprintRadius)) };
+		Raster<csm_t> csm{ cropAlignment(*_getter->csmAlign(),
+			Extent(e.xmin() - footprintRadius,e.xmax() + footprintRadius,e.ymin() - footprintRadius,e.ymax() + footprintRadius),
+			SnapType::out) };
 
 
 		const coord_t diagonal = footprintRadius / std::sqrt(2);
@@ -352,79 +362,21 @@ namespace lapis {
 			throw InvalidRasterFileException("Error Writing Temporary CSM File");
 		}
 	}
-	void CsmHandler::handleTile(cell_t tile) 
+	void CsmHandler::handleDem(const Raster<coord_t>& dem, size_t index)
 	{
-		if (!_getter->doCsm()) {
-			return;
-		}
-
-		std::shared_ptr<Alignment> layout = _getter->layout();
-		std::shared_ptr<Alignment> csmAlign = _getter->csmAlign();
-
-		Extent thistile = layout->extentFromCell(tile);
-
-		Raster<csm_t> fullTile = getEmptyRasterFromTile<csm_t>(_getter, tile, *csmAlign, 30);
-		
-		Extent extentWithData;
-		bool extentInit = false;
-
-		const std::vector<Extent>& lasExtents = _getter->lasExtents();
-		for (size_t i = 0; i < lasExtents.size(); ++i) {
-			Extent thisext = lasExtents[i]; //intentional copy
-
-			//Because the geotiff format doesn't store the entire WKT, you will sometimes end up in the situation where the WKT you set
-			//and the WKT you get by writing and then reading a tif are not the same
-			//This is mostly harmless but it does cause proj's is_equivalent functions to return false sometimes
-			//In this case, we happen to know that the files we're going to be reading are the same CRS as thisext, regardless of slight WKT differences,
-			//so we give it an empty CRS to force all isConsistent functions to return true
-			thisext.defineCRS(CoordRef());
-
-			if (!thisext.overlaps(fullTile)) {
-				continue;
-			}
-			thisext = crop(thisext, fullTile);
-			Raster<csm_t> thisr;
-			std::string filename = (tempDir() / (std::to_string(i) + ".tif")).string();
-			try {
-				thisr = Raster<csm_t>{ filename,thisext, SnapType::out };
-			}
-			catch (InvalidRasterFileException e) {
-				LapisLogger::getLogger().logMessage("Unable to open " + filename);
-				continue;
-			}
-
-			if (!extentInit) {
-				extentWithData = thisr;
-				extentInit = true;
-			}
-			else {
-				extentWithData = extend(extentWithData, thisr);
-			}
-
-
-			//for the same reason as the above comment
-			thisr.defineCRS(fullTile.crs());
-			fullTile.overlay(thisr, [](csm_t a, csm_t b) {return std::max(a, b); });
-		}
-
-		if (!fullTile.hasAnyValue()) {
-			return;
-		}
-
-		int neighborsNeeded = 6;
-		fullTile = smoothAndFill(fullTile, _getter->smooth(), neighborsNeeded, {});
-
+	}
+	void CsmHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
+	{
 		for (CSMMetricRaster& metric : _csmMetrics) {
-			Raster<metric_t> tileMetric = aggregate(fullTile, crop(*_getter->metricAlign(), fullTile, SnapType::out), metric.fun);
+			Raster<metric_t> tileMetric = aggregate(bufferedCsm, cropAlignment(*_getter->metricAlign(), bufferedCsm, SnapType::out), metric.fun);
 			metric.raster.overlayInside(tileMetric);
 		}
 		
-		Extent cropExt = layout->extentFromCell(tile); //unbuffered extent
-		cropExt = crop(cropExt, extentWithData);
-		fullTile = crop(fullTile, cropExt, SnapType::out);
+		Extent cropExt = _getter->layout()->extentFromCell(tile); //unbuffered extent
+		Raster<csm_t> unbuffered = cropRaster(bufferedCsm, cropExt, SnapType::out);
 
 		std::string outname = "CanopySurfaceModel_" + nameFromLayout(*_getter->layout(), tile);
-		writeRasterWithFullName(_getter, csmDir(), outname, fullTile, OutputUnitLabel::Default);
+		writeRasterWithFullName(_getter, csmDir(), outname, unbuffered, OutputUnitLabel::Default);
 	}
 	void CsmHandler::cleanup() 
 	{
@@ -440,6 +392,72 @@ namespace lapis {
 		_csmMetrics.clear();
 		_csmMetrics.shrink_to_fit();
 	}
+	Raster<csm_t> CsmHandler::getBufferedCsm(cell_t tile) const
+	{
+		if (!_getter->doCsm()) {
+			return Raster<csm_t>();
+		}
+
+		std::shared_ptr<Alignment> layout = _getter->layout();
+		std::shared_ptr<Alignment> csmAlign = _getter->csmAlign();
+
+		Extent thistile = layout->extentFromCell(tile);
+
+		Raster<csm_t> bufferedCsm = getEmptyRasterFromTile<csm_t>(_getter, tile, *csmAlign, 30);
+
+		Extent extentWithData;
+		bool extentInit = false;
+
+		const std::vector<Extent>& lasExtents = _getter->lasExtents();
+		for (size_t i = 0; i < lasExtents.size(); ++i) {
+			Extent thisext = lasExtents[i]; //intentional copy
+
+			//Because the geotiff format doesn't store the entire WKT, you will sometimes end up in the situation where the WKT you set
+			//and the WKT you get by writing and then reading a tif are not the same
+			//This is mostly harmless but it does cause proj's is_equivalent functions to return false sometimes
+			//In this case, we happen to know that the files we're going to be reading are the same CRS as thisext, regardless of slight WKT differences,
+			//so we give it an empty CRS to force all isConsistent functions to return true
+			thisext.defineCRS(CoordRef());
+
+			if (!thisext.overlaps(bufferedCsm)) {
+				continue;
+			}
+			thisext = cropExtent(thisext, bufferedCsm);
+			Raster<csm_t> thisr;
+			std::string filename = (csmTempDir() / (std::to_string(i) + ".tif")).string();
+			try {
+				thisr = Raster<csm_t>{ filename,thisext, SnapType::out };
+			}
+			catch (InvalidRasterFileException e) {
+				LapisLogger::getLogger().logMessage("Unable to open " + filename);
+				continue;
+			}
+
+			if (!extentInit) {
+				extentWithData = thisr;
+				extentInit = true;
+			}
+			else {
+				extentWithData = extendExtent(extentWithData, thisr);
+			}
+
+
+			//for the same reason as the above comment
+			thisr.defineCRS(bufferedCsm.crs());
+			bufferedCsm.overlay(thisr, [](csm_t a, csm_t b) {return std::max(a, b); });
+		}
+
+		if (!bufferedCsm.hasAnyValue()) {
+			return Raster<csm_t>();
+		}
+
+		bufferedCsm = cropRaster(bufferedCsm, extentWithData, SnapType::out);
+
+		int neighborsNeeded = 6;
+		bufferedCsm = smoothAndFill(bufferedCsm, _getter->smooth(), neighborsNeeded, {});
+
+		return bufferedCsm;
+	}
 	std::filesystem::path ProductHandler::csmTempDir() const
 	{
 		return tempDir() / "CSM";
@@ -453,10 +471,12 @@ namespace lapis {
 		return parentDir() / "CanopyMetrics";
 	}
 
-	void TaoHandler::writeHighPointsAsXYZArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& csm,
+	void TaoHandler::_writeHighPointsAsXYZArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& csm,
 		const Extent& unbufferedExtent, cell_t tile) const {
 
-		std::filesystem::path fileName = taoTempDir() / (tile + ".tmp");
+		std::filesystem::create_directories(taoTempDir());
+
+		std::filesystem::path fileName = taoTempDir() / (std::to_string(tile) + ".tmp");
 		std::ofstream ofs{ fileName,std::ios::binary };
 
 		if (!ofs) {
@@ -464,18 +484,23 @@ namespace lapis {
 			return;
 		}
 
+		auto writeBytes = [&](auto x) {
+			ofs.write((const char*)&x, sizeof(x));
+		};
+
 		for (cell_t cell : highPoints) {
 			coord_t x = csm.xFromCellUnsafe(cell);
 			coord_t y = csm.yFromCellUnsafe(cell);
 			if (!unbufferedExtent.contains(x, y)) {
 				continue;
 			}
-
-			ofs << x << y << csm[cell].value();
+			writeBytes(x);
+			writeBytes(y);
+			writeBytes(csm[cell].value());
 		}
 	}
-	std::vector<CoordXYZ> TaoHandler::readHighPointsFromXYZArray(cell_t tile) const {
-		std::filesystem::path fileName = taoTempDir() / (tile + ".tmp");
+	std::vector<CoordXYZ> TaoHandler::_readHighPointsFromXYZArray(cell_t tile) const {
+		std::filesystem::path fileName = taoTempDir() / (std::to_string(tile) + ".tmp");
 		std::ifstream ifs{ fileName,std::ios::binary };
 		if (!ifs) {
 			LapisLogger::getLogger().logMessage("Error reading from " + fileName.string());
@@ -485,20 +510,28 @@ namespace lapis {
 		coord_t x, y;
 		csm_t z;
 		std::vector<CoordXYZ> out;
+
+		auto readBytes = [&](auto* x) {
+			ifs.read((char*)x, sizeof(*x));
+		};
+
 		while (ifs) {
-			ifs >> x;
-			ifs >> y;
-			ifs >> z;
+			readBytes(&x);
+			readBytes(&y);
+			readBytes(&z);
+			if (ifs.eof()) {
+				break;
+			}
 			out.emplace_back(x, y, z);
 		}
 		return out;
 	}
-	void TaoHandler::writeHighPointsAsShp(const Raster<taoid_t>& segments, cell_t tile) const {
+	void TaoHandler::_writeHighPointsAsShp(const Raster<taoid_t>& segments, cell_t tile) const {
 		namespace fs = std::filesystem;
 
 		GDALRegisterWrapper::allRegister();
 		fs::create_directories(taoDir());
-		fs::path filename = (taoDir() / ("TAOs_" + nameFromLayout(*_getter->layout(), tile) + ".shp")).string();
+		fs::path filename = (taoDir() / (_getter->name() + "_TAOs_" + nameFromLayout(*_getter->layout(), tile) + ".shp"));
 
 		GDALDatasetWrapper outshp("ESRI Shapefile", filename.string().c_str(), 0, 0, GDT_Unknown);
 
@@ -534,7 +567,7 @@ namespace lapis {
 			}
 		}
 
-		std::vector<CoordXYZ> highPoints = readHighPointsFromXYZArray(tile);
+		std::vector<CoordXYZ> highPoints = _readHighPointsFromXYZArray(tile);
 
 
 		for (const CoordXYZ& highPoint : highPoints) {
@@ -563,35 +596,24 @@ namespace lapis {
 	}
 	void TaoHandler::_updateMap(const Raster<taoid_t>& segments, const std::vector<cell_t>& highPoints, const Extent& unbufferedExtent, cell_t tileidx)
 	{
-		auto doubleUnbuffer = [](coord_t bufferedValue, coord_t unbufferedValue) -> coord_t {
-			return 2. * unbufferedValue - unbufferedValue;
-		};
-		//this is the extent where the TAOs are so far in that there's no chance of their ID not being final
-		//(excluding extreme edge cases, which we're intentionally ignoring for computational reasons)
-		Extent unchanging = Extent(
-			doubleUnbuffer(segments.xmin(),unbufferedExtent.xmin()),
-			doubleUnbuffer(segments.xmax(),unbufferedExtent.xmax()),
-			doubleUnbuffer(segments.ymin(),unbufferedExtent.ymin()),
-			doubleUnbuffer(segments.ymax(),unbufferedExtent.ymax())
-			);
-
-
 		{
 			std::scoped_lock<std::mutex> lock(_getter->globalMutex());
-			idMap.tileToLocalNames.emplace(tileidx, TaoIdMap::IDToCoord());
+			idMap.tileToLocalNames.try_emplace(tileidx, TaoIdMap::IDToCoord());
 		}
 		for (cell_t cell : highPoints) {
 			coord_t x = segments.xFromCellUnsafe(cell);
 			coord_t y = segments.yFromCellUnsafe(cell);
-			if (unchanging.contains(x, y)) { //not an ID that will need changing
-				continue;
-			}
+
+			//in theory, you could identify areas that belong only to this tile, and aren't even in the buffers of any other tiles
+			//this is easy in a normal case, but kind of annoying to account for edge cases
+			//this could save a lot of memory here, if it ends up being necessary to do so
+
 			if (unbufferedExtent.contains(x, y)) { //this tao id is id that other tiles will have to match
 				std::scoped_lock<std::mutex> lock(_getter->globalMutex());
-				idMap.coordsToFinalName.emplace(TaoIdMap::XY{ x,y }, segments[cell].value());
+				idMap.coordsToFinalName.try_emplace(TaoIdMap::XY{ x,y }, segments[cell].value());
 			}
 			else { //this tao id will have to change eventually
-				idMap.tileToLocalNames[tileidx].emplace(segments[cell].value(), TaoIdMap::XY{ x,y });
+				idMap.tileToLocalNames[tileidx].try_emplace(segments[cell].value(), TaoIdMap::XY{ x,y });
 			}
 		}
 	}
@@ -603,7 +625,7 @@ namespace lapis {
 		
 
 		Raster<taoid_t> segments;
-		std::string name = (taoTempDir() / ("Segments" + tileName + ".tif")).string();
+		std::string name = (taoTempDir() / ("Segments_" + tileName + ".tif")).string();
 		try {
 			segments = Raster<taoid_t>{ name };
 		}
@@ -626,69 +648,46 @@ namespace lapis {
 			}
 			v.value() = idMap.coordsToFinalName.at(localNameMap.at(v.value()));
 		}
-		writeRasterWithFullName(_getter, taoDir(), "Segments" + tileName, segments, OutputUnitLabel::Unitless);
-		writeHighPointsAsShp(segments, tile);
+		writeRasterWithFullName(_getter, taoDir(), "Segments_" + tileName, segments, OutputUnitLabel::Unitless);
+		_writeHighPointsAsShp(segments, tile);
 	}
 	TaoHandler::TaoHandler(ParamGetter* p) : ProductHandler(p)
 	{
 		_getter = p;
+
+		std::filesystem::remove_all(taoDir());
+		std::filesystem::remove_all(taoTempDir());
 	}
-	void TaoHandler::handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index)
+	void TaoHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
 	{
 	}
-	void TaoHandler::handleTile(cell_t tile) 
+	void TaoHandler::handleDem(const Raster<coord_t>& dem, size_t index)
+	{
+	}
+	void TaoHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
 	{
 		LapisLogger& log = LapisLogger::getLogger();
 		if (!_getter->doTaos()) {
 			return;
 		}
-
-		Alignment& layout = *_getter->layout();
-
-		Extent unbufferedExtent = layout.extentFromCell(tile);
-		Raster<csm_t> bufferedCsm = getEmptyRasterFromTile<csm_t>(_getter, tile, *_getter->csmAlign(), 30.);
-		
-		rowcol_t row = layout.rowFromCellUnsafe(tile);
-		rowcol_t col = layout.colFromCellUnsafe(tile);
-		for (rowcol_t nudgedRow : {row - 1, row, row + 1}) {
-			for (rowcol_t nudgedCol : {col - 1, col, col + 1}) {
-				if (nudgedRow < 0 || nudgedCol < 0 || nudgedRow >= layout.nrow() || nudgedCol >= layout.ncol()) {
-					continue;
-				}
-				cell_t nudgedCell = layout.cellFromRowColUnsafe(nudgedRow, nudgedCol);
-				Extent nudgedExtent = crop(bufferedCsm, layout.extentFromCell(nudgedCell));
-
-				std::filesystem::path fileName = csmDir() / ("CanopySurfaceModel_" + nameFromLayout(*_getter->layout(), nudgedCell));
-
-				Raster<csm_t> nudgedCsm;
-				try {
-					nudgedCsm = Raster<csm_t>(fileName.string(), nudgedExtent);
-				}
-				catch (InvalidRasterFileException e) {
-					log.logMessage("Error opening " + fileName.string());
-					continue;
-				}
-
-				bufferedCsm.overlay(nudgedCsm, [](csm_t a, csm_t b) {return a; });
-			}
-		}
-
 		if (!bufferedCsm.hasAnyValue()) {
 			return;
 		}
 
+		Extent unbufferedExtent = _getter->layout()->extentFromCell(tile);
+
 		std::vector<cell_t> highPoints = identifyHighPointsWithMinDist(bufferedCsm, _getter->minTaoHt(), _getter->minTaoDist());
-		Raster<taoid_t> segments = watershedSegment(bufferedCsm, highPoints, tile, layout.ncell());
+		Raster<taoid_t> segments = watershedSegment(bufferedCsm, highPoints, tile, _getter->layout()->ncell());
 		_updateMap(segments, highPoints, unbufferedExtent, tile);
 
 		Raster<csm_t> maxHeight = maxHeightBySegment(segments, bufferedCsm, highPoints);
 
-		segments = crop(segments, unbufferedExtent, SnapType::out);
-		maxHeight = crop(maxHeight, unbufferedExtent, SnapType::out);
+		segments = cropRaster(segments, unbufferedExtent, SnapType::out);
+		maxHeight = cropRaster(maxHeight, unbufferedExtent, SnapType::out);
 
 		std::string tileName = nameFromLayout(*_getter->layout(), tile);
 
-		writeHighPointsAsXYZArray(highPoints, bufferedCsm, unbufferedExtent, tile);
+		_writeHighPointsAsXYZArray(highPoints, bufferedCsm, unbufferedExtent, tile);
 		writeTempRaster(taoTempDir(), "Segments_" + tileName, segments);
 		writeRasterWithFullName(_getter, taoDir(), "MaxHeight_" + tileName, maxHeight, OutputUnitLabel::Default);
 		segments = Raster<taoid_t>();
@@ -728,14 +727,17 @@ namespace lapis {
 	FineIntHandler::FineIntHandler(ParamGetter* p) : ProductHandler(p)
 	{
 		_getter = p;
+
+		std::filesystem::remove_all(fineIntDir());
+		std::filesystem::remove_all(fineIntTempDir());
 	}
-	void FineIntHandler::handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index)
+	void FineIntHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
 	{
 		if (!_getter->doFineInt()) {
 			return;
 		}
 
-		Raster<intensity_t> numerator{ crop(*_getter->fineIntAlign(),e) };
+		Raster<intensity_t> numerator{ cropAlignment(*_getter->fineIntAlign(),e, SnapType::out) };
 		Raster<intensity_t> denominator{ (Alignment)numerator };
 
 		coord_t cutoff = _getter->fineIntCanopyCutoff();
@@ -748,7 +750,7 @@ namespace lapis {
 			denominator[cell].value()++;
 		}
 
-		//there are many more points than cells, so rearranging works to be O(cells) instead of O(points) is generally worth it, even if it's a bit awkward
+		//there are many more points than cells, so rearranging work to be O(cells) instead of O(points) is generally worth it, even if it's a bit awkward
 		for (cell_t cell = 0; cell < denominator.ncell(); ++cell) {
 			if (denominator[cell].value() > 0) {
 				denominator[cell].has_value() = true;
@@ -759,7 +761,10 @@ namespace lapis {
 		writeTempRaster(fineIntTempDir(), std::to_string(index) + "_num", numerator);
 		writeTempRaster(fineIntTempDir(), std::to_string(index) + "_denom", denominator);
 	}
-	void FineIntHandler::handleTile(cell_t tile)
+	void FineIntHandler::handleDem(const Raster<coord_t>& dem, size_t index)
+	{
+	}
+	void FineIntHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
 	{
 
 		if (!_getter->doFineInt()) {
@@ -785,9 +790,14 @@ namespace lapis {
 
 			Raster<intensity_t> thisNumerator, thisDenominator;
 
+			if (!thisext.overlaps(numerator)) {
+				continue;
+			}
+			thisext = cropExtent(thisext, numerator);
+
 			try {
-				thisNumerator = Raster<intensity_t>{ (fineIntTempDir() / (std::to_string(i) + "_num.tif")).string(), thisext, SnapType::near };
-				thisDenominator = Raster<intensity_t>{ (fineIntTempDir() / (std::to_string(i) + "_denom.tif")).string(), thisext, SnapType::near };
+				thisNumerator = Raster<intensity_t>{ (fineIntTempDir() / (std::to_string(i) + "_num.tif")).string(), numerator, SnapType::near };
+				thisDenominator = Raster<intensity_t>{ (fineIntTempDir() / (std::to_string(i) + "_denom.tif")).string(), numerator, SnapType::near };
 			}
 			catch (InvalidRasterFileException e) {
 				LapisLogger::getLogger().logMessage("Issue opening temporary intensity file " + std::to_string(i));
@@ -802,7 +812,7 @@ namespace lapis {
 				extentWithData = numerator;
 			}
 			else {
-				extentWithData = extend(extentWithData, numerator);
+				extentWithData = extendExtent(extentWithData, numerator);
 			}
 		}
 
@@ -813,8 +823,9 @@ namespace lapis {
 		std::string tileName = nameFromLayout(*_getter->layout(), tile);
 
 		Raster<intensity_t> meanIntensity = numerator / denominator;
-		meanIntensity = crop(meanIntensity, extentWithData);
-		writeRasterWithFullName(_getter, fineIntDir(), "MeanCanopyIntensity_" + tileName, meanIntensity, OutputUnitLabel::Unitless);
+		meanIntensity = cropRaster(meanIntensity, extentWithData, SnapType::out);
+		std::string baseName = _getter->fineIntCanopyCutoff() > std::numeric_limits<coord_t>::lowest() ? "MeanCanopyIntensity_" : "MeanIntensity_";
+		writeRasterWithFullName(_getter, fineIntDir(), baseName + tileName, meanIntensity, OutputUnitLabel::Unitless);
 	}
 	void FineIntHandler::cleanup() {
 		std::filesystem::remove_all(fineIntTempDir());
@@ -833,6 +844,8 @@ namespace lapis {
 	{
 		_getter = p;
 
+		std::filesystem::remove_all(topoDir());
+
 		if (!_getter->doTopo()) {
 			return;
 		}
@@ -842,10 +855,13 @@ namespace lapis {
 
 		using oul = OutputUnitLabel;
 		_topoMetrics.emplace_back("Slope", viewSlope<coord_t, metric_t>, oul::Radian);
-		_topoMetrics.emplace_back("Aspect", viewSlope<coord_t, metric_t>, oul::Radian);
+		_topoMetrics.emplace_back("Aspect", viewAspect<coord_t, metric_t>, oul::Radian);
 
 	}
-	void TopoHandler::handlePoints(const LidarPointVector& points, const Raster<coord_t>& dem, const Extent& e, size_t index)
+	void TopoHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
+	{
+	}
+	void TopoHandler::handleDem(const Raster<coord_t>& dem, size_t index)
 	{
 		if (!_getter->doTopo()) {
 			return;
@@ -857,7 +873,7 @@ namespace lapis {
 		Raster<coord_t> coarseCount = aggregate<coord_t, coord_t>(dem, *_getter->metricAlign(), &viewCount<coord_t>);
 		_elevDenominator.overlay(coarseCount, [](coord_t a, coord_t b) {return a + b; });
 	}
-	void TopoHandler::handleTile(cell_t tile)
+	void TopoHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
 	{
 	}
 	void TopoHandler::cleanup()

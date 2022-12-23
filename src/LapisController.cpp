@@ -42,7 +42,7 @@ namespace lapis {
 		handlers.push_back(std::make_unique<FineIntHandler>(&data));
 		handlers.push_back(std::make_unique<TopoHandler>(&data));
 
-		log.setProgress(RunProgress::lasFiles);
+		log.setProgress(RunProgress::lasFiles, (int)data.lasExtents().size());
 		uint64_t soFar = 0;
 		std::vector<std::thread> threads;
 		auto lasThreadFunc = [&]() {
@@ -57,7 +57,7 @@ namespace lapis {
 		LAPIS_CHECK_ABORT_AND_DEALLOC;
 
 
-		log.setProgress(RunProgress::csmTiles);
+		log.setProgress(RunProgress::csmTiles, (int)data.layout()->ncell());
 		soFar = 0;
 		threads.clear();
 		auto tileThreadFunc = [&]() {
@@ -71,6 +71,7 @@ namespace lapis {
 		}
 		LAPIS_CHECK_ABORT_AND_DEALLOC;
 
+		log.setProgress(RunProgress::cleanUp);
 		cleanUp(handlers);
 		LAPIS_CHECK_ABORT_AND_DEALLOC;
 
@@ -170,7 +171,8 @@ namespace lapis {
 		LAPIS_CHECK_ABORT;
 
 		for (size_t i = 0; i < handlers.size(); ++i) {
-			handlers[i]->handlePoints(ground.points, ground.dem, projectedExtent, n);
+			handlers[i]->handlePoints(ground.points, projectedExtent, n);
+			handlers[i]->handleDem(ground.dem, n);
 			LAPIS_CHECK_ABORT;
 		}
 		LapisLogger::getLogger().incrementTask();
@@ -178,10 +180,24 @@ namespace lapis {
 
 	void LapisController::tileThread(HandlerVector& handlers, cell_t tile) const
 	{
+		Raster<csm_t> bufferedCsm;
+
 		for (size_t i = 0; i < handlers.size(); ++i) {
-			handlers[i]->handleTile(tile);
+			CsmHandler* csmHandler = dynamic_cast<CsmHandler*>(handlers[i].get());
+			if (csmHandler) {
+				bufferedCsm = csmHandler->getBufferedCsm(tile);
+				break;
+			}
+		}
+		if (!bufferedCsm.hasAnyValue()) {
+			return;
+		}
+
+		for (size_t i = 0; i < handlers.size(); ++i) {
+			handlers[i]->handleCsmTile(bufferedCsm, tile);
 			LAPIS_CHECK_ABORT;
 		}
+
 		LapisLogger::getLogger().incrementTask();
 	}
 

@@ -17,7 +17,6 @@ namespace lapis {
 
 	void prepareParamsNoSlowStuff(std::vector<std::string> args) {
 		args.push_back("--debug-no-alignment");
-		args.push_back("--debug-no-alloc-raster");
 		args.push_back("--debug-no-output");
 		prepareParams(args);
 	}
