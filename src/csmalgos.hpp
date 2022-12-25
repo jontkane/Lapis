@@ -29,7 +29,7 @@ namespace lapis {
 	//smoothWindow is the size of the window to use for smoothing, and should be odd. If this is less than 3, than no smoothing is actually performed
 	//neighborsNeeded is the number of non-nodata neighbors a nodata pixel needed before it gets filled. Set this to 9 or greater if you don't want filling
 	//preserveValues is a list of cells to not smooth; usually the output of identifyHighPoints.
-	Raster<csm_t> smoothAndFill(const Raster<csm_t>& r, int smoothWindow, int neighborsNeeded, const std::vector<cell_t>& preserveValues);
+	Raster<csm_t> smoothAndFill(const Raster<csm_t>& r, int smoothWindow, int neighborsNeeded, coord_t maxDistOutXYUnits);
 
 
 	//identifies the high points/TAOs present in this CSM

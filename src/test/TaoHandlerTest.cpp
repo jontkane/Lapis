@@ -30,7 +30,7 @@ namespace lapis {
 
 		std::filesystem::remove_all(spoof.outFolder());
 
-		Raster<csm_t> r{ *spoof.csmAlign() };
+		Raster<csm_t> r{ Alignment(0,0,6,6,0.5,0.5) };
 		for (cell_t cell = 0; cell < r.ncell(); ++cell) {
 			r[cell].value() = (csm_t)cell;
 			r[cell].has_value() = true;
@@ -72,7 +72,7 @@ namespace lapis {
 		std::filesystem::remove_all(spoof.outFolder());
 		std::filesystem::create_directories(th.csmDir());
 
-		Raster<csm_t> fullCsm{ *spoof.csmAlign() };
+		Raster<csm_t> fullCsm{ Alignment(0,0,6,6,0.5,0.5) };
 		for (cell_t cell = 0; cell < fullCsm.ncell(); ++cell) {
 			if (cell % 2 == 0) {
 				fullCsm[cell].value() = (csm_t)cell;
@@ -152,7 +152,7 @@ namespace lapis {
 		std::filesystem::remove_all(spoof.outFolder());
 		std::filesystem::create_directories(th.csmDir());
 
-		Raster<csm_t> fullCsm{ *spoof.csmAlign() };
+		Raster<csm_t> fullCsm{ Alignment(0,0,6,6,0.5,0.5) };
 		for (cell_t cell = 0; cell < fullCsm.ncell(); ++cell) {
 			if (cell % 2 == 0) {
 				fullCsm[cell].value() = (csm_t)cell;

@@ -46,7 +46,7 @@ namespace lapis {
 		virtual bool doCsmMetrics() = 0;
 	};
 
-	class TaoParameterGetter : public virtual CsmParameterGetter {
+	class TaoParameterGetter : public virtual SharedParameterGetter {
 	public:
 		virtual coord_t minTaoHt() = 0;
 		virtual coord_t minTaoDist() = 0;
@@ -69,6 +69,7 @@ namespace lapis {
 
 	class ParameterGetter :
 		public PointMetricParameterGetter,
+		public CsmParameterGetter,
 		public TaoParameterGetter,
 		public FineIntParameterGetter,
 		public TopoParameterGetter

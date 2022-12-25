@@ -24,7 +24,7 @@ namespace lapis {
 			v.has_value() = hasValue[cell];
 			v.value() = (int)cell;
 		}
-		Raster<double> out = smoothAndFill(r, 3, 6, {});
+		Raster<double> out = smoothAndFill(r, 3, 6, 1.5);
 		for (cell_t cell = 0; cell < r.ncell(); ++cell) {
 			rowcol_t row = r.rowFromCell(cell);
 			rowcol_t col = r.colFromCell(cell);
@@ -45,7 +45,9 @@ namespace lapis {
 					}
 				}
 			}
-			EXPECT_NEAR(numerator / denominator, out.atRC(row, col).value(), 0.01);
+			//a relatively high epsilon because the filled pixels are doing a more sophisticated calculation
+			//which happens to be near this
+			EXPECT_NEAR(numerator / denominator, out.atRC(row, col).value(), 0.1);
 		}
 	}
 

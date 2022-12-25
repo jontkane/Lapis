@@ -4,81 +4,119 @@
 
 namespace lapis {
 
-	Raster<csm_t> smoothAndFill(const Raster<csm_t>& r, int smoothWindow, int neighborsNeeded, const std::vector<cell_t>& preserveValues) {
+	inline void smoothSingleValue(const Raster<csm_t>& original, Raster<csm_t>& output, int lookdist, cell_t cell) {
+		csm_t numerator = 0;
+		csm_t denominator = 0;
+		rowcol_t row = original.rowFromCell(cell);
+		rowcol_t col = original.colFromCell(cell);
+		for (rowcol_t nudgeRow = std::max(0, row - lookdist); nudgeRow <= std::min(original.nrow() - 1, row + lookdist); ++nudgeRow) {
+			for (rowcol_t nudgeCol = std::max(0, col - lookdist); nudgeCol <= std::min(original.ncol() - 1, col + lookdist); ++nudgeCol) {
+				auto v = original.atRCUnsafe(nudgeRow, nudgeCol);
+				if (v.has_value()) {
+					numerator += v.value();
+					denominator++;
+				}
+			}
+		}
+		if (denominator == 0) {
+			return;
+		}
+		auto v = output[cell];
+		v.has_value() = true;
+		v.value() = numerator / denominator;
+	}
+
+	inline void fillSingleValue(const Raster<csm_t>& original, Raster<csm_t>& output, int neighborsNeeded, rowcol_t carddist, rowcol_t diagdist, cell_t cell) {
+		//the algorithm here to distinguish legitimately absent data from holes is:
+		//in all 8 cardinal directions, look for data up to a certain distance away
+		//if you find data or the edge of the raster in at least neighborsneeded directions,
+		//then assign the value to be an inverse-distance-weighted mean of the closest value found in each direction
+
+		struct Direction {
+			rowcol_t rowDir, colDir;
+		};
+		static std::vector<Direction> directions = { 
+			{0,1},{0,-1},{1,0},{-1,0},
+			{1,1},{1,-1},{-1,1},{-1,-1}
+		};
+		static size_t firstDiagonal = 4;
+		static coord_t sqrtTwo = std::sqrt(2.);
+
+		struct ValueDist {
+			csm_t value;
+			csm_t dist;
+		};
+		std::vector<ValueDist> foundValues;
+		foundValues.reserve(8);
+		int maxMisses = 8 - neighborsNeeded;
+		int missesSoFar = 0;
+
+		rowcol_t row = original.rowFromCell(cell);
+		rowcol_t col = original.colFromCell(cell);
+
+		for (size_t i = 0; i < directions.size(); ++i) {
+
+			bool isDiagonal = i >= firstDiagonal;
+			rowcol_t maxPixelDist = isDiagonal ? diagdist : carddist;
+			csm_t distMultiplier = isDiagonal ? sqrtTwo : 1.;
+
+			bool missed = true;
+
+			for (rowcol_t d = 1; d <= maxPixelDist; ++d) {
+				rowcol_t thisRow = row + d * directions[i].rowDir;
+				rowcol_t thisCol = col + d * directions[i].colDir;
+				if (thisRow < 0 || thisCol < 0 || thisRow >= original.nrow() || thisCol >= original.ncol()) {
+					//in this case, we found the edge of the raster
+					//we don't have a value to contribute to the eventual mean, but we don't count it as a miss either
+					missed = false;
+					break;
+				}
+				auto v = original.atRCUnsafe(thisRow, thisCol);
+				if (!v.has_value()) {
+					continue;
+				}
+				missed = false;
+				foundValues.emplace_back(v.value(), distMultiplier * d);
+				break;
+			}
+			if (missed) {
+				missesSoFar++;
+				if (missesSoFar > maxMisses) {
+					return;
+				}
+			}
+		}
+
+		csm_t numerator = 0;
+		csm_t denominator = 0;
+		for (const ValueDist v : foundValues) {
+			csm_t inverseDist = 1 / v.dist;
+			numerator += inverseDist * v.value;
+			denominator += inverseDist;
+		}
+		auto v = output[cell];
+		v.has_value() = true;
+		v.value() = numerator / denominator;
+	}
+
+	Raster<csm_t> smoothAndFill(const Raster<csm_t>& r, int smoothWindow, int neighborsNeeded, coord_t maxDistOutXYUnits) {
 
 		int lookdist = smoothWindow / 2;
 		if (lookdist < 1) {
 			return r;
 		}
 
-		std::unordered_set<cell_t> preserveSet;
-		for (auto& v : preserveValues) {
-			preserveSet.insert(v);
-		}
-
-		struct Direction {
-			rowcol_t x, y;
-		};
-		std::vector<Direction> cardinals = { {0,1},{1,1},{1,0},{1,-1},{0,-1},{-1,-1},{-1,0},{-1,1} };
+		//currently, you cannot have a CSM with different X and Y resolutions
+		rowcol_t cardinalDist = (rowcol_t)(maxDistOutXYUnits / r.xres());
+		rowcol_t diagonalDist = (rowcol_t)(maxDistOutXYUnits / r.xres() / std::sqrt(2.));
 
 		Raster<csm_t> out{ (Alignment)r };
-		for (rowcol_t row = 0; row < r.nrow(); ++row) {
-			for (rowcol_t col = 0; col < r.ncol(); ++col) {
-				cell_t cell = r.cellFromRowColUnsafe(row, col);
-				if (preserveSet.contains(cell)) {
-					out[cell].has_value() = r[cell].has_value();
-					out[cell].value() = r[cell].value();
-					continue;
-				}
-
-				csm_t numerator = 0;
-				csm_t denominator = 0;
-				for (rowcol_t nudgeRow = std::max(0, row - lookdist); nudgeRow <= std::min(r.nrow()-1, row + lookdist); ++nudgeRow) {
-					for (rowcol_t nudgeCol = std::max(0, col - lookdist); nudgeCol <= std::min(r.ncol()-1, col + lookdist); ++nudgeCol) {
-						auto v = r.atRCUnsafe(nudgeRow, nudgeCol);
-						if (v.has_value()) {
-							numerator += v.value();
-							denominator++;
-						}
-					}
-				}
-				if (denominator == 0) {
-					continue;
-				}
-				if (r[cell].has_value()) {
-					auto v = out[cell];
-					v.has_value() = true;
-					v.value() = numerator / denominator;
-				}
-				else {
-					//the algorithm here to distinguish legitimately absent data from holes is:
-					//in all 8 cardinal directions, there needs to be either data or the edge of the raster
-					//if this condition is met, the value is assigned to be the mean of all adjacent pixels that have data
-					int datacount = 0;
-					for (auto& d : cardinals) {
-						bool founddata = false;
-						for (int i : {1, 2}) {
-							rowcol_t thisrow = row + d.y * i;
-							rowcol_t thiscol = col + d.x * i;
-							if (thisrow < 0 || thisrow >= r.nrow() ||
-								thiscol < 0 || thiscol >= r.ncol() ||
-								r.atRCUnsafe(thisrow, thiscol).has_value()) {
-								founddata = true;
-								break;
-							}
-						}
-						if (founddata) {
-							datacount++;
-						}
-					}
-
-					if (datacount >= neighborsNeeded) {
-						auto v = out[cell];
-						v.has_value() = true;
-						v.value() = numerator / denominator;
-					}
-				}
-
+		for (cell_t cell = 0; cell < r.ncell(); ++cell) {
+			if (r[cell].has_value()) {
+				smoothSingleValue(r, out, lookdist, cell);
+			}
+			else {
+				fillSingleValue(r, out, neighborsNeeded, cardinalDist, diagonalDist, cell);
 			}
 		}
 

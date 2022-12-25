@@ -281,6 +281,7 @@ namespace lapis {
 
 		std::filesystem::remove_all(csmDir());
 		std::filesystem::remove_all(csmTempDir());
+		std::filesystem::remove_all(csmMetricDir());
 
 		if (!_getter->doCsmMetrics()) {
 			return;
@@ -454,7 +455,8 @@ namespace lapis {
 		bufferedCsm = cropRaster(bufferedCsm, extentWithData, SnapType::out);
 
 		int neighborsNeeded = 6;
-		bufferedCsm = smoothAndFill(bufferedCsm, _getter->smooth(), neighborsNeeded, {});
+		coord_t maxLookDist = convertUnits(5, LinearUnitDefs::meter, bufferedCsm.crs().getXYUnits());
+		bufferedCsm = smoothAndFill(bufferedCsm, _getter->smooth(), neighborsNeeded, maxLookDist);
 
 		return bufferedCsm;
 	}
