@@ -2,6 +2,7 @@
 #ifndef lp_coordtransform_h
 #define lp_coordtransform_h
 
+#include"Coordinate.hpp"
 #include"coordref.hpp"
 
 

@@ -1,4 +1,5 @@
 #include"gis_pch.hpp"
+#include"GisExceptions.hpp"
 #include"LasIO.hpp"
 
 namespace lapis {

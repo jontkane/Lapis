@@ -1,5 +1,6 @@
 #include"gis_pch.hpp"
 #include"CoordRef.hpp"
+#include"GisExceptions.hpp"
 
 
 //these functions aren't in the GDAL headers but are in gdal_i.lib and are linkable

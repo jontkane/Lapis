@@ -17,122 +17,59 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR})
 
-set(LAPIS_GIS_SOURCES
-		src/gis/Alignment.cpp
-		src/gis/Alignment.hpp
-		src/gis/CoordRef.cpp
-		src/gis/CoordRef.hpp
-		src/gis/CoordTransform.cpp
-		src/gis/CoordTransform.hpp
-		src/gis/CoordVector.hpp
-		src/gis/CropView.hpp
-		src/gis/CurrentLasPoint.cpp
-		src/gis/CurrentLasPoint.hpp
-		src/gis/Extent.cpp
-		src/gis/Extent.hpp
-		src/gis/GDALWrappers.cpp
-		src/gis/GDALWrappers.hpp
-		src/gis/gis_pch.hpp
-		src/gis/LasExtent.cpp
-		src/gis/LasExtent.hpp
-		src/gis/LasFilter.hpp
-		src/gis/LasIO.cpp
-		src/gis/LasIO.hpp
-		src/gis/LasReader.cpp
-		src/gis/LasReader.hpp
-		src/gis/projwrappers.hpp
-		src/gis/QuadExtent.cpp
-		src/gis/QuadExtent.hpp
-		src/gis/Raster.hpp
-		src/gis/BaseDefs.hpp
-		src/gis/Unit.hpp
-		src/gis/RasterAlgos.hpp
-		)
+file(GLOB LAPIS_GIS_SOURCES
+	src/gis/*.hpp
+	src/gis/*.cpp)
 
-set(LAPIS_APP_SOURCES
-		src/app_pch.hpp
-		src/lapiscontroller.cpp
-		src/lapiscontroller.hpp
-		src/lapisutils.cpp
-		src/lapisutils.hpp
-		src/LapisLogger.cpp
-		src/LapisLogger.hpp
-		src/pointmetriccalculator.cpp
-		src/pointmetriccalculator.hpp
-		src/csmalgos.hpp
-		src/csmalgos.cpp
-		src/lapistypedefs.hpp
-		src/lapisgui.hpp
-		src/lapisgui.cpp
-		src/LapisParameters.hpp
-		src/LapisParameters.cpp
-		src/LapisData.hpp
-		src/LapisData.cpp
-		src/ParameterBase.hpp
-		src/CommonGuiElements.hpp
-		src/CommonGuiElements.cpp
-		src/DemAlgos.hpp
-		src/DemAlgos.cpp
-		src/ProductHandler.hpp
-		src/ProductHandler.cpp
-		src/ParameterGetter.hpp
-		)
+file(GLOB_RECURSE LAPIS_PARAMETERS_SOURCES
+	src/parameters/*.hpp
+	src/parameters/*.cpp)
 
-set(LAPIS_TEST_SOURCES
-		src/test/alignmenttest.cpp
-		src/test/coordreftest.cpp
-		src/test/coordtransformtest.cpp
-		src/test/coordvectortest.cpp
-		src/test/cropviewtest.cpp
-		src/test/extenttest.cpp
-		src/test/lasiotest.cpp
-		src/test/lasreadertest.cpp
-		src/test/quadextenttest.cpp
-		src/test/rastertest.cpp
-		src/test/pointmetriccalculatortest.cpp
-		src/test/csmalgostest.cpp
-		src/test/RasterAlgosTest.cpp
-		src/test/lapisdatatest.cpp
-		src/test/demalgostest.cpp
-		src/test/FineIntTest.cpp
-		src/test/ParameterSpoofer.cpp
-		src/test/ParameterSpoofer.hpp
-		src/test/PointMetricHandlerTest.cpp
-		src/test/TaoHandlerTest.cpp
-		src/test/TopoHandlerTest.cpp
-		src/test/CsmHandlerTest.cpp
-		)
-		
-set(LAPIS_IMGUI_SOURCES
-		src/imgui/imgui.h
-		src/imgui/imgui.cpp
-		src/imgui/imgui_draw.cpp
-		src/imgui/imgui_impl_glfw.h
-		src/imgui/imgui_impl_glfw.cpp
-		src/imgui/imgui_impl_opengl3.cpp
-		src/imgui/imgui_impl_opengl3.h
-		src/imgui/imgui_impl_opengl3_loader.h
-		src/imgui/imgui_internal.h
-		src/imgui/imgui_tables.cpp
-		src/imgui/imgui_widgets.cpp
-		src/imgui/imconfig.h
-		src/imgui/imstb_rectpack.h
-		src/imgui/imstb_textedit.h
-		src/imgui/imstb_truetype.h
-		)
+file(GLOB LAPIS_RUN_SOURCES
+	src/run/*.hpp
+	src/run/*.cpp)
+
+file(GLOB LAPIS_LOGGER_SOURCES
+	src/logger/*.cpp
+	src/logger/*.hpp)
+
+file(GLOB LAPIS_ALGO_SOURCES
+	src/algorithms/*.cpp
+	src/algorithms/*.hpp)
+
+file(GLOB LAPIS_TEST_SOURCES
+	src/test/*.cpp
+	src/test/*.hpp)
+
+file(GLOB LAPIS_IMGUI_SOURCES
+	src/imgui/*.cpp
+	src/imgui/*.h)
+
+file(GLOB LAPIS_EXE_SOURCES
+	src/*.cpp
+	src/*.hpp)
 
 add_library(Lapis_gis STATIC ${LAPIS_GIS_SOURCES})
-add_library(Lapis_app STATIC ${LAPIS_APP_SOURCES})
+add_library(Lapis_algorithms STATIC ${LAPIS_ALGO_SOURCES})
+add_library(Lapis_params STATIC ${LAPIS_PARAMETERS_SOURCES})
+add_library(Lapis_run STATIC ${LAPIS_RUN_SOURCES})
+add_library(Lapis_logger STATIC ${LAPIS_LOGGER_SOURCES})
 add_library(Lapis_imgui STATIC ${LAPIS_IMGUI_SOURCES})
 
 add_executable(Lapis WIN32 src/lapis.cpp)
 target_link_libraries(Lapis PUBLIC Lapis_gis)
-target_link_libraries(Lapis PUBLIC Lapis_app)
+target_link_libraries(Lapis PUBLIC Lapis_logger)
+target_link_libraries(Lapis PUBLIC Lapis_algorithms)
+target_link_libraries(Lapis PUBLIC Lapis_params)
+target_link_libraries(Lapis PUBLIC Lapis_run)
 target_link_libraries(Lapis PUBLIC Lapis_imgui)
 
 add_executable(Lapis_test ${LAPIS_TEST_SOURCES})
 target_link_libraries(Lapis_test PUBLIC Lapis_gis)
-target_link_libraries(Lapis_test PUBLIC Lapis_app)
+target_link_libraries(Lapis_test PUBLIC Lapis_logger)
+target_link_libraries(Lapis_test PUBLIC Lapis_algorithms)
+target_link_libraries(Lapis_test PUBLIC Lapis_params)
+target_link_libraries(Lapis_test PUBLIC Lapis_run)
 target_link_libraries(Lapis_test PUBLIC Lapis_imgui)
 
 find_package(GDAL REQUIRED)
@@ -187,20 +124,29 @@ add_library(lazperf STATIC ${LAZPERF_FILES})
 target_link_libraries(Lapis PRIVATE lazperf)
 target_link_libraries(Lapis_test PRIVATE lazperf)
 
-target_precompile_headers(Lapis_app PRIVATE src/app_pch.hpp)
+target_precompile_headers(Lapis_params PRIVATE src/parameters/param_pch.hpp)
+target_precompile_headers(Lapis_run PRIVATE src/run/run_pch.hpp)
 target_precompile_headers(Lapis_gis PRIVATE src/gis/gis_pch.hpp)
+target_precompile_headers(Lapis_algorithms PRIVATE src/algorithms/algo_pch.hpp)
 
 if(MSVC)
   target_compile_options(Lapis PRIVATE /W3 /WX)
-  target_compile_options(Lapis_app PRIVATE /W3 /WX)
+  target_compile_options(Lapis_logger PRIVATE /W3 /WX)
+  target_compile_options(Lapis_params PRIVATE /W3 /WX)
+  target_compile_options(Lapis_algorithms PRIVATE /W3 /WX)
+  target_compile_options(Lapis_run PRIVATE /W3 /WX)
   target_compile_options(Lapis_gis PRIVATE /W3 /WX)
   target_compile_options(Lapis_test PRIVATE /W3 /WX)
   target_compile_options(lazperf PRIVATE /W0)
   target_compile_options(nfd PRIVATE /W0)
+  target_compile_options(Lapis_imgui PRIVATE /W0)
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Lapis)
 else()
   target_compile_options(Lapis PRIVATE -Wall -Wextra -Werror)
-  target_compile_options(Lapis_app PRIVATE -Wall -Wextra -Werror)
+  target_compile_options(Lapis_logger PRIVATE -Wall -Wextra -Werror)
+  target_compile_options(Lapis_params PRIVATE -Wall -Wextra -Werror)
+  target_compile_options(Lapis_algorithms PRIVATE -Wall -Wextra -Werror)
+  target_compile_options(Lapis_run PRIVATE -Wall -Wextra -Werror)
   target_compile_options(Lapis_gis PRIVATE -Wall -Wextra -Werror)
   target_compile_options(Lapis_test PRIVATE -Wall -WExtra -Werror)
 endif()

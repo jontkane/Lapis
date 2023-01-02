@@ -2,7 +2,7 @@
 #ifndef lapis_projwrappers_h
 #define lapid_projwrappers_h
 
-#include"BaseDefs.hpp"
+#include"..\LapisTypeDefs.hpp"
 
 namespace lapis {
 

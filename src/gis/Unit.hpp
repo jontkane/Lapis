@@ -2,7 +2,8 @@
 #ifndef lp_unit_h
 #define lp_unit_h
 
-#include"BaseDefs.hpp"
+#include"..\LapisTypeDefs.hpp"
+#include<regex>
 
 namespace lapis {
 	enum class unitStatus {

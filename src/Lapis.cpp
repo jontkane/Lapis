@@ -7,9 +7,9 @@
 #endif
 
 
-#include"LapisController.hpp"
-#include"LapisGui.hpp"
-#include"LapisData.hpp"
+#include"run/LapisController.hpp"
+#include"parameters/LapisGui.hpp"
+#include"parameters/RunParameters.hpp"
 #include<sstream>
 
 using namespace lapis;
@@ -18,10 +18,10 @@ int unifiedMain(std::vector<std::string> args) {
 	if (!args.size()) {
 		args.push_back("--help");
 	}
-	auto& d = LapisData::getDataObject();
-	using pr = LapisData::ParseResults;
-	pr parsed = d.parseArgs(args);
-	d.importBoostAndUpdateUnits();
+	RunParameters& rp = RunParameters::singleton();
+	using pr = RunParameters::ParseResults;
+	pr parsed = rp.parseArgs(args);
+	rp.importBoostAndUpdateUnits();
 	if (parsed == pr::invalidOpts) {
 		std::cout << "Error parsing command line\n";
 		return 1;
@@ -30,7 +30,7 @@ int unifiedMain(std::vector<std::string> args) {
 		return 0;
 	}
 	else if (parsed == pr::guiRequested) {
-		renderFullGui();
+		LapisGui<LapisController>::singleton().renderFullGui();
 		return 0;
 	}
 
@@ -73,7 +73,7 @@ int APIENTRY WinMain(
 
 	bool attachResult = AttachConsole(ATTACH_PARENT_PROCESS);
 	if (!attachResult) { //there is no parent console. Just open the GUI
-		renderFullGui();
+		LapisGui<LapisController>::singleton().renderFullGui();
 		return 0;
 	}
 	std::array<char, 30> oldTitle = std::array<char, 30>();

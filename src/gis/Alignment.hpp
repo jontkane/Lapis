@@ -3,6 +3,7 @@
 #define lapis_alignment_h
 
 #include"gis_pch.hpp"
+#include"GisExceptions.hpp"
 #include"extent.hpp"
 #include"QuadExtent.hpp"
 

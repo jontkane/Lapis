@@ -1,8 +1,6 @@
 #include"gis_pch.hpp"
+#include"GisExceptions.hpp"
 #include"Extent.hpp"
-
-
-//This constructor manually sets the bounds but leaves the crs undefined
 
 namespace lapis {
 	Extent::Extent(const coord_t xmin, const coord_t xmax, const coord_t ymin, const coord_t ymax) : _xmin(xmin), _xmax(xmax), _ymin(ymin), _ymax(ymax) {

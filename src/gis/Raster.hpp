@@ -2,9 +2,8 @@
 #ifndef lapis_raster_h
 #define lapis_raster_h
 
-#include"Alignment.hpp"
 #include"gis_pch.hpp"
-
+#include"Alignment.hpp"
 
 namespace lapis {
 

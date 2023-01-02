@@ -1,5 +1,6 @@
 #include"gis_pch.hpp"
 #include"CurrentLasPoint.hpp"
+#include"GisExceptions.hpp"
 
 namespace lapis {
 	CurrentLasPoint::CurrentLasPoint(const std::string& file)  {

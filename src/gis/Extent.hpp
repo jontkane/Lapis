@@ -2,7 +2,7 @@
 #ifndef lapis_fixedextent_h
 #define lapis_fixedextent_h
 
-#include"BaseDefs.hpp"
+#include"..\LapisTypeDefs.hpp"
 #include"lasio.hpp"
 #include"CoordRef.hpp"
 

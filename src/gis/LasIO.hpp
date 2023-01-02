@@ -2,9 +2,7 @@
 #ifndef lapis_lasheader_h
 #define lapis_lasheader_h
 
-
-
-#include"BaseDefs.hpp"
+#include"..\LapisTypeDefs.hpp"
 #include"GeoTiffWrapper.hpp"
 
 //This class implements the reading of the header of a las or laz file without the full overhead of using laszip
