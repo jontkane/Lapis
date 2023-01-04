@@ -18,7 +18,7 @@ namespace lapis {
 		_smooth.addOption("5x5", 5, 5);
 		_smooth.setSingleLine();
 
-		_footprint.addHelpText("This value indicates the estimated diameter of a lidar pulse as it strikes the canopy.\n\n"
+		_footprintDiameter.addHelpText("This value indicates the estimated diameter of a lidar pulse as it strikes the canopy.\n\n"
 			"Each return will be considered a circle with this diameter for the purpose of constructing the canopy surface model.\n\n"
 			"If this behavior is undesirable, set the value to 0.");
 		_smooth.addHelpText("The desired smoothing for the output CSM.\n\n"
@@ -31,14 +31,14 @@ namespace lapis {
 	void CsmParameter::addToCmd(BoostOptDesc& visible,
 		BoostOptDesc& hidden) {
 		_cellsize.addToCmd(visible, hidden);
-		_footprint.addToCmd(visible, hidden);
+		_footprintDiameter.addToCmd(visible, hidden);
 		_doMetrics.addToCmd(visible, hidden);
 		_smooth.addToCmd(visible, hidden);
 		_fill.addToCmd(visible, hidden);
 	}
 	std::ostream& CsmParameter::printToIni(std::ostream& o) {
 		_cellsize.printToIni(o);
-		_footprint.printToIni(o);
+		_footprintDiameter.printToIni(o);
 		_doMetrics.printToIni(o);
 		_smooth.printToIni(o);
 		_fill.printToIni(o);
@@ -53,18 +53,18 @@ namespace lapis {
 		_cellsize.renderGui();
 
 		_smooth.renderGui();
-		_footprint.renderGui();
+		_footprintDiameter.renderGui();
 		_fill.renderGui();
 
 		_doMetrics.renderGui();
 	}
 	void CsmParameter::updateUnits() {
 		_cellsize.updateUnits();
-		_footprint.updateUnits();
+		_footprintDiameter.updateUnits();
 	}
 	void CsmParameter::importFromBoost() {
 		_smooth.importFromBoost();
-		_footprint.importFromBoost();
+		_footprintDiameter.importFromBoost();
 		_cellsize.importFromBoost();
 		_doMetrics.importFromBoost();
 		_fill.importFromBoost();
@@ -89,11 +89,11 @@ namespace lapis {
 			return true;
 		}
 
-		if (std::isnan(_footprint.getValueLogErrors()) || std::isnan(_cellsize.getValueLogErrors())) {
+		if (std::isnan(_footprintDiameter.getValueLogErrors()) || std::isnan(_cellsize.getValueLogErrors())) {
 			return false;
 		}
 
-		if (_footprint.getValueLogErrors() < 0) {
+		if (_footprintDiameter.getValueLogErrors() < 0) {
 			log.logMessage("Pulse diameter must be non-negative");
 			return false;
 		}
@@ -102,9 +102,14 @@ namespace lapis {
 			return false;
 		}
 
+		//so large that the outer edge of the circle will skip entire cells sometimes
+		if (_footprintDiameter.getValueLogErrors() >= _cellsize.getValueLogErrors() * 2) {
+			log.logMessage("Pulse diameter is too large for your CSM resolution. Increase CSM cellsize or reduce pulse diameter.");
+		}
+
 		coord_t cellsize = convertUnits(_cellsize.getValueLogErrors(), u, metricAlign.crs().getXYUnits());
 		Alignment csmAlign{ metricAlign, metricAlign.xOrigin(), metricAlign.yOrigin(), cellsize, cellsize };
-		coord_t footprintRadius = _footprint.getValueLogErrors() / 2.;
+		coord_t footprintRadius = _footprintDiameter.getValueLogErrors() / 2.;
 		csmAlign = extendAlignment(csmAlign,
 			Extent(csmAlign.xmin() - footprintRadius,
 				csmAlign.xmax() + footprintRadius,
@@ -113,7 +118,7 @@ namespace lapis {
 			SnapType::out);
 		_csmAlign = std::make_shared<Alignment>(csmAlign);
 
-		_csmAlgorithm = std::make_unique<MaxPoint>(_footprint.getValueLogErrors());
+		_csmAlgorithm = std::make_unique<MaxPoint>(_footprintDiameter.getValueLogErrors());
 
 		coord_t lookDist = convertUnits(5, LinearUnitDefs::meter, _csmAlign->crs().getXYUnits());
 		if (_smooth.currentSelection() > 1 && _fill.currentState()) {

@@ -9,7 +9,7 @@ namespace lapis {
 		std::filesystem::remove_all(fineIntDir());
 		std::filesystem::remove_all(fineIntTempDir());
 
-		_fineIntBaseName = _getter->fineIntCanopyCutoff() > std::numeric_limits<coord_t>::lowest() ? "MeanCanopyIntensity_" : "MeanIntensity_";
+		_fineIntBaseName = _getter->fineIntCanopyCutoff() > std::numeric_limits<coord_t>::lowest() ? "MeanCanopyIntensity" : "MeanIntensity";
 	}
 	void FineIntHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
 	{

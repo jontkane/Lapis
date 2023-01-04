@@ -12,6 +12,9 @@ namespace lapis {
 
 	class SharedParameterGetter {
 	public:
+
+		virtual ~SharedParameterGetter() = default;
+
 		virtual const Unit& outUnits() = 0;
 		virtual const std::shared_ptr<Alignment> metricAlign() = 0;
 		virtual std::shared_ptr<Raster<bool>> layout() = 0;
@@ -26,6 +29,9 @@ namespace lapis {
 
 	class PointMetricParameterGetter : public virtual SharedParameterGetter {
 	public:
+
+		virtual ~PointMetricParameterGetter() = default;
+
 		virtual bool doPointMetrics() = 0;
 		virtual bool doFirstReturnMetrics() = 0;
 		virtual bool doAllReturnMetrics() = 0;
@@ -40,6 +46,9 @@ namespace lapis {
 
 	class CsmParameterGetter : public virtual SharedParameterGetter {
 	public:
+
+		virtual ~CsmParameterGetter() = default;
+
 		virtual const std::shared_ptr<Alignment> csmAlign() = 0;
 		virtual CsmAlgorithm* csmAlgorithm() = 0;
 		virtual CsmPostProcessor* csmPostProcessAlgorithm() = 0;
@@ -49,6 +58,8 @@ namespace lapis {
 
 	class TaoParameterGetter : public virtual SharedParameterGetter {
 	public:
+		virtual ~TaoParameterGetter() = default;
+
 		virtual TaoIdAlgorithm* taoIdAlgorithm() = 0;
 		virtual TaoSegmentAlgorithm* taoSegAlgorithm() = 0;
 		virtual bool doTaos() = 0;
@@ -56,6 +67,8 @@ namespace lapis {
 
 	class FineIntParameterGetter : public virtual SharedParameterGetter {
 	public:
+		virtual ~FineIntParameterGetter() = default;
+
 		virtual const std::shared_ptr<Alignment> fineIntAlign() = 0;
 		virtual coord_t fineIntCanopyCutoff() = 0;
 		virtual bool doFineInt() = 0;
@@ -63,6 +76,8 @@ namespace lapis {
 
 	class TopoParameterGetter : public virtual SharedParameterGetter {
 	public:
+		virtual ~TopoParameterGetter() = default;
+
 		virtual bool doTopo() = 0;
 	};
 
@@ -72,7 +87,10 @@ namespace lapis {
 		public TaoParameterGetter,
 		public FineIntParameterGetter,
 		public TopoParameterGetter
-	{};
+	{
+	public:
+		virtual ~ParameterGetter() = default;
+	};
 }
 
 #endif

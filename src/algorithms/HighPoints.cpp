@@ -67,6 +67,14 @@ namespace lapis {
 
 		return out;
 	}
+	coord_t HighPoints::minHt()
+	{
+		return _minHt;
+	}
+	coord_t HighPoints::minDist()
+	{
+		return _minDist;
+	}
 	std::vector<cell_t> HighPoints::_taoCandidates(const Raster<csm_t>& csm)
 	{
 		std::vector<cell_t> candidates;

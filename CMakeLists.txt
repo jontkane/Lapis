@@ -128,6 +128,7 @@ target_precompile_headers(Lapis_params PRIVATE src/parameters/param_pch.hpp)
 target_precompile_headers(Lapis_run PRIVATE src/run/run_pch.hpp)
 target_precompile_headers(Lapis_gis PRIVATE src/gis/gis_pch.hpp)
 target_precompile_headers(Lapis_algorithms PRIVATE src/algorithms/algo_pch.hpp)
+target_precompile_headers(Lapis_test PRIVATE src/test/test_pch.hpp)
 
 if(MSVC)
   target_compile_options(Lapis PRIVATE /W3 /WX)

@@ -59,4 +59,8 @@ namespace lapis {
 	{
 		return std::max(a, b);
 	}
+	coord_t MaxPoint::footprintRadius()
+	{
+		return _footprintRadius;
+	}
 }

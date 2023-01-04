@@ -1,3 +1,4 @@
+#include"test_pch.hpp"
 #include"ParameterSpoofer.hpp"
 
 namespace lapis {
@@ -21,7 +22,7 @@ namespace lapis {
 	{
 		_layout = std::make_shared<Raster<bool>>(a);
 	}
-	shared_raster<bool> SharedParameterSpoofer::layout()
+	std::shared_ptr<Raster<bool>> SharedParameterSpoofer::layout()
 	{
 		return _layout;
 	}
@@ -60,6 +61,10 @@ namespace lapis {
 	const std::vector<Extent>& SharedParameterSpoofer::lasExtents()
 	{
 		return _lasExtents;
+	}
+	std::string SharedParameterSpoofer::layoutTileName(cell_t tile)
+	{
+		return std::to_string(tile);
 	}
 	void PointMetricParameterSpoofer::setDoPointMetrics(bool b)
 	{
@@ -142,21 +147,21 @@ namespace lapis {
 	{
 		return _csmAlign;
 	}
-	void CsmParameterSpoofer::setFootprintDiameter(coord_t v)
+	void CsmParameterSpoofer::setCsmAlgo(CsmAlgorithm* algo)
 	{
-		_footprint = v;
+		_csmAlgorithm = std::unique_ptr<CsmAlgorithm>(algo);
 	}
-	coord_t CsmParameterSpoofer::footprintDiameter()
+	CsmAlgorithm* CsmParameterSpoofer::csmAlgorithm()
 	{
-		return _footprint;
+		return _csmAlgorithm.get();
 	}
-	void CsmParameterSpoofer::setSmooth(int v)
+	void CsmParameterSpoofer::setCsmPostProcessor(CsmPostProcessor* algo)
 	{
-		_smooth = v;
+		_csmPostProcessAlgorithm = std::unique_ptr<CsmPostProcessor>(algo);
 	}
-	int CsmParameterSpoofer::smooth()
+	CsmPostProcessor* CsmParameterSpoofer::csmPostProcessAlgorithm()
 	{
-		return _smooth;
+		return _csmPostProcessAlgorithm.get();
 	}
 	void CsmParameterSpoofer::setDoCsm(bool b)
 	{
@@ -174,22 +179,6 @@ namespace lapis {
 	{
 		return _doCsmMetrics;
 	}
-	void TaoParameterSpoofer::setMinTaoHt(coord_t v)
-	{
-		_minHt = v;
-	}
-	coord_t TaoParameterSpoofer::minTaoHt()
-	{
-		return _minHt;
-	}
-	void TaoParameterSpoofer::setMinTaoDist(coord_t v)
-	{
-		_minDist = v;
-	}
-	coord_t TaoParameterSpoofer::minTaoDist()
-	{
-		return _minDist;
-	}
 	void TaoParameterSpoofer::setDoTaos(bool b)
 	{
 		_doTaos = b;
@@ -198,13 +187,21 @@ namespace lapis {
 	{
 		return _doTaos;
 	}
-	IdAlgo::IdAlgo TaoParameterSpoofer::taoIdAlgo()
+	void TaoParameterSpoofer::setTaoIdAlgorithm(TaoIdAlgorithm* algo)
 	{
-		return IdAlgo::HIGHPOINT;
+		_taoIdAlgorithm = std::unique_ptr<TaoIdAlgorithm>(algo);
 	}
-	SegAlgo::SegAlgo TaoParameterSpoofer::taoSegAlgo()
+	TaoIdAlgorithm* TaoParameterSpoofer::taoIdAlgorithm()
 	{
-		return SegAlgo::WATERSHED;
+		return _taoIdAlgorithm.get();
+	}
+	void TaoParameterSpoofer::setTaoSegAlgorithm(TaoSegmentAlgorithm* algo)
+	{
+		_taoSegAlgorithm = std::unique_ptr<TaoSegmentAlgorithm>(algo);
+	}
+	TaoSegmentAlgorithm* TaoParameterSpoofer::taoSegAlgorithm()
+	{
+		return _taoSegAlgorithm.get();
 	}
 	void FineIntParameterSpoofer::setFineIntAlign(const Alignment& a)
 	{

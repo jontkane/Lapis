@@ -2,7 +2,9 @@
 #ifndef lapis_projwrappers_h
 #define lapid_projwrappers_h
 
+#include"gis_pch.hpp"
 #include"..\LapisTypeDefs.hpp"
+
 
 namespace lapis {
 

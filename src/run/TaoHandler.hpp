@@ -51,15 +51,6 @@ namespace lapis {
 		std::string _taoBasename = "TAOs";
 		std::string _segmentsBasename = "Segments";
 		std::string _maxHeightBasename = "MaxHeight";
-
-		class GenerateIdByTile : public UniqueIdGenerator {
-		public:
-			GenerateIdByTile(cell_t nTiles, cell_t thisTile);
-			taoid_t nextId() override;
-		private:
-			taoid_t _nTiles;
-			taoid_t _previousId;
-		};
 	};
 }
 

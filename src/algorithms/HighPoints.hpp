@@ -13,6 +13,10 @@ namespace lapis {
 
 		std::vector<cell_t> identifyTaos(const Raster<csm_t>& csm);
 
+		//for testing
+		coord_t minHt();
+		coord_t minDist();
+
 	private:
 
 		std::vector<cell_t> _taoCandidates(const Raster<csm_t>& csm);

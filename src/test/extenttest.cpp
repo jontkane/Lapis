@@ -1,5 +1,5 @@
+#include"test_pch.hpp"
 #include"..\gis\extent.hpp"
-#include<gtest/gtest.h>
 
 namespace lapis {
 	void extentSame(const Extent& actual, const Extent& expected) {

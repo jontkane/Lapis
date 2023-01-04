@@ -1,39 +1,45 @@
-#include<gtest/gtest.h>
-#include"..\demalgos.hpp"
-#include"..\LapisData.hpp"
+#include"test_pch.hpp"
+#include"..\algorithms\AllDemAlgorithms.hpp"
 
 namespace lapis {
 
-	LapisData& data() {
-		return LapisData::getDataObject();
-	}
+	class DemSpoofer {
+	public:
+		void addDem(const Raster<csm_t>& r) {
+			_aligns.push_back(r);
 
-	void prepareParams(const std::vector<std::string>& args) {
-		data().resetObject();
-		data().parseArgs(args);
-		data().importBoostAndUpdateUnits();
-		data().prepareForRun();
-	}
+			_rasters.push_back(r);
+		}
 
-	void prepareParamsNoSlowStuff(std::vector<std::string> args) {
-		args.push_back("--debug-no-alignment");
-		args.push_back("--debug-no-output");
-		prepareParams(args);
-	}
+		const std::vector<Alignment>& demAligns() { return _aligns; }
+		Raster<coord_t> getDem(size_t n) { return _rasters[n]; }
+
+	private:
+		std::vector<Alignment> _aligns;
+		std::vector<Raster<coord_t>> _rasters;
+	};
 
 	TEST(DemAlgoTest, vendorrastertest) {
-		std::vector<std::string> args;
-		std::string testfilefolder = LAPISTESTFILES;
-		args.push_back("--dem=" + testfilefolder + "finegroundmodeltest.img");
-		args.push_back("--dem=" + testfilefolder + "coarsegroundmodeltest.img");
-		args.push_back("--minht=0");
-		args.push_back("--maxht=100");
 
-		prepareParamsNoSlowStuff(args);
 
-		//the fine raster is Alignment(0,5,0,5,5,5) and has a universal value of 1
-		//the coarse raster is Alignment(0,10,0,10,2,2) and have a universal value of 10
-		//as long as you don't extract too close to the boundary between them, you can expect a value of either 1 or 10 out
+		Raster<coord_t> demOne{ Alignment(Extent(0,5,0,5,"2927"),5,5)};
+		for (cell_t cell = 0; cell < demOne.ncell(); ++cell) {
+			demOne[cell].has_value() = true;
+			demOne[cell].value() = 1;
+		}
+		Raster<coord_t> demTwo{ Alignment(Extent(0,10,0,10,"2927"),2,2)};
+		for (cell_t cell = 0; cell < demTwo.ncell(); ++cell) {
+			demTwo[cell].has_value() = true;
+			demTwo[cell].value() = 10;
+		}
+
+		DemSpoofer spoof;
+		spoof.addDem(demOne);
+		spoof.addDem(demTwo);
+
+
+		VendorRaster<DemSpoofer> algo(&spoof);
+		algo.setMinMax(0, 100);
 
 		LidarPointVector lpv{ "2927" };
 		lpv.push_back({ 0.5,0.5,11,0,0 }); //normalizes to 10 in the fine raster and 1 in the coarse raster. expected: 10
@@ -44,8 +50,7 @@ namespace lapis {
 		
 		Extent e{ 0,15,0,15,"2927"};
 
-		VendorRaster vr;
-		PointsAndDem pad = vr.normalizeToGround(lpv, e);
+		auto pad = algo.normalizeToGround(lpv, e);
 
 		ASSERT_EQ(pad.points.size(), 2);
 		EXPECT_NEAR(pad.points[0].z, 10, 0.1);
@@ -70,7 +75,7 @@ namespace lapis {
 		//repojecting everything doesn't change the fundamental situation, and the results should be roughly the same.
 		lpv.transform(CoordRef("2285"));
 		e = QuadExtent(e, CoordRef("2285")).outerExtent();
-		pad = vr.normalizeToGround(lpv, e);
+		pad = algo.normalizeToGround(lpv, e);
 
 		EXPECT_NEAR(pad.dem.xres(), 1, 0.1);
 		EXPECT_NEAR(pad.dem.yres(), 1, 0.1);
@@ -95,5 +100,27 @@ namespace lapis {
 		ASSERT_EQ(pad.points.size(), 2);
 		EXPECT_NEAR(pad.points[0].z, 10, 0.1);
 		EXPECT_NEAR(pad.points[1].z, 1, 0.1);
+	}
+
+	TEST(DemAlgoTest, AlreadyNormalizedTest) {
+		LidarPointVector lpv;
+		lpv.push_back(LasPoint{ 1,1,-1,0,0 });
+		lpv.push_back(LasPoint{ 2,2,101,0,0 });
+		lpv.push_back(LasPoint{ 3,3,50,0,0 });
+
+		AlreadyNormalized algo;
+		algo.setMinMax(0, 100);
+		auto pad = algo.normalizeToGround(lpv, Extent(0, 5, 0, 5));
+
+		EXPECT_TRUE(pad.dem.xmin() <= 0);
+		EXPECT_TRUE(pad.dem.xmax() >= 5);
+		EXPECT_TRUE(pad.dem.ymin() <= 0);
+		EXPECT_TRUE(pad.dem.ymax() >= 5);
+		EXPECT_EQ(pad.dem.ncell(), 1);
+		EXPECT_TRUE(pad.dem[0].has_value());
+		EXPECT_EQ(pad.dem[0].value(), 0);
+
+		EXPECT_EQ(pad.points.size(), 1);
+		EXPECT_EQ(pad.points[0].z, 50);
 	}
 }

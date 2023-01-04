@@ -1,5 +1,5 @@
+#include"test_pch.hpp"
 #include"..\gis\CoordVector.hpp"
-#include<gtest/gtest.h>
 
 namespace lapis {
 	class CoordVectorTest : public ::testing::Test {

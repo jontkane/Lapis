@@ -1,7 +1,7 @@
-#include<gtest/gtest.h>
-#include"..\ProductHandler.hpp"
+#include"test_pch.hpp"
+#include"..\run\PointMetricHandler.hpp"
 #include"ParameterSpoofer.hpp"
-#include"..\PointMetricCalculator.hpp"
+#include"..\run\PointMetricCalculator.hpp"
 
 namespace lapis {
 

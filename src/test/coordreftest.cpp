@@ -1,5 +1,5 @@
+#include"test_pch.hpp"
 #include"..\gis\CoordRef.hpp"
-#include<gtest/gtest.h>
 
 namespace lapis {
 	TEST(CoordRefTest, constructor) {

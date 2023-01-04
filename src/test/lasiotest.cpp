@@ -1,5 +1,5 @@
+#include"test_pch.hpp"
 #include"..\gis\LasIO.hpp"
-#include<gtest/gtest.h>
 
 
 //if you used the conda install of lazperf, this test will only succeed in release mode

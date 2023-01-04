@@ -1,5 +1,5 @@
+#include"test_pch.hpp"
 #include"..\gis\CropView.hpp"
-#include<gtest/gtest.h>
 
 namespace lapis {
 	TEST(CropViewTest, valueAccess) {

@@ -125,26 +125,23 @@ namespace lapis {
 			throw OutsideExtentException();
 		}
 		auto snapE = alignExtent(e, snap);
+		snapE = cropExtent(snapE, *this);
+
+		//debuffering the extent slightly to correct for floating point imprecision
+		snapE = Extent(snapE.xmin() + xres() / 10., snapE.xmax() - xres() / 10., snapE.ymin() + yres() / 10., snapE.ymax() - yres() / 10.);
+
 		auto rc = RowColExtent();
-		coord_t midx = (snapE.xmin() + snapE.xmax()) / 2;
-		coord_t midy = (snapE.ymin() + snapE.ymax()) / 2;
 		if (snapE.ymax() >= _ymax) {
 			rc.minrow = 0;
 		}
 		else {
 			rc.minrow = rowFromY(snapE.ymax());
 		}
-		if (!snapE.contains(midx, yFromRow(rc.minrow))) {
-			rc.minrow += 1;
-		}
 		if (snapE.ymin() <= _ymin) {
-			rc.maxrow = _nrow - 1;
+			rc.maxrow = _nrow;
 		}
 		else {
 			rc.maxrow = rowFromY(snapE.ymin());
-		}
-		if (!snapE.contains(midx, yFromRow(rc.maxrow))) {
-			rc.maxrow -= 1;
 		}
 		if (snapE.xmin() <= _xmin) {
 			rc.mincol = 0;
@@ -152,17 +149,17 @@ namespace lapis {
 		else {
 			rc.mincol = colFromX(snapE.xmin());
 		}
-		if (!snapE.contains(xFromCol(rc.mincol), midy)) {
-			rc.mincol += 1;
-		}
 		if (snapE.xmax() >= _xmax) {
-			rc.maxcol = _ncol - 1;
+			rc.maxcol = _ncol;
 		}
 		else {
 			rc.maxcol = colFromX(snapE.xmax());
 		}
-		if (!snapE.contains(xFromCol(rc.maxcol), midy)) {
-			rc.maxcol -= 1;
+		if (rc.maxrow < rc.minrow) {
+			rc.maxrow = rc.minrow;
+		}
+		if (rc.maxcol < rc.mincol) {
+			rc.maxcol = rc.mincol;
 		}
 		return rc;
 	}

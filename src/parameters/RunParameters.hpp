@@ -106,6 +106,8 @@ namespace lapis {
 
 	private:
 
+		friend class RunParametersTest;
+
 		RunParameters();
 		RunParameters(const RunParameters&) = delete;
 		RunParameters(RunParameters&&) = delete;

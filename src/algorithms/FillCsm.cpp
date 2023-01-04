@@ -13,6 +13,10 @@ namespace lapis {
 			if (!csm[cell].has_value()) {
 				_fillSingleValue(csm, out, cell);
 			}
+			else {
+				out[cell].has_value() = true;
+				out[cell].value() = csm[cell].value();
+			}
 		}
 
 		return out;

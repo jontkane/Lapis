@@ -8,8 +8,21 @@ namespace lapis {
 	}
 	void RadioDoubleBoolean::addToCmd(BoostOptDesc& visible, BoostOptDesc& hidden)
 	{
-		addToCmdBase<bool>(visible, hidden, &_firstBoost);
-		addToCmdBase<bool>(visible, hidden, &_secondBoost);
+		namespace po = boost::program_options;
+		auto addOneToBoost = [&](std::string name, bool* b) {
+			if (_alias > 0) {
+				name.push_back(',');
+				name.push_back(_alias);
+			}
+			if (_hidden) {
+				hidden.add_options()(name.c_str(), po::bool_switch(b), "");
+			}
+			else {
+				visible.add_options()(name.c_str(), po::bool_switch(b), _cmdDesc.c_str());
+			}
+		};
+		addOneToBoost(_firstCmdName, &_firstBoost);
+		addOneToBoost(_secondCmdName, &_secondBoost);
 	}
 	std::ostream& RadioDoubleBoolean::printToIni(std::ostream& o) const
 	{

@@ -9,6 +9,8 @@ namespace lapis {
 	class DemAlgorithm {
 	public:
 
+		virtual ~DemAlgorithm() = default;
+
 		struct PointsAndDem {
 			LidarPointVector points;
 			Raster<coord_t> dem;

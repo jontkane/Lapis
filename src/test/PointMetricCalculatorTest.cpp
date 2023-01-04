@@ -1,5 +1,6 @@
-#include"..\PointMetricCalculator.hpp"
-#include<gtest/gtest.h>
+
+#include"test_pch.hpp"
+#include"..\run\PointMetricCalculator.hpp"
 
 namespace lapis {
 

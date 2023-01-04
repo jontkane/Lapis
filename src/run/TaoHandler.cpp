@@ -154,6 +154,9 @@ namespace lapis {
 
 		Raster<taoid_t> segments;
 		std::string name = getFullTileFilename(taoTempDir(), _segmentsBasename, OutputUnitLabel::Unitless, tile).string();
+		if (!std::filesystem::exists(name)) {
+			return;
+		}
 		try {
 			segments = Raster<taoid_t>{ name };
 		}
@@ -237,23 +240,24 @@ namespace lapis {
 		}
 
 		cell_t sofar = 0;
-		auto threadfunc = [&]() {
-			while (true) {
-				cell_t thisidx;
-				{
-					std::lock_guard lock(_getter->globalMutex());
-					if (sofar >= _getter->layout()->ncell()) {
-						break;
-					}
-					thisidx = sofar;
-					++sofar;
-				}
-				_fixTaoIdsThread(thisidx);
-			}
-		};
 		std::vector<std::thread> threads;
 		for (int i = 0; i < _getter->nThread(); ++i) {
-			threads.push_back(std::thread(threadfunc));
+			threads.push_back(std::thread(
+				[&sofar, this]() {
+					while (true) {
+						cell_t thisidx;
+						{
+							std::lock_guard lock(_getter->globalMutex());
+							if (sofar >= _getter->layout()->ncell()) {
+								break;
+							}
+							thisidx = sofar;
+							++sofar;
+						}
+						_fixTaoIdsThread(thisidx);
+					}
+				}
+			));
 		}
 		for (int i = 0; i < _getter->nThread(); ++i) {
 			threads[i].join();
@@ -269,14 +273,5 @@ namespace lapis {
 	std::filesystem::path TaoHandler::taoTempDir() const
 	{
 		return tempDir() / "TAO";
-	}
-	TaoHandler::GenerateIdByTile::GenerateIdByTile(cell_t nTiles, cell_t thisTile)
-		: _nTiles((taoid_t)nTiles), _previousId((taoid_t)(thisTile - nTiles))
-	{
-	}
-	taoid_t TaoHandler::GenerateIdByTile::nextId()
-	{
-		_previousId += _nTiles;
-		return _previousId;
 	}
 }

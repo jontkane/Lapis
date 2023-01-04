@@ -37,12 +37,14 @@ namespace lapis {
 			Extent(e), _nrow(nrow), _ncol(ncol), _xres((e.xmax() - e.xmin()) / ncol), _yres((e.ymax() - e.ymin()) / nrow) {
 			checkValidAlignment();
 		}
-		//Constructor which forces an origin and deduces nrow and ncol from an extent and resolutio
+		//Constructor which forces an origin and deduces nrow and ncol from an extent and resolution
 		//The resulting alignment will be at least as large as the input extent
 		Alignment(const Extent& e, const coord_t xorigin, const coord_t yorigin, const coord_t xres, const coord_t yres);
 
 		//Constructor from a raster file
 		Alignment(const std::string& filename);
+
+		Alignment(const Alignment&) = default;
 
 		//just virtual declaring the destructor
 		virtual ~Alignment() noexcept = default;

@@ -1,5 +1,5 @@
-#include<gtest/gtest.h>
-#include"..\ProductHandler.hpp"
+#include"test_pch.hpp"
+#include"..\run\FineIntHandler.hpp"
 #include"ParameterSpoofer.hpp"
 
 namespace lapis {
@@ -26,8 +26,8 @@ namespace lapis {
 
 		fih.handlePoints(points, *spoof.fineIntAlign(), 0);
 
-		std::filesystem::path numName = fih.fineIntTempDir() / "0_num.tif";
-		std::filesystem::path denomName = fih.fineIntTempDir() / "0_denom.tif";
+		std::filesystem::path numName = fih.getFullTempFilename(fih.fineIntTempDir(), "numerator", OutputUnitLabel::Unitless, 0);
+		std::filesystem::path denomName = fih.getFullTempFilename(fih.fineIntTempDir(), "denominator", OutputUnitLabel::Unitless, 0);
 		ASSERT_TRUE(std::filesystem::exists(numName));
 		ASSERT_TRUE(std::filesystem::exists(denomName));
 
@@ -91,7 +91,7 @@ namespace lapis {
 
 		fih.handleCsmTile(Raster<csm_t>(),testTile);
 
-		std::filesystem::path name = fih.fineIntDir() / (spoof.name() + "_MeanCanopyIntensity_" + nameFromLayout(*spoof.layout(), testTile) + ".tif");
+		std::filesystem::path name = fih.getFullTileFilename(fih.fineIntDir(), "MeanCanopyIntensity", OutputUnitLabel::Unitless,testTile);
 		ASSERT_TRUE(std::filesystem::exists(name));
 		Raster<intensity_t> actual{ name.string() };
 
@@ -102,7 +102,6 @@ namespace lapis {
 				EXPECT_EQ(expected[cell].value(), actual[cell].value());
 			}
 		}
-
 
 		std::filesystem::remove_all(spoof.outFolder());
 	}

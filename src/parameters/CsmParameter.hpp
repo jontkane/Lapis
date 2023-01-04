@@ -37,7 +37,7 @@ namespace lapis {
 		CsmPostProcessor* csmPostProcessor();
 
 	private:
-		NumericTextBoxWithUnits _footprint{ "Diameter of Pulse Footprint:","footprint",0.4 };
+		NumericTextBoxWithUnits _footprintDiameter{ "Diameter of Pulse Footprint:","footprint",0.4 };
 		NumericTextBoxWithUnits _cellsize{ "Cellsize:","csm-cellsize",1,
 		"The desired cellsize of the output canopy surface model\n"
 			"Defaults to 1 meter" };

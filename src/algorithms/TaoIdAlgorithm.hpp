@@ -9,6 +9,9 @@ namespace lapis {
 
 	class TaoIdAlgorithm {
 	public:
+
+		virtual ~TaoIdAlgorithm() = default;
+
 		virtual std::vector<cell_t> identifyTaos(const Raster<csm_t>& csm) = 0;
 	};
 }

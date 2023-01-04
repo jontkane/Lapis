@@ -1,6 +1,8 @@
-#include<gtest/gtest.h>
+#include"test_pch.hpp"
 #include"ParameterSpoofer.hpp"
-#include"..\ProductHandler.hpp"
+#include"..\run\TaoHandler.hpp"
+#include"..\algorithms\AllTaoIdAlgorithms.hpp"
+#include"..\algorithms\AllTaoSegmentAlgorithms.hpp"
 
 namespace lapis {
 
@@ -19,6 +21,8 @@ namespace lapis {
 
 	void setReasonableTaoDefaults(TaoParameterSpoofer& spoof) {
 		setReasonableSharedDefaults(spoof);
+		spoof.setTaoIdAlgorithm(new HighPoints(2, 0));
+		spoof.setTaoSegAlgorithm(new WatershedSegment(2,100,0.01));
 	}
 
 	TEST(TaoHandlerTest, xyzarraytest) {
@@ -36,31 +40,31 @@ namespace lapis {
 			r[cell].has_value() = true;
 		}
 
-		Extent unbuffered = Extent(r.xmin(),
-			(r.xmin() + r.xmax()) / 2,
-			r.ymin(),
-			(r.ymin() + r.ymax()) / 2);
-		std::vector<cell_t> highPoints;
-		std::vector<CoordXYZ> expected;
-		for (cell_t cell = 0; cell < r.ncell(); ++cell) {
-			highPoints.push_back(cell);
-			if (unbuffered.contains(r.xFromCell(cell), r.yFromCell(cell))) {
-				expected.push_back({ r.xFromCell(cell), r.yFromCell(cell), r[cell].value() });
-			}
-		}
+Extent unbuffered = Extent(r.xmin(),
+	(r.xmin() + r.xmax()) / 2,
+	r.ymin(),
+	(r.ymin() + r.ymax()) / 2);
+std::vector<cell_t> highPoints;
+std::vector<CoordXYZ> expected;
+for (cell_t cell = 0; cell < r.ncell(); ++cell) {
+	highPoints.push_back(cell);
+	if (unbuffered.contains(r.xFromCell(cell), r.yFromCell(cell))) {
+		expected.push_back({ r.xFromCell(cell), r.yFromCell(cell), r[cell].value() });
+	}
+}
 
-		th.writeXYZArray(highPoints, r, unbuffered, 0);
-		std::vector<CoordXYZ> actual = th.readXYZArray(0);
+th.writeXYZArray(highPoints, r, unbuffered, 0);
+std::vector<CoordXYZ> actual = th.readXYZArray(0);
 
-		ASSERT_EQ(expected.size(), actual.size());
+ASSERT_EQ(expected.size(), actual.size());
 
-		for (size_t i = 0; i < expected.size(); ++i) {
-			EXPECT_EQ(expected[i].x, actual[i].x);
-			EXPECT_EQ(expected[i].y, actual[i].y);
-			EXPECT_EQ(expected[i].z, actual[i].z);
-		}
+for (size_t i = 0; i < expected.size(); ++i) {
+	EXPECT_EQ(expected[i].x, actual[i].x);
+	EXPECT_EQ(expected[i].y, actual[i].y);
+	EXPECT_EQ(expected[i].z, actual[i].z);
+}
 
-		std::filesystem::remove_all(spoof.outFolder());
+std::filesystem::remove_all(spoof.outFolder());
 	}
 
 	TEST(TaoHandlerTest, handletiletest) {
@@ -70,7 +74,6 @@ namespace lapis {
 		TaoHandlerProtectedAccess th(&spoof);
 
 		std::filesystem::remove_all(spoof.outFolder());
-		std::filesystem::create_directories(th.csmDir());
 
 		Raster<csm_t> fullCsm{ Alignment(0,0,6,6,0.5,0.5) };
 		for (cell_t cell = 0; cell < fullCsm.ncell(); ++cell) {
@@ -87,7 +90,7 @@ namespace lapis {
 		//the buffered csm here should just be all the tiles stitched together, so the outputs should be fairly easy to predict
 		Extent tileExtent = spoof.layout()->extentFromCell(testTile);
 
-		std::vector<cell_t> expectedHighPoints = identifyHighPointsWithMinDist(fullCsm, spoof.minTaoHt(), spoof.minTaoDist());
+		std::vector<cell_t> expectedHighPoints = spoof.taoIdAlgorithm()->identifyTaos(fullCsm);
 		std::vector<CoordXYZ> actualHighPoints = th.readXYZArray(testTile);
 		EXPECT_GT(actualHighPoints.size(), 0);
 		for (size_t i = 0; i < expectedHighPoints.size(); ++i) {
@@ -108,10 +111,11 @@ namespace lapis {
 			EXPECT_EQ(foundCount, wantToFind);
 		}
 
-		Raster<taoid_t> fullSegments = watershedSegment(fullCsm, expectedHighPoints, testTile, spoof.layout()->ncell());
+		GenerateIdByTile idGen{ spoof.layout()->ncell(),testTile };
+		Raster<taoid_t> fullSegments = spoof.taoSegAlgorithm()->segment(fullCsm, expectedHighPoints, idGen);
 
 		Raster<taoid_t> expectedSegments = cropRaster(fullSegments, tileExtent, SnapType::out);
-		std::filesystem::path segmentsFile = th.taoTempDir() / ("Segments_" + nameFromLayout(*spoof.layout(), testTile) + ".tif");
+		std::filesystem::path segmentsFile = th.getFullTileFilename(th.taoTempDir(), "Segments", OutputUnitLabel::Unitless, testTile);
 		Raster<taoid_t> actualSegments = Raster<taoid_t>(segmentsFile.string());
 		ASSERT_TRUE(expectedSegments.isSameAlignment(actualSegments));
 
@@ -122,16 +126,25 @@ namespace lapis {
 			}
 		}
 
+		std::filesystem::path maxHeightFile = th.getFullTileFilename(th.taoDir(), "MaxHeight", OutputUnitLabel::Default, testTile);
 
-		Raster<csm_t> expectedMaxHeight = cropRaster(maxHeightBySegment(fullSegments, fullCsm, expectedHighPoints),tileExtent,SnapType::out);
-		std::filesystem::path maxHeightFile = th.taoDir() / (spoof.name() + "_MaxHeight_" + nameFromLayout(*spoof.layout(), testTile) + "_Meters.tif");
 		Raster<csm_t> actualMaxHeight = Raster<csm_t>(maxHeightFile.string());
-		ASSERT_TRUE(expectedMaxHeight.isSameAlignment(actualMaxHeight));
+		ASSERT_TRUE(actualMaxHeight.isSameAlignment(actualSegments));
 
-		for (cell_t cell = 0; cell < expectedMaxHeight.ncell(); ++cell) {
-			EXPECT_TRUE(expectedMaxHeight[cell].has_value() == actualMaxHeight[cell].has_value());
-			if (expectedMaxHeight[cell].has_value()) {
-				EXPECT_NEAR(expectedMaxHeight[cell].value(), actualMaxHeight[cell].value(),0.001);
+		std::unordered_map<taoid_t, csm_t> heightBySegment;
+
+		for (cell_t cell = 0; cell < actualMaxHeight.ncell(); ++cell) {
+			EXPECT_TRUE(actualSegments[cell].has_value() == actualMaxHeight[cell].has_value());
+			if (actualMaxHeight[cell].has_value()) {
+				coord_t x = actualMaxHeight.xFromCell(cell);
+				coord_t y = actualMaxHeight.yFromCell(cell);
+				EXPECT_GE(actualMaxHeight[cell].value(), fullCsm.atXY(x, y).value());
+				if (!heightBySegment.contains(actualSegments[cell].value())) {
+					heightBySegment[actualSegments[cell].value()] = actualMaxHeight[cell].value();
+				}
+				else {
+					EXPECT_EQ(heightBySegment[actualSegments[cell].value()], actualMaxHeight[cell].value());
+				}
 			}
 		}
 
@@ -150,7 +163,6 @@ namespace lapis {
 		TaoHandlerProtectedAccess th(&spoof);
 
 		std::filesystem::remove_all(spoof.outFolder());
-		std::filesystem::create_directories(th.csmDir());
 
 		Raster<csm_t> fullCsm{ Alignment(0,0,6,6,0.5,0.5) };
 		for (cell_t cell = 0; cell < fullCsm.ncell(); ++cell) {
@@ -169,7 +181,7 @@ namespace lapis {
 		std::unordered_set<taoid_t> finalIDs;
 
 		for (cell_t tile = 0; tile < spoof.layout()->ncell(); ++tile) {
-			std::filesystem::path filename = (th.taoDir() / (spoof.name() + "_TAOs_" + nameFromLayout(*spoof.layout(), tile) + ".shp"));
+			std::filesystem::path filename = th.getFullTileFilename(th.taoDir(), "TAOs", OutputUnitLabel::Unitless, tile, "shp");
 			EXPECT_TRUE(std::filesystem::exists(filename));
 		
 			GDALDatasetWrapper highPoints = vectorGDALWrapper(filename.string());
@@ -189,7 +201,7 @@ namespace lapis {
 		}
 
 		for (cell_t tile = 0; tile < spoof.layout()->ncell(); ++tile) {
-			std::filesystem::path filename = th.taoDir() / (spoof.name() + "_Segments_" + nameFromLayout(*spoof.layout(), tile) + ".tif");
+			std::filesystem::path filename = th.getFullTileFilename(th.taoDir(), "Segments", OutputUnitLabel::Unitless, tile);
 			ASSERT_TRUE(std::filesystem::exists(filename));
 
 			Raster<taoid_t> segments{ filename.string() };

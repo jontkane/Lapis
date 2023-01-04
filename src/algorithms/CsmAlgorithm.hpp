@@ -8,6 +8,8 @@ namespace lapis {
 	class CsmAlgorithm {
 	public:
 
+		virtual ~CsmAlgorithm() = default;
+
 		//Takes a set of normalized, filtered units in the correct units, and the alignment you want the output CSM to be at
 		//The points must all be contained in that alignment
 		//The output CSM will be at least as large as a, but might be larger

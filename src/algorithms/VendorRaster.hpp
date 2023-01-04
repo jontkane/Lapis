@@ -31,7 +31,8 @@ namespace lapis {
 
 	template<class FILEGETTER>
 	inline DemAlgorithm::PointsAndDem VendorRaster<FILEGETTER>::normalizeToGround(const LidarPointVector& points, const Extent& e) {
-		DemAlgorithm::PointsAndDem out;
+
+		DemAlgorithm::PointsAndDem out{};
 
 		coord_t minRes = std::numeric_limits<coord_t>::max();
 		coord_t xOriginOfFinest = 0;
@@ -48,14 +49,17 @@ namespace lapis {
 				yOriginOfFinest = projAlign.yOrigin();
 			}
 
-			Raster<coord_t> demOriginalProj = _getter->getDem(i);
-			overlappingDems.push_back(demOriginalProj.transformRaster(e.crs(), ExtractMethod::bilinear));
+			Raster<coord_t> dem = _getter->getDem(i);
+			if (!dem.crs().isConsistentHoriz(e.crs())) {
+				dem = dem.transformRaster(e.crs(), ExtractMethod::bilinear);
+			}
+			overlappingDems.emplace_back(std::move(dem));
 		}
+
 
 		std::sort(overlappingDems.begin(), overlappingDems.end(),
 			[](const auto& a, const auto& b) {return a.xres() * a.yres() < b.xres() * b.yres(); });
 		//at the end of all this, the list should now be sorted by cellsize. DEMs in the same CRS as the points should have had to undergo any loss of precision
-
 		out.dem = Raster<coord_t>{ Alignment(e,xOriginOfFinest,yOriginOfFinest,minRes,minRes) };
 		for (const Raster<coord_t>& dem : overlappingDems) {
 			Raster<coord_t> resampled;

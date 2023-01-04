@@ -1,6 +1,6 @@
-#include<gtest/gtest.h>
+#include"test_pch.hpp"
 #include"ParameterSpoofer.hpp"
-#include"..\ProductHandler.hpp"
+#include"..\run\TopoHandler.hpp"
 
 namespace lapis {
 	class TopoHandlerProtectedAccess : public TopoHandler {

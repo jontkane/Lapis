@@ -1,5 +1,5 @@
+#include"test_pch.hpp"
 #include"..\gis\LasReader.hpp"
-#include<gtest/gtest.h>
 
 namespace lapis{
 	TEST(LasReaderTest, getPoints) {

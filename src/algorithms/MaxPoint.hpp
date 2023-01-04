@@ -16,6 +16,9 @@ namespace lapis {
 
 		csm_t combineCells(csm_t a, csm_t b) override;
 
+		//just for testing
+		coord_t footprintRadius();
+
 	private:
 		coord_t _footprintRadius;
 	};

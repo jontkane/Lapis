@@ -1,5 +1,5 @@
+#include"test_pch.hpp"
 #include"..\gis\Raster.hpp"
-#include<gtest/gtest.h>
 
 namespace lapis {
 

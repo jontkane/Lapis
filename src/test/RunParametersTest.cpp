@@ -1,55 +1,82 @@
-#include"..\LapisData.hpp"
-#include<gtest/gtest.h>
+#include"test_pch.hpp"
+#include"..\parameters\RunParameters.hpp"
+#include"..\algorithms\AllDemAlgorithms.hpp"
+#include"..\parameters\AllParameters.hpp"
+#include"..\algorithms\AllCsmAlgorithms.hpp"
+#include"..\algorithms\AllCsmPostProcessors.hpp"
+#include"..\algorithms\AllTaoIdAlgorithms.hpp"
+#include"..\algorithms\AllTaoSegmentAlgorithms.hpp"
+
 
 namespace lapis {
-	class LapisDataTest : public ::testing::Test {
+	class RunParametersTest : public ::testing::Test {
 	public:
 
-		LapisData& data() {
-			return LapisData::getDataObject();
+		RunParameters& rp() {
+			return RunParameters::singleton();
 		}
 
 		void TearDown() override {
-			data().resetObject();
+			rp().resetObject();
 		}
 
 		void prepareParams(const std::vector<std::string>& args) {
-			data().resetObject();
-			data().parseArgs(args);
-			data().importBoostAndUpdateUnits();
-			data().prepareForRun();
+			rp().resetObject();
+			rp().parseArgs(args);
+			rp().importBoostAndUpdateUnits();
+			rp().prepareForRun();
 		}
 
 		void prepareParamsNoSlowStuff(std::vector<std::string> args) {
 			args.push_back("--debug-no-alignment");
 			args.push_back("--debug-no-output");
+			args.push_back("--dem-algo=none");
 			prepareParams(args);
+		}
+
+		void prepareParamsAllowDems(std::vector<std::string> args) {
+			args.push_back("--debug-no-alignment");
+			args.push_back("--debug-no-output");
+			prepareParams(args);
+		}
+
+		template<class T>
+		T& getRawParam() {
+			return rp()._getRawParam<T>();
 		}
 	};
 
-	TEST_F(LapisDataTest, demFiles) {
+	TEST_F(RunParametersTest, demFiles) {
 		std::string testFolder = LAPISTESTFILES;
 
 		std::filesystem::remove_all(testFolder + "/output"); //some other tests will write stuff here; they should clean up after themselves but just in case
 
-		prepareParamsNoSlowStuff({ "--dem=" + testFolder });
-		EXPECT_EQ(data().demAligns().size(), 5);
+		auto expectVendorRaster = [&](size_t numberOFRasters) {
+			EXPECT_NE(dynamic_cast<VendorRaster<DemParameter>*>(rp().demAlgorithm()), nullptr);
+			EXPECT_EQ(getRawParam<DemParameter>().demAligns().size(), numberOFRasters);
+		};
 
-		prepareParamsNoSlowStuff({"--dem=" + testFolder + "/*.img"});
-		EXPECT_EQ(data().demAligns().size(), 4);
+		prepareParamsAllowDems({ "--dem=" + testFolder });
+		expectVendorRaster(3);
 
-		prepareParamsNoSlowStuff({"--dem=" + testFolder + "/testraster.img"});
-		EXPECT_EQ(data().demAligns().size(), 1);
+		prepareParamsAllowDems({"--dem=" + testFolder + "/*.img"});
+		expectVendorRaster(2);
+
+		prepareParamsAllowDems({"--dem=" + testFolder + "/testraster.img"});
+		expectVendorRaster(1);
+
+		prepareParamsAllowDems({ "--dem-algo=none" });
+		EXPECT_NE(dynamic_cast<AlreadyNormalized*>(rp().demAlgorithm()), nullptr);
 	}
 
-	TEST_F(LapisDataTest, csmOptions) {
+	TEST_F(RunParametersTest, csmOptions) {
 		auto checkCsm = [&](coord_t expectedRes) {
-			const Alignment& csm = *data().csmAlign();
+			const Alignment& csm = *rp().csmAlign();
 
 			EXPECT_NEAR(csm.xres(), expectedRes,0.0001);
 			EXPECT_NEAR(csm.yres(), expectedRes,0.0001);
 
-			const Alignment& a = *data().metricAlign();
+			const Alignment& a = *rp().metricAlign();
 			EXPECT_LE(csm.xmin(), a.xmin());
 			EXPECT_GE(csm.xmax(), a.xmax());
 			EXPECT_LE(csm.ymin(), a.ymin());
@@ -60,9 +87,9 @@ namespace lapis {
 		};
 		
 		prepareParamsNoSlowStuff({});
-		coord_t defaultRes = data().csmAlign()->xres();
+		coord_t defaultRes = rp().csmAlign()->xres();
 		checkCsm(defaultRes);
-		EXPECT_TRUE(data().doCsmMetrics());
+		EXPECT_TRUE(rp().doCsmMetrics());
 
 		prepareParamsNoSlowStuff({"--user-units=ft"});
 		checkCsm(convertUnits(defaultRes, LinearUnitDefs::meter, LinearUnitDefs::foot));
@@ -70,28 +97,39 @@ namespace lapis {
 		prepareParamsNoSlowStuff({"--csm-cellsize=0.5"});
 		checkCsm(0.5);
 
-		prepareParams({ "--debug-no-alignment","--debug-no-output","--skip-csm-metrics"});
-		EXPECT_FALSE(data().doCsmMetrics());
+		prepareParamsNoSlowStuff({ "--skip-csm-metrics"});
+		EXPECT_FALSE(rp().doCsmMetrics());
 
-		prepareParamsNoSlowStuff({ "--footprint=2" });
-		EXPECT_EQ(data().footprintDiameter(), 2);
+		prepareParamsNoSlowStuff({ "--footprint=0.1" });
+		MaxPoint* algo = dynamic_cast<MaxPoint*>(rp().csmAlgorithm());
+		ASSERT_NE(algo, nullptr);
+		EXPECT_EQ(algo->footprintRadius(),0.05);
 
-		prepareParamsNoSlowStuff({ "--smooth=5" });
-		EXPECT_EQ(data().smooth(), 5);
+		prepareParamsNoSlowStuff({ "--smooth=1","--no-csm-fill"});
+		EXPECT_NE(dynamic_cast<DoNothingCsm*>(rp().csmPostProcessAlgorithm()), nullptr);
+
+		prepareParamsNoSlowStuff({ "--smooth=3","--no-csm-fill" });
+		EXPECT_NE(dynamic_cast<SmoothCsm*>(rp().csmPostProcessAlgorithm()), nullptr);
+
+		prepareParamsNoSlowStuff({ "--smooth=1" });
+		EXPECT_NE(dynamic_cast<FillCsm*>(rp().csmPostProcessAlgorithm()), nullptr);
+
+		prepareParamsNoSlowStuff({ "--smooth=3" });
+		EXPECT_NE(dynamic_cast<SmoothAndFill*>(rp().csmPostProcessAlgorithm()), nullptr);
 	}
 
-	TEST_F(LapisDataTest, filters) {
+	TEST_F(RunParametersTest, filters) {
 		bool hasWithheld = false;
 		bool hasClassWhite = false;
 		bool hasClassBlack = false;
 		std::unordered_set<uint8_t> classSet;
 		
 		prepareParamsNoSlowStuff({ "--use-withheld","--class=3,12,17" });
-		coord_t defaultMin = data().minHt();
-		coord_t defaultMax = data().maxHt();
+		coord_t defaultMin = rp().minHt();
+		coord_t defaultMax = rp().maxHt();
 
 		auto checkFilters = [&] {
-			auto& filters = data().filters();
+			auto& filters = rp().filters();
 			hasWithheld = false;
 			hasClassBlack = false;
 			hasClassWhite = false;
@@ -131,31 +169,31 @@ namespace lapis {
 		EXPECT_TRUE(classSet.contains(12));
 		EXPECT_TRUE(classSet.contains(17));
 
-		EXPECT_NEAR(convertUnits(defaultMin, LinearUnitDefs::meter, LinearUnitDefs::foot),data().minHt(), 0.0001);
-		EXPECT_NEAR(convertUnits(defaultMax, LinearUnitDefs::meter, LinearUnitDefs::foot), data().maxHt(), 0.0001);
+		EXPECT_NEAR(convertUnits(defaultMin, LinearUnitDefs::meter, LinearUnitDefs::foot),rp().minHt(), 0.0001);
+		EXPECT_NEAR(convertUnits(defaultMax, LinearUnitDefs::meter, LinearUnitDefs::foot), rp().maxHt(), 0.0001);
 
 		prepareParamsNoSlowStuff({ "--minht=200","--maxht=5000" });
-		EXPECT_EQ(200, data().minHt());
-		EXPECT_EQ(5000, data().maxHt());
+		EXPECT_EQ(200, rp().minHt());
+		EXPECT_EQ(5000, rp().maxHt());
 	}
 
-	TEST_F(LapisDataTest, lasFilesAndAlignment) {
+	TEST_F(RunParametersTest, lasFilesAndAlignment) {
 
 		std::string testFileFolder = LAPISTESTFILES;
 		prepareParams({ "--las=" + testFileFolder, "--debug-no-output"});
-		const auto& extents = data().lasExtents();
+		const auto& extents = rp().lasExtents();
 
 		EXPECT_EQ(extents.size(), 5);
 		CoordRef crs = extents[0].crs();
 		for (size_t i = 0; i < extents.size(); ++i) {
 			EXPECT_TRUE(extents[i].crs().isConsistent(crs));
 		}
-		coord_t defaultCellSize = data().metricAlign()->xres();
-		coord_t defaultOrigin = data().metricAlign()->xOrigin();
+		coord_t defaultCellSize = rp().metricAlign()->xres();
+		coord_t defaultOrigin = rp().metricAlign()->xOrigin();
 
 		prepareParams({ "--las=" + testFileFolder + "/testlaz10.laz",
 			"--las=" + testFileFolder + "/testlaz14.laz", "--las-crs=2286","--las-units=m", "--debug-no-output" });
-		const auto& extentstwo = data().lasExtents();
+		const auto& extentstwo = rp().lasExtents();
 		EXPECT_EQ(extentstwo.size(), 2);
 		crs = CoordRef("2286", LinearUnitDefs::meter);
 		for (size_t i = 0; i < extentstwo.size(); ++i) {
@@ -163,7 +201,7 @@ namespace lapis {
 			EXPECT_TRUE(extentstwo[i].crs().isConsistentZUnits(crs));
 		}
 
-		Alignment metricAlign = *data().metricAlign();
+		Alignment metricAlign = *rp().metricAlign();
 		EXPECT_TRUE(metricAlign.crs().isConsistent(crs));
 		for (size_t i = 0; i < extentstwo.size(); ++i) {
 			EXPECT_GE(extentstwo[i].xmin(), metricAlign.xmin());
@@ -184,7 +222,7 @@ namespace lapis {
 		Alignment fileAlign{ testFileFolder + "/testRaster.tif" };
 		prepareParams({ "--las=" + testFileFolder + "/testlaz10.laz",
 			"--alignment=" + testFileFolder + "/testRaster.tif", "--debug-no-output" });
-		metricAlign = *data().metricAlign();
+		metricAlign = *rp().metricAlign();
 		EXPECT_TRUE(fileAlign.crs().isConsistent(metricAlign.crs()));
 		EXPECT_NEAR(fileAlign.xres(), metricAlign.xres(), 0.000001);
 		EXPECT_NEAR(fileAlign.yres(), metricAlign.yres(), 0.000001);
@@ -194,7 +232,7 @@ namespace lapis {
 
 		prepareParams({ "--las=" + testFileFolder + "/testlaz10.laz",
 			"--out-crs=2286", "--user-units=m","--cellsize=20","--xorigin=10","--yorigin=5", "--debug-no-output" });
-		metricAlign = *data().metricAlign();
+		metricAlign = *rp().metricAlign();
 		EXPECT_TRUE(metricAlign.crs().isConsistentHoriz(CoordRef("2286")));
 		EXPECT_NEAR(convertUnits(20, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
 		EXPECT_NEAR(convertUnits(20, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yres(), 0.0001);
@@ -202,32 +240,32 @@ namespace lapis {
 		EXPECT_NEAR(convertUnits(5, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yOrigin(), 0.0001);
 
 		prepareParams({ "--las=" + testFileFolder + "/testlaz10.laz", "--out-crs=2286", "--user-units=m","--yres=9","--xres=7", "--debug-no-output" });
-		metricAlign = *data().metricAlign();
+		metricAlign = *rp().metricAlign();
 		EXPECT_NEAR(convertUnits(7, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
 		EXPECT_NEAR(convertUnits(9, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yres(), 0.0001);
 	}
 
-	TEST_F(LapisDataTest, computerOptions) {
+	TEST_F(RunParametersTest, computerOptions) {
 		prepareParamsNoSlowStuff({ "--thread=129" });
-		EXPECT_EQ(129, data().nThread());
-		coord_t noPerfBinSize = data().binSize();
+		EXPECT_EQ(129, rp().nThread());
+		coord_t noPerfBinSize = rp().binSize();
 	}
 
-	TEST_F(LapisDataTest, pointMetricOptions) {
+	TEST_F(RunParametersTest, pointMetricOptions) {
 		prepareParamsNoSlowStuff({});
 		//defaults might change so I just want to test that they aren't default-constructed
-		coord_t defaultCanopy = data().canopyCutoff();
-		std::vector<coord_t> defaultStrata = data().strataBreaks();
+		coord_t defaultCanopy = rp().canopyCutoff();
+		std::vector<coord_t> defaultStrata = rp().strataBreaks();
 		EXPECT_GT(defaultCanopy, 0);
 		EXPECT_GT(defaultStrata.size(), 0);
 		for (size_t i = 1; i < defaultStrata.size(); ++i) {
 			EXPECT_GT(defaultStrata[i], defaultStrata[i - 1]);
 		}
-		EXPECT_TRUE(data().doStratumMetrics());
+		EXPECT_TRUE(rp().doStratumMetrics());
 
 		prepareParamsNoSlowStuff({"--user-units=ft"});
-		coord_t footCanopy = data().canopyCutoff();
-		std::vector<coord_t> footStrata = data().strataBreaks();
+		coord_t footCanopy = rp().canopyCutoff();
+		std::vector<coord_t> footStrata = rp().strataBreaks();
 		EXPECT_NEAR(defaultCanopy, footCanopy*0.3048,0.01);
 		EXPECT_EQ(footStrata.size(), defaultStrata.size());
 		for (size_t i = 0; i < defaultStrata.size(); ++i) {
@@ -235,8 +273,8 @@ namespace lapis {
 		}
 
 		prepareParamsNoSlowStuff({"--canopy=5","--strata=0,1,2,3"});
-		coord_t newCanopy = data().canopyCutoff();
-		std::vector<coord_t> newStrata = data().strataBreaks();
+		coord_t newCanopy = rp().canopyCutoff();
+		std::vector<coord_t> newStrata = rp().strataBreaks();
 		EXPECT_EQ(newCanopy, 5);
 		EXPECT_EQ(newStrata.size(), 4);
 		for (size_t i = 0; i < newStrata.size(); ++i) {
@@ -244,90 +282,97 @@ namespace lapis {
 		}
 
 		prepareParamsNoSlowStuff({ "--skip-strata" });
-		EXPECT_EQ(data().strataBreaks().size(), 0);
-		EXPECT_EQ(data().strataNames().size(), 0);
-		EXPECT_FALSE(data().doStratumMetrics());
+		EXPECT_EQ(rp().strataBreaks().size(), 0);
+		EXPECT_EQ(rp().strataNames().size(), 0);
+		EXPECT_FALSE(rp().doStratumMetrics());
 	}
 
-	TEST_F(LapisDataTest, name) {
+	TEST_F(RunParametersTest, name) {
 		std::string testName = "name";
 		prepareParamsNoSlowStuff({ "-N", testName });
-		EXPECT_EQ(testName, data().name());
+		EXPECT_EQ(testName, rp().name());
 	}
 
-	TEST_F(LapisDataTest, output) {
+	TEST_F(RunParametersTest, output) {
 		std::string testOutput = "C:/";
 		prepareParams({ "-O", testOutput,"--debug-no-alignment"});
-		EXPECT_EQ(testOutput, data().outFolder());
+		EXPECT_EQ(testOutput, rp().outFolder());
 	}
 
-	TEST_F(LapisDataTest, whichProducts) {
+	TEST_F(RunParametersTest, whichProducts) {
 		prepareParamsNoSlowStuff({});
-		EXPECT_TRUE(data().doCsm());
-		EXPECT_FALSE(data().doFineInt());
-		EXPECT_TRUE(data().doPointMetrics());
-		EXPECT_TRUE(data().doTaos());
-		EXPECT_TRUE(data().doTopo());
+		EXPECT_TRUE(rp().doCsm());
+		EXPECT_FALSE(rp().doFineInt());
+		EXPECT_TRUE(rp().doPointMetrics());
+		EXPECT_TRUE(rp().doTaos());
+		EXPECT_TRUE(rp().doTopo());
 
 		prepareParamsNoSlowStuff({"--skip-csm"});
-		EXPECT_FALSE(data().doCsm());
-		EXPECT_FALSE(data().doFineInt());
-		EXPECT_TRUE(data().doPointMetrics());
-		EXPECT_FALSE(data().doTaos());
-		EXPECT_TRUE(data().doTopo());
+		EXPECT_FALSE(rp().doCsm());
+		EXPECT_FALSE(rp().doFineInt());
+		EXPECT_TRUE(rp().doPointMetrics());
+		EXPECT_FALSE(rp().doTaos());
+		EXPECT_TRUE(rp().doTopo());
 
 		prepareParamsNoSlowStuff({ "--fine-int" });
-		EXPECT_TRUE(data().doCsm());
-		EXPECT_TRUE(data().doFineInt());
-		EXPECT_TRUE(data().doPointMetrics());
-		EXPECT_TRUE(data().doTaos());
-		EXPECT_TRUE(data().doTopo());
+		EXPECT_TRUE(rp().doCsm());
+		EXPECT_TRUE(rp().doFineInt());
+		EXPECT_TRUE(rp().doPointMetrics());
+		EXPECT_TRUE(rp().doTaos());
+		EXPECT_TRUE(rp().doTopo());
 
 		prepareParamsNoSlowStuff({"--skip-point-metrics"});
-		EXPECT_TRUE(data().doCsm());
-		EXPECT_FALSE(data().doFineInt());
-		EXPECT_FALSE(data().doPointMetrics());
-		EXPECT_TRUE(data().doTaos());
-		EXPECT_TRUE(data().doTopo());
+		EXPECT_TRUE(rp().doCsm());
+		EXPECT_FALSE(rp().doFineInt());
+		EXPECT_FALSE(rp().doPointMetrics());
+		EXPECT_TRUE(rp().doTaos());
+		EXPECT_TRUE(rp().doTopo());
 
 		prepareParamsNoSlowStuff({"--skip-tao"});
-		EXPECT_TRUE(data().doCsm());
-		EXPECT_FALSE(data().doFineInt());
-		EXPECT_TRUE(data().doPointMetrics());
-		EXPECT_FALSE(data().doTaos());
-		EXPECT_TRUE(data().doTopo());
+		EXPECT_TRUE(rp().doCsm());
+		EXPECT_FALSE(rp().doFineInt());
+		EXPECT_TRUE(rp().doPointMetrics());
+		EXPECT_FALSE(rp().doTaos());
+		EXPECT_TRUE(rp().doTopo());
 
 		prepareParamsNoSlowStuff({"--skip-topo"});
-		EXPECT_TRUE(data().doCsm());
-		EXPECT_FALSE(data().doFineInt());
-		EXPECT_TRUE(data().doPointMetrics());
-		EXPECT_TRUE(data().doTaos());
-		EXPECT_FALSE(data().doTopo());
+		EXPECT_TRUE(rp().doCsm());
+		EXPECT_FALSE(rp().doFineInt());
+		EXPECT_TRUE(rp().doPointMetrics());
+		EXPECT_TRUE(rp().doTaos());
+		EXPECT_FALSE(rp().doTopo());
 	}
 
-	TEST_F(LapisDataTest, taoOptions) {
+	TEST_F(RunParametersTest, taoOptions) {
+
+		auto expectHighPoints = [&](coord_t minHt, coord_t minDist) {
+			HighPoints* algo = dynamic_cast<HighPoints*>(rp().taoIdAlgorithm());
+			ASSERT_NE(algo, nullptr);
+			EXPECT_EQ(algo->minDist(), minDist);
+			EXPECT_EQ(algo->minHt(), minHt);
+		};
+
 		prepareParamsNoSlowStuff({});
-		EXPECT_EQ(data().minTaoDist(), 0);
-		EXPECT_EQ(data().minTaoHt(), data().canopyCutoff());
+		expectHighPoints(rp().canopyCutoff(), 0);
 
 		prepareParamsNoSlowStuff({ "--canopy=5" });
-		EXPECT_EQ(data().minTaoHt(), 5);
+		expectHighPoints(5, 0);
 
 		prepareParamsNoSlowStuff({ "--canopy=3","--min-tao-ht=4" });
-		EXPECT_EQ(data().minTaoHt(), 4);
+		expectHighPoints(4,0);
 
 		prepareParamsNoSlowStuff({ "--min-tao-dist=2" });
-		EXPECT_EQ(data().minTaoDist(), 2);
+		expectHighPoints(rp().canopyCutoff(), 2);
 	}
 	
-	TEST_F(LapisDataTest, fineIntOptions) {
+	TEST_F(RunParametersTest, fineIntOptions) {
 		auto checkAlign = [&](coord_t expectedRes) {
-			const Alignment& fineInt = *data().fineIntAlign();
+			const Alignment& fineInt = *rp().fineIntAlign();
 
 			EXPECT_NEAR(fineInt.xres(), expectedRes, 0.0001);
 			EXPECT_NEAR(fineInt.yres(), expectedRes, 0.0001);
 
-			const Alignment& a = *data().metricAlign();
+			const Alignment& a = *rp().metricAlign();
 			EXPECT_LE(fineInt.xmin(), a.xmin());
 			EXPECT_GE(fineInt.xmax(), a.xmax());
 			EXPECT_LE(fineInt.ymin(), a.ymin());
@@ -338,25 +383,25 @@ namespace lapis {
 		};
 
 		prepareParamsNoSlowStuff({"--fine-int"});
-		checkAlign(data().csmAlign()->xres());
+		checkAlign(rp().csmAlign()->xres());
 
 		prepareParamsNoSlowStuff({"--fine-int", "--csm-cellsize=5"});
-		checkAlign(data().csmAlign()->xres());
+		checkAlign(rp().csmAlign()->xres());
 
 		prepareParamsNoSlowStuff({ "--fine-int","--csm-cellsize=5","--fine-int-cellsize=20"});
 		checkAlign(20);
 
 
 		prepareParamsNoSlowStuff({});
-		EXPECT_EQ(data().fineIntCanopyCutoff(), data().canopyCutoff());
+		EXPECT_EQ(rp().fineIntCanopyCutoff(), rp().canopyCutoff());
 
 		prepareParamsNoSlowStuff({ "--fine-int","--canopy=10" });
-		EXPECT_EQ(data().fineIntCanopyCutoff(), data().canopyCutoff());
+		EXPECT_EQ(rp().fineIntCanopyCutoff(), rp().canopyCutoff());
 
 		prepareParamsNoSlowStuff({ "--fine-int","--canopy=11","--fine-int-cutoff=7" });
-		EXPECT_EQ(data().fineIntCanopyCutoff(), 7);
+		EXPECT_EQ(rp().fineIntCanopyCutoff(), 7);
 
 		prepareParamsNoSlowStuff({ "--fine-int","--fine-int-no-cutoff" });
-		EXPECT_EQ(data().fineIntCanopyCutoff(), std::numeric_limits<coord_t>::lowest());
+		EXPECT_EQ(rp().fineIntCanopyCutoff(), std::numeric_limits<coord_t>::lowest());
 	}
 }

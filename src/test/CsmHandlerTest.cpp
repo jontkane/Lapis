@@ -1,5 +1,7 @@
-#include<gtest/gtest.h>
-#include"..\ProductHandler.hpp"
+#include"test_pch.hpp"
+#include"..\run\CsmHandler.hpp"
+#include"..\algorithms\AllCsmAlgorithms.hpp"
+#include"..\algorithms\AllCsmPostProcessors.hpp"
 #include"ParameterSpoofer.hpp"
 
 namespace lapis {
@@ -15,14 +17,12 @@ namespace lapis {
 	void setReasonableCsmDefaults(CsmParameterSpoofer& spoof) {
 		setReasonableSharedDefaults(spoof);
 
-		coord_t footprintRadius = 0.71;
-		spoof.setCsmAlign(Alignment(
-			Extent(-footprintRadius, 3 + footprintRadius, -footprintRadius, 3 + footprintRadius),
-			0, 0, 0.5, 0.5));
+		spoof.setCsmAlign(Alignment(Extent(0, 3, 0, 3),0, 0, 0.5, 0.5));
 		spoof.setDoCsm(true);
 		spoof.setDoCsmMetrics(true);
-		spoof.setFootprintDiameter(footprintRadius*2); //just barely large enough to reach all eight directions if places at the center of a pixel
-		spoof.setSmooth(1);
+
+		spoof.setCsmAlgo(new MaxPoint(0));
+		spoof.setCsmPostProcessor(new FillCsm{ 6,5 });
 	}
 
 	TEST(CsmHandlerTest, constructortest) {
@@ -51,51 +51,45 @@ namespace lapis {
 		fs::remove_all(spoof.outFolder());
 		fs::create_directory(spoof.outFolder());
 
-		coord_t footprintRadius = spoof.footprintDiameter() / 2;
 		LidarPointVector points;
-		Raster<csm_t> expected{ *spoof.csmAlign() };
+		Alignment a{ *spoof.csmAlign() };
 
 		Extent lasExtent = *spoof.metricAlign();
 
 		auto addPoint = [&](cell_t cell, csm_t value) {
-			rowcol_t row = expected.rowFromCell(cell);
-			rowcol_t col = expected.colFromCell(cell);
-			if (!lasExtent.contains(expected.xFromCol(col), expected.yFromRow(row))) {
+			rowcol_t row = a.rowFromCell(cell);
+			rowcol_t col = a.colFromCell(cell);
+			if (!lasExtent.contains(a.xFromCol(col), a.yFromRow(row))) {
 				return;
 			}
 
-			//this loop is the expected behavior of the footprint spreading because of a carefully chosen footprint value
-			for (rowcol_t rownudge : {row - 1, row, row + 1}) {
-				if (rownudge < 0 || rownudge >= expected.nrow()) {
-					continue;
-				}
-				for (rowcol_t colnudge : {col - 1, col, col + 1}) {
-					if (colnudge < 0 || colnudge >= expected.ncol()) {
-						continue;
-					}
-					auto v = expected.atRC(rownudge, colnudge);
-					v.has_value() = true;
-					v.value() = std::max(v.value(), value);
-				}
-			}
-
-			points.push_back(LasPoint{ expected.xFromCell(cell),expected.yFromCell(cell),value,0,0 });
+			points.push_back(LasPoint{ a.xFromCell(cell),a.yFromCell(cell),value,0,0 });
 		};
-		for (cell_t cell = 0; cell < expected.ncell(); ++cell) {
+		for (cell_t cell = 0; cell < a.ncell(); ++cell) {
 			addPoint(cell, (csm_t)cell);
 		}
-		expected = smoothAndFill(expected, spoof.smooth(), 6, {});
+
+		Raster<csm_t> expected = spoof.csmAlgorithm()->createCsm(points, a);
 
 		ch.handlePoints(points, lasExtent, 0);
 
-		ASSERT_TRUE(fs::exists(ch.csmTempDir() / "0.tif"));
-		Raster<csm_t> output{ (ch.csmTempDir() / "0.tif").string() };
-		ASSERT_TRUE(output.isSameAlignment(expected));
+		fs::path expectedPath = ch.getFullTempFilename(ch.csmTempDir(), "CanopySurfaceModel", OutputUnitLabel::Default, 0);
+
+		ASSERT_TRUE(fs::exists(expectedPath));
+		Raster<csm_t> output{ expectedPath.string() };
+		ASSERT_TRUE(output.xmin() <= expected.xmin());
+		ASSERT_TRUE(output.xmax() >= expected.xmax());
+		ASSERT_TRUE(output.ymin() <= expected.ymin());
+		ASSERT_TRUE(output.ymax() >= expected.ymax());
 		
 		for (cell_t cell = 0; cell < expected.ncell(); ++cell) {
-			EXPECT_EQ(output[cell].has_value(), expected[cell].has_value());
-			if (expected[cell].value()) {
-				EXPECT_NEAR(output[cell].value(), expected[cell].value(),0.0001);
+			coord_t x = expected.xFromCell(cell);
+			coord_t y = expected.yFromCell(cell);
+			auto vAct = output.atXY(x, y);
+			auto vExp = expected[cell];
+			EXPECT_EQ(vAct.has_value(), vExp.has_value());
+			if (vExp.value()) {
+				EXPECT_NEAR(vAct.value(), vExp.value(),0.0001);
 			}
 		}
 
@@ -105,6 +99,7 @@ namespace lapis {
 	TEST(CsmHandlerTest, handletiletest) {
 		CsmParameterSpoofer spoof;
 		setReasonableCsmDefaults(spoof);
+		spoof.setCsmPostProcessor(new DoNothingCsm());
 
 		CsmHandlerProtectedAccess ch(&spoof);
 
@@ -129,22 +124,31 @@ namespace lapis {
 		spoof.addLasExtent(rightHalf);
 
 		fs::create_directories(ch.csmTempDir());
-		leftHalf.writeRaster((ch.csmTempDir() / "0.tif").string());
-		rightHalf.writeRaster((ch.csmTempDir() / "1.tif").string());
+		leftHalf.writeRaster(ch.getFullTempFilename(ch.csmTempDir(),"CanopySurfaceModel",OutputUnitLabel::Default,0).string());
+		rightHalf.writeRaster(ch.getFullTempFilename(ch.csmTempDir(), "CanopySurfaceModel", OutputUnitLabel::Default, 1).string());
 
 
 		Raster<csm_t> buffered = ch.getBufferedCsm(0);
-		ASSERT_TRUE(buffered.isSameAlignment(fullCsm));
-		for (cell_t cell = 0; cell < buffered.ncell(); ++cell) {
-			EXPECT_EQ(buffered[cell].has_value(), fullCsm[cell].has_value());
-			if (fullCsm[cell].has_value()) {
-				EXPECT_EQ(buffered[cell].value(), fullCsm[cell].value());
+		ASSERT_TRUE(buffered.xmin() <= fullCsm.xmin());
+		ASSERT_TRUE(buffered.xmax() >= fullCsm.xmax());
+		ASSERT_TRUE(buffered.ymin() <= fullCsm.ymin());
+		ASSERT_TRUE(buffered.ymax() >= fullCsm.ymax());
+		for (cell_t cell = 0; cell < fullCsm.ncell(); ++cell) {
+			coord_t x = fullCsm.xFromCell(cell);
+			coord_t y = fullCsm.yFromCell(cell);
+
+			auto expV = fullCsm[cell];
+			auto actV = buffered.atXY(x, y);
+
+			EXPECT_EQ(actV.has_value(), expV.has_value());
+			if (expV.has_value()) {
+				EXPECT_EQ(actV.value(), expV.value());
 			}
 		}
 
 		ch.handleCsmTile(buffered, 0);
 
-		fs::path name = ch.csmDir() / (spoof.name() + "_CanopySurfaceModel_" + nameFromLayout(*spoof.layout(), 0) + "_Meters.tif");
+		fs::path name = ch.getFullTileFilename(ch.csmDir(), "CanopySurfaceModel", OutputUnitLabel::Default, 0);
 		ASSERT_TRUE(fs::exists(name));
 		Raster<csm_t> actual{ name.string() };
 		Raster<csm_t> expected = cropRaster(fullCsm, tileExtent, SnapType::out);

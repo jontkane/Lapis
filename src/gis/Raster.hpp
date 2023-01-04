@@ -18,7 +18,7 @@ namespace lapis {
 	class Raster : public Alignment {
 	public:
 
-		Raster() = default;
+		Raster() : Alignment(), _data() {}
 		virtual ~Raster() noexcept = default;
 
 		//creates a raster from the given alignment, and fills it with missing values
@@ -44,10 +44,23 @@ namespace lapis {
 		Raster<T>& operator=(Raster<S>&& r) = delete;
 
 		Raster(const Raster<T>& r) = default;
-		Raster(Raster<T>&& r) = default;
+		Raster(Raster<T>&& r) {
+			*this = r;
+		}
 		Raster<T>& operator=(const Raster<T>& r) = default;
-		Raster<T>& operator=(Raster<T>&& r) = default;
-
+		Raster<T>& operator=(Raster<T>&& r) noexcept {
+			_data = std::move(r._data);
+			_crs = std::move(r._crs);
+			_xmin = r._xmin; r._xmin = 0;
+			_xmax = r._xmax; r._xmax = 0;
+			_ymin = r._ymin; r._ymin = 0;
+			_ymax = r._ymax; r._ymax = 0;
+			_xres = r._xres; r._xres = 1;
+			_yres = r._yres; r._yres = 1;
+			_ncol = r._ncol; r._ncol = 0;
+			_nrow = r._nrow; r._nrow = 0;
+			return *this;
+		}
 
 		//Methods to access values. As usual, operator[] does no bounds checking. The other three do check.
 		auto atCell(const cell_t cell) {

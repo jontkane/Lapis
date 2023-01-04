@@ -18,6 +18,8 @@ namespace lapis {
 		GuiCmdElement(const std::string& guiDesc, const std::string& cmdName, const std::string& cmdDescription);
 		GuiCmdElement(const GuiCmdElement&) = default;
 
+		virtual ~GuiCmdElement() = default;
+
 		virtual void addToCmd(BoostOptDesc& visible,
 			BoostOptDesc& hidden) = 0;
 		virtual std::ostream& printToIni(std::ostream& o) const = 0;

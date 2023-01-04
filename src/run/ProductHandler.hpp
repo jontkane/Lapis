@@ -19,6 +19,8 @@ namespace lapis {
 		using ParamGetter = SharedParameterGetter;
 		ProductHandler(ParamGetter* p);
 
+		virtual ~ProductHandler() = default;
+
 		//this function can assume that all points pass all filters, are normalized to the ground
 		//are in the same projection (including Z units) as the extent, and are contained in the extent
 		virtual void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) = 0;
@@ -29,10 +31,6 @@ namespace lapis {
 		std::filesystem::path parentDir() const;
 		std::filesystem::path tempDir() const;
 
-	protected:
-		ParamGetter* _sharedGetter;
-		void deleteTempDirIfEmpty() const;
-
 		//generates an appropriate filename for a "normal" metric
 		std::filesystem::path getFullFilename(const std::filesystem::path& dir, const std::string& baseName,
 			OutputUnitLabel u, const std::string& extension = "tif") const;
@@ -42,6 +40,10 @@ namespace lapis {
 		//generates an appropriate filename for a file which needs to be indexed by the tile it represents
 		std::filesystem::path getFullTileFilename(const std::filesystem::path& dir, const std::string& baseName,
 			OutputUnitLabel u, cell_t tile, const std::string& extension = "tif") const;
+
+	protected:
+		ParamGetter* _sharedGetter;
+		void deleteTempDirIfEmpty() const;
 
 		template<class T>
 		void writeRasterLogErrors(const std::filesystem::path& filename, Raster<T>& r) const;
