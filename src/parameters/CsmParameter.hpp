@@ -28,7 +28,7 @@ namespace lapis {
 		void cleanAfterRun() override;
 
 		void reset() override;
-		static size_t registeredIndex;
+		static size_t parameterRegisteredIndex;
 
 		std::shared_ptr<Alignment> csmAlign();
 		bool doCsmMetrics() const;

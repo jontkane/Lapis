@@ -27,6 +27,7 @@ namespace lapis {
 		virtual void handleDem(const Raster<coord_t>& dem, size_t index) = 0;
 		virtual void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) = 0;
 		virtual void cleanup() = 0;
+		virtual void reset() = 0;
 
 		std::filesystem::path parentDir() const;
 		std::filesystem::path tempDir() const;

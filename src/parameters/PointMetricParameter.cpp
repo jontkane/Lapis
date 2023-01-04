@@ -4,7 +4,7 @@
 
 namespace lapis {
 
-	size_t PointMetricParameter::registeredIndex = RunParameters::singleton().registerParameter(new PointMetricParameter());
+	size_t PointMetricParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new PointMetricParameter());
 	void PointMetricParameter::reset()
 	{
 		*this = PointMetricParameter();

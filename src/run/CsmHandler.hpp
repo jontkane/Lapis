@@ -14,8 +14,10 @@ namespace lapis {
 		void handleDem(const Raster<coord_t>& dem, size_t index) override;
 		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
 		void cleanup() override;
+		void reset() override;
+		static size_t handlerRegisteredIndex;
 
-		Raster<csm_t> getBufferedCsm(cell_t tile) const;
+		virtual Raster<csm_t> getBufferedCsm(cell_t tile) const;
 
 		std::filesystem::path csmTempDir() const;
 		std::filesystem::path csmDir() const;

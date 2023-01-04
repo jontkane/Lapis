@@ -137,17 +137,17 @@ namespace lapis {
 	template<class PARAMETER>
 	inline PARAMETER& RunParameters::_getRawParam()
 	{
-		return *dynamic_cast<PARAMETER*>(_params[PARAMETER::registeredIndex].get());
+		return *dynamic_cast<PARAMETER*>(_params[PARAMETER::parameterRegisteredIndex].get());
 	}
 	template<class PARAMETER>
 	inline const PARAMETER& RunParameters::_getRawParam() const
 	{
-		return *dynamic_cast<PARAMETER*>(_params[PARAMETER::registeredIndex].get());
+		return *dynamic_cast<PARAMETER*>(_params[PARAMETER::parameterRegisteredIndex].get());
 	}
 	template<class T>
 	void RunParameters::renderGui()
 	{
-		_params[T::registeredIndex]->renderGui();
+		_params[T::parameterRegisteredIndex]->renderGui();
 	}
 }
 

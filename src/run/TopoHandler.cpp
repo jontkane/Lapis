@@ -1,7 +1,15 @@
 #include"run_pch.hpp"
 #include"TopoHandler.hpp"
+#include"LapisController.hpp"
+#include"..\parameters\RunParameters.hpp"
 
 namespace lapis {
+	size_t TopoHandler::handlerRegisteredIndex = LapisController::registerHandler(new TopoHandler(&RunParameters::singleton()));
+	void TopoHandler::reset()
+	{
+		*this = TopoHandler(_getter);
+	}
+
 	TopoHandler::TopoHandler(ParamGetter* p) : ProductHandler(p)
 	{
 		_getter = p;

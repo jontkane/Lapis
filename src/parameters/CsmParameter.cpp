@@ -6,7 +6,7 @@
 
 namespace lapis {
 
-	size_t CsmParameter::registeredIndex = RunParameters::singleton().registerParameter(new CsmParameter());
+	size_t CsmParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new CsmParameter());
 	void CsmParameter::reset()
 	{
 		*this = CsmParameter();

@@ -1,8 +1,16 @@
 #include"run_pch.hpp"
 #include"PointMetricHandler.hpp"
 #include"PointMetricCalculator.hpp"
+#include"LapisController.hpp"
+#include"..\parameters\RunParameters.hpp"
 
 namespace lapis {
+	size_t PointMetricHandler::handlerRegisteredIndex = LapisController::registerHandler(new PointMetricHandler(&RunParameters::singleton()));
+	void PointMetricHandler::reset()
+	{
+		*this = PointMetricHandler(_getter);
+	}
+
 	template<bool ALL_RETURNS, bool FIRST_RETURNS>
 	void PointMetricHandler::_assignPointsToCalculators(const LidarPointVector& points)
 	{

@@ -5,7 +5,7 @@
 
 namespace lapis {
 
-	size_t DemParameter::registeredIndex = RunParameters::singleton().registerParameter(new DemParameter());
+	size_t DemParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new DemParameter());
 	void DemParameter::reset()
 	{
 		*this = DemParameter();

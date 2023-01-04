@@ -4,7 +4,7 @@
 
 namespace lapis {
 
-	size_t LasFileParameter::registeredIndex = RunParameters::singleton().registerParameter(new LasFileParameter());
+	size_t LasFileParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new LasFileParameter());
 	void LasFileParameter::reset()
 	{
 		*this = LasFileParameter();

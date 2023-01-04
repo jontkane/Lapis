@@ -13,6 +13,10 @@ namespace lapis {
 	public:
 		static LapisGui<RUNNERTYPE>& singleton();
 		void renderFullGui();
+
+		template<class PARAMETER>
+		void addModParameter(const std::string& name);
+
 	private:
 
 		LapisGui();
@@ -25,11 +29,18 @@ namespace lapis {
 		void _productsTab();
 		void _renderLogger();
 		void _dataIssuesWindow();
+		void _modsTab();
 
 		std::unique_ptr<RUNNERTYPE> _runner;
 		std::thread _runThread;
 
 		bool _displayDataIssuesWindow = false;
+
+		struct NameAndRenderer {
+			std::string name;
+			std::function<void(const std::string&)> renderer;
+		};
+		std::vector<NameAndRenderer> _mods;
 	};
 
 	template<class RUNNERTYPE>
@@ -96,6 +107,19 @@ namespace lapis {
 	}
 
 	template<class RUNNERTYPE>
+	template<class PARAMETER>
+	inline void LapisGui<RUNNERTYPE>::addModParameter(const std::string& name)
+	{
+		auto renderModTab = [](const std::string& name) {
+			if (ImGui::BeginTabItem(name.c_str())) {
+				RunParameters::singleton().renderGui<PARAMETER>();
+				ImGui::EndTabItem();
+			}
+		};
+		_mods.emplace_back(name, std::function(renderModTab));
+	}
+
+	template<class RUNNERTYPE>
 	inline LapisGui<RUNNERTYPE>::LapisGui() : _runner(new RUNNERTYPE())
 	{
 	}
@@ -137,6 +161,10 @@ namespace lapis {
 			}
 			if (ImGui::BeginTabItem("Product Options")) {
 				_productsTab();
+				ImGui::EndTabItem();
+			}
+			if (_mods.size() && ImGui::BeginTabItem("Mods")) {
+				_modsTab();
 				ImGui::EndTabItem();
 			}
 		}
@@ -434,6 +462,18 @@ namespace lapis {
 			//dataIssues.reset();
 		}
 		ImGui::End();
+	}
+
+	template<class RUNNERTYPE>
+	inline void LapisGui<RUNNERTYPE>::_modsTab()
+	{
+		ImGui::BeginChild("##mods", ImGui::GetContentRegionAvail());
+		ImGui::BeginTabBar("##modtabs");
+		for (size_t i = 0; i < _mods.size(); ++i) {
+			_mods[i].renderer(_mods[i].name);
+		}
+		ImGui::EndTabBar();
+		ImGui::EndChild();
 	}
 
 	//forcing the compiler to check that this template is fine without having to go to other static libraries.

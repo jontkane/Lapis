@@ -14,6 +14,8 @@ namespace lapis {
 		void handleDem(const Raster<coord_t>& dem, size_t index) override;
 		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
 		void cleanup() override;
+		void reset() override;
+		static size_t handlerRegisteredIndex;
 
 		std::filesystem::path fineIntDir() const;
 		std::filesystem::path fineIntTempDir() const;

@@ -1,7 +1,15 @@
 #include"run_pch.hpp"
 #include"TaoHandler.hpp"
+#include"..\parameters\RunParameters.hpp"
+#include"LapisController.hpp"
 
 namespace lapis {
+	size_t TaoHandler::handlerRegisteredIndex = LapisController::registerHandler(new TaoHandler(&RunParameters::singleton()));
+	void TaoHandler::reset()
+	{
+		*this = TaoHandler(_getter);
+	}
+
 	void TaoHandler::_writeHighPointsAsXYZArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& csm,
 		const Extent& unbufferedExtent, cell_t tile) const {
 

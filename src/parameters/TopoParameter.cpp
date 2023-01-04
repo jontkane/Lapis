@@ -4,7 +4,7 @@
 
 namespace lapis {
 
-	size_t TopoParameter::registeredIndex = RunParameters::singleton().registerParameter(new TopoParameter());
+	size_t TopoParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new TopoParameter());
 	void TopoParameter::reset()
 	{
 		*this = TopoParameter();

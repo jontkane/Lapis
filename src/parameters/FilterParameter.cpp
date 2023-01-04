@@ -4,7 +4,7 @@
 
 namespace lapis {
 
-	size_t FilterParameter::registeredIndex = RunParameters::singleton().registerParameter(new FilterParameter());
+	size_t FilterParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new FilterParameter());
 	void FilterParameter::reset()
 	{
 		*this = FilterParameter();

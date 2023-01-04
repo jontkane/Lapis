@@ -4,7 +4,7 @@
 
 namespace lapis {
 
-	size_t NameParameter::registeredIndex = RunParameters::singleton().registerParameter(new NameParameter());
+	size_t NameParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new NameParameter());
 	void NameParameter::reset()
 	{
 		*this = NameParameter();

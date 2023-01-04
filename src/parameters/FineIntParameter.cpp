@@ -4,7 +4,7 @@
 
 namespace lapis {
 
-	size_t FineIntParameter::registeredIndex = RunParameters::singleton().registerParameter(new FineIntParameter());
+	size_t FineIntParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new FineIntParameter());
 	void FineIntParameter::reset()
 	{
 		*this = FineIntParameter();

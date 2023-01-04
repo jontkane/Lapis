@@ -2,19 +2,10 @@
 #ifndef LP_LAPISCONTROLLER_H
 #define LP_LAPISCONTROLLER_H
 
-
 #include"..\logger\lapislogger.hpp"
 #include"ProductHandler.hpp"
 
-namespace std {
-	namespace filesystem {
-		class path;
-	}
-}
-
 namespace lapis {
-
-	namespace fs = std::filesystem;
 	
 	class LapisController {
 	public:
@@ -27,13 +18,18 @@ namespace lapis {
 
 		void sendAbortSignal();
 
+		static size_t registerHandler(ProductHandler* handler);
+		template<class HANDLER>
+		static void replaceHandlerWithMod(HANDLER* handler) {
+			_handlers[HANDLER::handlerRegisteredIndex].reset(handler);
+		}
+
 	protected:
 		mutable std::atomic_bool _isRunning = false;
 
-		using HandlerVector = std::vector<std::unique_ptr<ProductHandler>>;
-		void lasThread(HandlerVector& handlers, size_t n) const;
-		void tileThread(HandlerVector& handlers, cell_t tile) const;
-		void cleanUp(HandlerVector& handlers) const;
+		void lasThread(size_t n) const;
+		void tileThread(cell_t tile) const;
+		void cleanUp() const;
 
 		void writeLayout() const;
 		void writeParams() const;
@@ -57,6 +53,8 @@ namespace lapis {
 				func(thisidx);
 			}
 		}
+
+		static std::vector<std::unique_ptr<ProductHandler>> _handlers;
 	};
 }
 

@@ -63,12 +63,12 @@ namespace lapis {
 		void cleanAfterRun() override;
 
 		void reset() override;
-		static size_t registeredIndex;
+		static size_t parameterRegisteredIndex;
 		};
 
 		and in the cpp:
 
-		size_t NewParameter::registeredIndex = RunParameters::singleton().registerParameter(new NewParameter());
+		size_t NewParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new NewParameter());
 
 	*/
 

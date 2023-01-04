@@ -26,7 +26,7 @@ namespace lapis {
 		void cleanAfterRun() override;
 
 		void reset() override;
-		static size_t registeredIndex;
+		static size_t parameterRegisteredIndex;
 
 		const std::string& unitPluralName() const;
 		const std::string& unitSingularName() const;

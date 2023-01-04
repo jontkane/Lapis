@@ -4,7 +4,7 @@
 
 namespace lapis {
 
-	size_t AlignmentParameter::registeredIndex = RunParameters::singleton().registerParameter(new AlignmentParameter());
+	size_t AlignmentParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new AlignmentParameter());
 	void AlignmentParameter::reset()
 	{
 		*this = AlignmentParameter();

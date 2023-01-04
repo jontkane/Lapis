@@ -4,7 +4,7 @@
 
 namespace lapis {
 
-	size_t WhichProductsParameter::registeredIndex = RunParameters::singleton().registerParameter(new WhichProductsParameter());
+	size_t WhichProductsParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new WhichProductsParameter());
 	void WhichProductsParameter::reset()
 	{
 		*this = WhichProductsParameter();

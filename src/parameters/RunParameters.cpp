@@ -2,6 +2,7 @@
 #include"RunParameters.hpp"
 #include"AllParameters.hpp"
 #include"..\logger\LapisLogger.hpp"
+#include"LapisGui.hpp"
 
 namespace lapis {
 

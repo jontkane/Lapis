@@ -6,7 +6,7 @@
 
 namespace lapis {
 
-	size_t TaoParameter::registeredIndex = RunParameters::singleton().registerParameter(new TaoParameter());
+	size_t TaoParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new TaoParameter());
 	void TaoParameter::reset()
 	{
 		*this = TaoParameter();

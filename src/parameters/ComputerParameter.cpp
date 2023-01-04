@@ -4,7 +4,7 @@
 
 namespace lapis {
 
-	size_t ComputerParameter::registeredIndex = RunParameters::singleton().registerParameter(new ComputerParameter());
+	size_t ComputerParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new ComputerParameter());
 	void ComputerParameter::reset()
 	{
 		*this = ComputerParameter();

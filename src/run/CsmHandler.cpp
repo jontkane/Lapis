@@ -1,7 +1,16 @@
 #include"run_pch.hpp"
 #include"CsmHandler.hpp"
+#include"LapisController.hpp"
+#include"..\parameters\RunParameters.hpp"
 
 namespace lapis {
+
+	size_t CsmHandler::handlerRegisteredIndex = LapisController::registerHandler(new CsmHandler(&RunParameters::singleton()));
+	void CsmHandler::reset()
+	{
+		*this = CsmHandler(_getter);
+	}
+
 	CsmHandler::CsmHandler(ParamGetter* p) : ProductHandler(p)
 	{
 		_getter = p;
@@ -63,6 +72,7 @@ namespace lapis {
 		_csmMetrics.clear();
 		_csmMetrics.shrink_to_fit();
 	}
+
 	Raster<csm_t> CsmHandler::getBufferedCsm(cell_t tile) const
 	{
 		if (!_getter->doCsm()) {

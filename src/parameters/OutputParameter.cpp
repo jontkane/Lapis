@@ -4,7 +4,7 @@
 
 namespace lapis {
 
-	size_t OutputParameter::registeredIndex = RunParameters::singleton().registerParameter(new OutputParameter());
+	size_t OutputParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new OutputParameter());
 	void OutputParameter::reset()
 	{
 		*this = OutputParameter();
