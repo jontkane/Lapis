@@ -10,7 +10,7 @@ namespace lapis {
 		*this = TaoHandler(_getter);
 	}
 
-	void TaoHandler::_writeHighPointsAsXYZArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& csm,
+	void TaoHandler::_writeHighPointsAsArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& bufferedCsm, const Raster<taoid_t>& bufferedSegments, 
 		const Extent& unbufferedExtent, cell_t tile) const {
 
 		std::filesystem::create_directories(taoTempDir());
@@ -27,28 +27,42 @@ namespace lapis {
 			ofs.write((const char*)&x, sizeof(x));
 		};
 
+		const coord_t cellArea = convertUnits(bufferedSegments.xres(), bufferedSegments.crs().getXYUnits(), bufferedSegments.crs().getZUnits())
+			* convertUnits(bufferedSegments.yres(), bufferedSegments.crs().getXYUnits(), bufferedSegments.crs().getZUnits());
+
+		std::unordered_map<taoid_t, coord_t> areas;
+		for (cell_t cell = 0; cell < bufferedSegments.ncell(); ++cell) {
+			if (bufferedSegments[cell].has_value()) {
+				areas.try_emplace(bufferedSegments[cell].value(), 0);
+				areas[bufferedSegments[cell].value()] += cellArea;
+			}
+		}
+
 		for (cell_t cell : highPoints) {
-			coord_t x = csm.xFromCellUnsafe(cell);
-			coord_t y = csm.yFromCellUnsafe(cell);
+			coord_t x = bufferedCsm.xFromCellUnsafe(cell);
+			coord_t y = bufferedCsm.yFromCellUnsafe(cell);
 			if (!unbufferedExtent.contains(x, y)) {
 				continue;
 			}
 			writeBytes(x);
 			writeBytes(y);
-			writeBytes(csm[cell].value());
+			writeBytes(bufferedCsm[cell].value());
+			writeBytes(areas[bufferedSegments[cell].value()]);
 		}
 	}
-	std::vector<CoordXYZ> TaoHandler::_readHighPointsFromXYZArray(cell_t tile) const {
+	std::vector<TaoHandler::TaoInfo> TaoHandler::_readHighPointsFromArray(cell_t tile) const {
 		std::filesystem::path fileName = getFullTempFilename(taoTempDir(), _taoBasename, OutputUnitLabel::Unitless, tile, "tmp");
 		std::ifstream ifs{ fileName,std::ios::binary };
 		if (!ifs) {
 			LapisLogger::getLogger().logMessage("Error reading from " + fileName.string());
-			return std::vector<CoordXYZ>();
+			return std::vector<TaoInfo>();
 		}
 
 		coord_t x, y;
-		csm_t z;
-		std::vector<CoordXYZ> out;
+		csm_t height;
+		coord_t area;
+		std::vector<TaoInfo> out;
+		out.reserve(std::filesystem::file_size(fileName) / sizeof(TaoInfo));
 
 		auto readBytes = [&](auto* x) {
 			ifs.read((char*)x, sizeof(*x));
@@ -57,15 +71,16 @@ namespace lapis {
 		while (ifs) {
 			readBytes(&x);
 			readBytes(&y);
-			readBytes(&z);
+			readBytes(&height);
+			readBytes(&area);
 			if (ifs.eof()) {
 				break;
 			}
-			out.emplace_back(x, y, z);
+			out.emplace_back(x, y, height, area);
 		}
 		return out;
 	}
-	void TaoHandler::_writeHighPointsAsShp(const Raster<taoid_t>& segments, cell_t tile) const {
+	void TaoHandler::_writeHighPointsAsShp(const Raster<taoid_t>& segments, const std::vector<TaoInfo>& highPoints, cell_t tile) const {
 		namespace fs = std::filesystem;
 
 		GDALRegisterWrapper::allRegister();
@@ -95,21 +110,7 @@ namespace lapis {
 		OGRFieldDefn radiusField("Radius", OFTReal);
 		layer->CreateField(&radiusField);
 
-		const coord_t cellArea = convertUnits(segments.xres(), segments.crs().getXYUnits(), segments.crs().getZUnits())
-			* convertUnits(segments.yres(), segments.crs().getXYUnits(), segments.crs().getZUnits());
-
-		std::unordered_map<taoid_t, coord_t> areas;
-		for (cell_t cell = 0; cell < segments.ncell(); ++cell) {
-			if (segments[cell].has_value()) {
-				areas.try_emplace(segments[cell].value(), 0);
-				areas[segments[cell].value()] += cellArea;
-			}
-		}
-
-		std::vector<CoordXYZ> highPoints = _readHighPointsFromXYZArray(tile);
-
-
-		for (const CoordXYZ& highPoint : highPoints) {
+		for (const TaoInfo& highPoint : highPoints) {
 			if (!segments.contains(highPoint.x, highPoint.y)) {
 				continue;
 			}
@@ -120,10 +121,10 @@ namespace lapis {
 			feature->SetField("ID", (int64_t)id);
 			feature->SetField("X", highPoint.x);
 			feature->SetField("Y", highPoint.y);
-			feature->SetField("Height", highPoint.z);
-			feature->SetField("Area", areas[id]);
+			feature->SetField("Height", highPoint.height);
+			feature->SetField("Area", highPoint.area);
 
-			feature->SetField("Radius", std::sqrt(areas[id] / M_PI));
+			feature->SetField("Radius", std::sqrt(highPoint.area / M_PI));
 
 			OGRPoint point;
 			point.setX(highPoint.x);
@@ -156,21 +157,21 @@ namespace lapis {
 			}
 		}
 	}
-	void TaoHandler::_fixTaoIdsThread(cell_t tile) const
+	Raster<taoid_t> TaoHandler::_fixTaoIdsThread(cell_t tile) const
 	{
 		LapisLogger& log = LapisLogger::getLogger();
 
 		Raster<taoid_t> segments;
 		std::string name = getFullTileFilename(taoTempDir(), _segmentsBasename, OutputUnitLabel::Unitless, tile).string();
 		if (!std::filesystem::exists(name)) {
-			return;
+			return segments;
 		}
 		try {
 			segments = Raster<taoid_t>{ name };
 		}
 		catch (InvalidRasterFileException e) {
 			log.logMessage("Error opening " + name);
-			return;
+			return segments;
 		}
 
 		auto& localNameMap = idMap.tileToLocalNames.at(tile);
@@ -187,13 +188,14 @@ namespace lapis {
 			}
 			v.value() = idMap.coordsToFinalName.at(localNameMap.at(v.value()));
 		}
-		writeRasterLogErrors(getFullTileFilename(taoDir(), _segmentsBasename, OutputUnitLabel::Unitless, tile), segments);
-		_writeHighPointsAsShp(segments, tile);
+		return segments;
 	}
 	TaoHandler::TaoHandler(ParamGetter* p) : ProductHandler(p)
 	{
 		_getter = p;
-
+	}
+	void TaoHandler::prepareForRun()
+	{
 		std::filesystem::remove_all(taoDir());
 		std::filesystem::remove_all(taoTempDir());
 	}
@@ -233,16 +235,16 @@ namespace lapis {
 			}
 		}
 
+		_writeHighPointsAsArray(highPoints, bufferedCsm, segments, unbufferedExtent, tile);
+
 		segments = cropRaster(segments, unbufferedExtent, SnapType::out);
 		maxHeight = cropRaster(maxHeight, unbufferedExtent, SnapType::out);
 
-		_writeHighPointsAsXYZArray(highPoints, bufferedCsm, unbufferedExtent, tile);
 		writeRasterLogErrors(getFullTileFilename(taoTempDir(), _segmentsBasename, OutputUnitLabel::Unitless, tile), segments);
 		writeRasterLogErrors(getFullTileFilename(taoDir(), _maxHeightBasename, OutputUnitLabel::Default, tile), maxHeight);
 	}
 	void TaoHandler::cleanup()
 	{
-
 		if (!_getter->doTaos()) {
 			return;
 		}
@@ -262,7 +264,13 @@ namespace lapis {
 							thisidx = sofar;
 							++sofar;
 						}
-						_fixTaoIdsThread(thisidx);
+						Raster<taoid_t> fixedSegments = _fixTaoIdsThread(thisidx);
+						if (!fixedSegments.hasAnyValue()) {
+							continue;
+						}
+						writeRasterLogErrors(getFullTileFilename(taoDir(), _segmentsBasename, OutputUnitLabel::Unitless, thisidx), fixedSegments);
+						std::vector<TaoInfo> highPoints = _readHighPointsFromArray(thisidx);
+						_writeHighPointsAsShp(fixedSegments, highPoints, thisidx);
 					}
 				}
 			));

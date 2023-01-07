@@ -13,7 +13,9 @@ namespace lapis {
 	FineIntHandler::FineIntHandler(ParamGetter* p) : ProductHandler(p)
 	{
 		_getter = p;
-
+	}
+	void FineIntHandler::prepareForRun()
+	{
 		std::filesystem::remove_all(fineIntDir());
 		std::filesystem::remove_all(fineIntTempDir());
 

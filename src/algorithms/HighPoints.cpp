@@ -78,6 +78,7 @@ namespace lapis {
 	std::vector<cell_t> HighPoints::_taoCandidates(const Raster<csm_t>& csm)
 	{
 		std::vector<cell_t> candidates;
+		candidates.reserve(csm.ncell() / 10);
 
 		for (rowcol_t row = 0; row < csm.nrow(); ++row) {
 			for (rowcol_t col = 0; col < csm.ncol(); ++col) {

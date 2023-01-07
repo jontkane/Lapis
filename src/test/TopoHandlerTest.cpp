@@ -23,6 +23,7 @@ namespace lapis {
 		setReasonableSharedDefaults(spoof);
 
 		TopoHandlerProtectedAccess th(&spoof);
+		th.prepareForRun();
 
 		EXPECT_TRUE(th.elevNumerator().isSameAlignment(*spoof.metricAlign()));
 		EXPECT_TRUE(th.elevDenominator().isSameAlignment(*spoof.metricAlign()));
@@ -35,6 +36,7 @@ namespace lapis {
 		setReasonableSharedDefaults(spoof);
 
 		TopoHandlerProtectedAccess th(&spoof);
+		th.prepareForRun();
 
 		Raster<coord_t> expectedNum{ *spoof.metricAlign() };
 		Raster<coord_t> expectedDenom{ *spoof.metricAlign() };

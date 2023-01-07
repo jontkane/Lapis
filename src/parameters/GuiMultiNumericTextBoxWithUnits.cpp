@@ -110,6 +110,7 @@ namespace lapis {
 			_cachedValues.push_back(v);
 		}
 
+		std::sort(_cachedValues.begin(), _cachedValues.end());
 		_buffers.clear();
 		for (size_t i = 0; i < _cachedValues.size(); ++i) {
 			_addBuffer();

@@ -42,7 +42,7 @@ namespace lapis {
 
 		template<class T>
 		T& getRawParam() {
-			return rp()._getRawParam<T>();
+			return rp().getParam<T>();
 		}
 	};
 

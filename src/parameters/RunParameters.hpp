@@ -28,6 +28,12 @@ namespace lapis {
 		void cleanAfterRun();
 		void resetObject();
 
+		template<class PARAMETER>
+		PARAMETER& getParam();
+
+		template<class PARAMETER>
+		const PARAMETER& getParam() const;
+
 		const Unit& outUnits();
 		void setPrevUnits(const Unit& u);
 		const Unit& prevUnits();
@@ -106,18 +112,10 @@ namespace lapis {
 
 	private:
 
-		friend class RunParametersTest;
-
 		RunParameters();
 		RunParameters(const RunParameters&) = delete;
 		RunParameters(RunParameters&&) = delete;
 		std::vector<std::unique_ptr<Parameter>> _params;
-
-		template<class PARAMETER>
-		PARAMETER& _getRawParam();
-
-		template<class PARAMETER>
-		const PARAMETER& _getRawParam() const;
 
 		Unit _prevUnits;
 
@@ -135,12 +133,12 @@ namespace lapis {
 	};
 
 	template<class PARAMETER>
-	inline PARAMETER& RunParameters::_getRawParam()
+	inline PARAMETER& RunParameters::getParam()
 	{
 		return *dynamic_cast<PARAMETER*>(_params[PARAMETER::parameterRegisteredIndex].get());
 	}
 	template<class PARAMETER>
-	inline const PARAMETER& RunParameters::_getRawParam() const
+	inline const PARAMETER& RunParameters::getParam() const
 	{
 		return *dynamic_cast<PARAMETER*>(_params[PARAMETER::parameterRegisteredIndex].get());
 	}

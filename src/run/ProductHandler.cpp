@@ -10,7 +10,6 @@ namespace lapis {
 		if (p == nullptr) {
 			throw std::invalid_argument("ParamGetter is null");
 		}
-		std::filesystem::remove_all(tempDir());
 	}
 	std::filesystem::path ProductHandler::parentDir() const
 	{

@@ -33,7 +33,7 @@ namespace lapis {
 	}
 	const Unit& RunParameters::outUnits() 
 	{
-		return _getRawParam<OutUnitParameter>().unit();
+		return getParam<OutUnitParameter>().unit();
 	}
 	const Unit& RunParameters::prevUnits() 
 	{
@@ -41,17 +41,17 @@ namespace lapis {
 	}
 	const std::string& RunParameters::unitSingular() 
 	{
-		return _getRawParam<OutUnitParameter>().unitSingularName();
+		return getParam<OutUnitParameter>().unitSingularName();
 	}
 	const std::string& RunParameters::unitPlural() 
 	{
-		return _getRawParam<OutUnitParameter>().unitPluralName();
+		return getParam<OutUnitParameter>().unitPluralName();
 	}
 	void RunParameters::importBoostAndUpdateUnits()
 	{
 		//this slightly odd way of ordering things is to ensure that only parameters
 		//that weren't specified in the same ini file that changed the units get converted
-		_getRawParam<OutUnitParameter>().importFromBoost();
+		getParam<OutUnitParameter>().importFromBoost();
 		updateUnits();
 		for (size_t i = 0; i < _params.size(); ++i) {
 			_params[i]->importFromBoost();
@@ -106,24 +106,24 @@ namespace lapis {
 
 	const Extent& RunParameters::fullExtent()
 	{
-		return _getRawParam<LasFileParameter>().getFullExtent();
+		return getParam<LasFileParameter>().getFullExtent();
 	}
 
 	const CoordRef& RunParameters::userCrs() 
 	{
-		return _getRawParam<AlignmentParameter>().getCurrentOutCrs();
+		return getParam<AlignmentParameter>().getCurrentOutCrs();
 	}
 
 	const std::shared_ptr<Alignment> RunParameters::metricAlign()
 	{
-		return _getRawParam<AlignmentParameter>().metricAlign();
+		return getParam<AlignmentParameter>().metricAlign();
 	}
 	const std::shared_ptr<Alignment> RunParameters::csmAlign()
 	{
-		return _getRawParam<CsmParameter>().csmAlign();
+		return getParam<CsmParameter>().csmAlign();
 	}
 	const std::shared_ptr<Alignment> RunParameters::fineIntAlign() {
-		return _getRawParam<FineIntParameter>().fineIntAlign();
+		return getParam<FineIntParameter>().fineIntAlign();
 	}
 	std::shared_ptr<Raster<bool>> RunParameters::layout()
 	{
@@ -155,42 +155,42 @@ namespace lapis {
 
 	const std::vector<std::shared_ptr<LasFilter>>& RunParameters::filters()
 	{
-		return _getRawParam<FilterParameter>().filters();
+		return getParam<FilterParameter>().filters();
 	}
 	coord_t RunParameters::minHt() 
 	{
-		return _getRawParam<FilterParameter>().minht();
+		return getParam<FilterParameter>().minht();
 	}
 	coord_t RunParameters::maxHt() 
 	{
-		return _getRawParam<FilterParameter>().maxht();
+		return getParam<FilterParameter>().maxht();
 	}
 
 	CsmAlgorithm* RunParameters::csmAlgorithm()
 	{
-		return _getRawParam<CsmParameter>().csmAlgorithm();
+		return getParam<CsmParameter>().csmAlgorithm();
 	}
 
 	CsmPostProcessor* RunParameters::csmPostProcessAlgorithm()
 	{
-		return _getRawParam<CsmParameter>().csmPostProcessor();
+		return getParam<CsmParameter>().csmPostProcessor();
 	}
 
 	const std::vector<Extent>& RunParameters::lasExtents()
 	{
-		return _getRawParam<LasFileParameter>().sortedLasExtents();
+		return getParam<LasFileParameter>().sortedLasExtents();
 	}
 	LasReader RunParameters::getLas(size_t i)
 	{
-		return _getRawParam<LasFileParameter>().getLas(i);
+		return getParam<LasFileParameter>().getLas(i);
 	}
 	DemAlgorithm* RunParameters::demAlgorithm() 
 	{
-		return _getRawParam<DemParameter>().demAlgorithm();
+		return getParam<DemParameter>().demAlgorithm();
 	}
 	int RunParameters::nThread() 
 	{
-		return _getRawParam<ComputerParameter>().nThread();
+		return getParam<ComputerParameter>().nThread();
 	}
 	coord_t RunParameters::binSize()
 	{
@@ -198,88 +198,88 @@ namespace lapis {
 	}
 	size_t RunParameters::tileFileSize() 
 	{
-		return 500ll * 1024 * 1024; //500 MB
+		return 250ll * 1024 * 1024; //250 MB
 	}
 	coord_t RunParameters::canopyCutoff() 
 	{
-		return _getRawParam<PointMetricParameter>().canopyCutoff();
+		return getParam<PointMetricParameter>().canopyCutoff();
 	}
 	const std::vector<coord_t>& RunParameters::strataBreaks() 
 	{
 		static std::vector<coord_t> empty;
-		return doStratumMetrics() ? _getRawParam<PointMetricParameter>().strata() : empty;
+		return doStratumMetrics() ? getParam<PointMetricParameter>().strata() : empty;
 	}
 	const std::vector<std::string>& RunParameters::strataNames()
 	{
-		return _getRawParam<PointMetricParameter>().strataNames();
+		return getParam<PointMetricParameter>().strataNames();
 	}
 	TaoIdAlgorithm* RunParameters::taoIdAlgorithm()
 	{
-		return _getRawParam<TaoParameter>().taoIdAlgo();
+		return getParam<TaoParameter>().taoIdAlgo();
 	}
 	TaoSegmentAlgorithm* RunParameters::taoSegAlgorithm()
 	{
-		return _getRawParam<TaoParameter>().taoSegAlgo();
+		return getParam<TaoParameter>().taoSegAlgo();
 	}
 	const std::filesystem::path& RunParameters::outFolder()
 	{
-		return _getRawParam<OutputParameter>().path();
+		return getParam<OutputParameter>().path();
 	}
 	const std::string& RunParameters::name()
 	{
-		return _getRawParam<NameParameter>().name();
+		return getParam<NameParameter>().name();
 	}
 	coord_t RunParameters::fineIntCanopyCutoff() {
-		return _getRawParam<FineIntParameter>().fineIntCutoff();
+		return getParam<FineIntParameter>().fineIntCutoff();
 	}
 
 	bool RunParameters::doPointMetrics() {
-		return _getRawParam<WhichProductsParameter>().doPointMetrics();
+		return getParam<WhichProductsParameter>().doPointMetrics();
 	}
 	bool RunParameters::doFirstReturnMetrics()
 	{
-		return _getRawParam<PointMetricParameter>().doFirstReturns();
+		return getParam<PointMetricParameter>().doFirstReturns();
 	}
 	bool RunParameters::doAllReturnMetrics()
 	{
-		return _getRawParam<PointMetricParameter>().doAllReturns();
+		return getParam<PointMetricParameter>().doAllReturns();
 	}
 	bool RunParameters::doAdvancedPointMetrics()
 	{
-		return _getRawParam<PointMetricParameter>().doAdvancedPointMetrics();
+		return getParam<PointMetricParameter>().doAdvancedPointMetrics();
 	}
 	bool RunParameters::doCsm()
 	{
-		return _getRawParam<WhichProductsParameter>().doCsm();
+		return getParam<WhichProductsParameter>().doCsm();
 	}
 	bool RunParameters::doCsmMetrics()
 	{
-		return _getRawParam<CsmParameter>().doCsmMetrics();
+		return getParam<CsmParameter>().doCsmMetrics();
 	}
 	bool RunParameters::doTaos()
 	{
-		return doCsm() && _getRawParam<WhichProductsParameter>().doTao();
+		return doCsm() && getParam<WhichProductsParameter>().doTao();
 	}
 	bool RunParameters::doFineInt()
 	{
-		return _getRawParam<WhichProductsParameter>().doFineInt();
+		return getParam<WhichProductsParameter>().doFineInt();
 	}
 	bool RunParameters::doTopo()
 	{
-		return _getRawParam<WhichProductsParameter>().doTopo();
+		return getParam<WhichProductsParameter>().doTopo();
 	}
 	bool RunParameters::doStratumMetrics()
 	{
-		return _getRawParam<PointMetricParameter>().doStratumMetrics();
+		return getParam<PointMetricParameter>().doStratumMetrics();
 	}
 
 	bool RunParameters::isDebugNoAlign()
 	{
-		return _getRawParam<AlignmentParameter>().isDebug();
+		return getParam<AlignmentParameter>().isDebug();
 	}
 	bool RunParameters::isDebugNoOutput()
 	{
-		return _getRawParam<OutputParameter>().isDebugNoOutput();
+		return getParam<OutputParameter>().isDebugNoOutput();
 	}
 	bool RunParameters::isAnyDebug()
 	{

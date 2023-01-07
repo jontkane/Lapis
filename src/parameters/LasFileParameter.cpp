@@ -118,6 +118,7 @@ namespace lapis {
 				_fullExtent = extendExtent(_fullExtent, l.ext);
 			}
 		}
+		_fullExtent.setZUnits(rp.outUnits());
 
 		_runPrepared = true;
 		return true;

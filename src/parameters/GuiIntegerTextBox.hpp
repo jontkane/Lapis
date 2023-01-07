@@ -7,6 +7,7 @@
 namespace lapis {
 	class IntegerTextBox : public GuiCmdElement {
 	public:
+		IntegerTextBox(const std::string& guiDesc, const std::string& cmdName, int defaultValue);
 		IntegerTextBox(const std::string& guiDesc, const std::string& cmdName, int defaultValue, const std::string& cmdDescription);
 
 		void addToCmd(BoostOptDesc& visible,
@@ -17,6 +18,10 @@ namespace lapis {
 		bool importFromBoost() override;
 
 		int getValueLogErrors() const;
+
+		const char* asText() const;
+
+		void setValue(int i);
 
 	private:
 		int _boostValue;

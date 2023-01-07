@@ -61,7 +61,13 @@ namespace lapis {
 			[](const auto& a, const auto& b) {return a.xres() * a.yres() < b.xres() * b.yres(); });
 		//at the end of all this, the list should now be sorted by cellsize. DEMs in the same CRS as the points should have had to undergo any loss of precision
 		out.dem = Raster<coord_t>{ Alignment(e,xOriginOfFinest,yOriginOfFinest,minRes,minRes) };
-		for (const Raster<coord_t>& dem : overlappingDems) {
+		for (Raster<coord_t>& dem : overlappingDems) {
+			if (dem.crs().getZUnits() != out.dem.crs().getZUnits()) {
+				coord_t convFactor = convertUnits(1, dem.crs().getZUnits(), out.dem.crs().getZUnits());
+				for (cell_t cell = 0; cell < dem.ncell(); ++cell) {
+					dem[cell].value() *= convFactor;
+				}
+			}
 			Raster<coord_t> resampled;
 			if (!out.dem.isSameAlignment(dem)) {
 				resampled = dem.resample(out.dem, ExtractMethod::bilinear);

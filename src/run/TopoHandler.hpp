@@ -10,6 +10,7 @@ namespace lapis {
 		using ParamGetter = TopoParameterGetter;
 		TopoHandler(ParamGetter* p);
 
+		void prepareForRun() override;
 		void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) override;
 		void handleDem(const Raster<coord_t>& dem, size_t index) override;
 		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
@@ -33,7 +34,6 @@ namespace lapis {
 		};
 		std::vector<TopoMetric> _topoMetrics;
 
-	private:
 		ParamGetter* _getter;
 	};
 }

@@ -37,8 +37,10 @@ namespace lapis {
 		GDALDatasetWrapper(const std::string& driver, const std::string& file, int ncol, int nrow, GDALDataType gdt);
 		~GDALDatasetWrapper();
 
-		GDALDatasetWrapper(const GDALDatasetWrapper& other) = delete;
+		GDALDatasetWrapper(const GDALDatasetWrapper&) = delete;
+		GDALDatasetWrapper& operator=(const GDALDatasetWrapper&) = delete;
 		GDALDatasetWrapper(GDALDatasetWrapper&& other) noexcept;
+		GDALDatasetWrapper& operator=(GDALDatasetWrapper&& other) noexcept;
 
 		GDALDataset* operator->() {
 			return gd;

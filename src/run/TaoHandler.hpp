@@ -10,6 +10,7 @@ namespace lapis {
 		using ParamGetter = TaoParameterGetter;
 		TaoHandler(ParamGetter* p);
 
+		void prepareForRun() override;
 		void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) override;
 		void handleDem(const Raster<coord_t>& dem, size_t index) override;
 		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
@@ -40,15 +41,21 @@ namespace lapis {
 
 		TaoIdMap idMap;
 
-		void _writeHighPointsAsXYZArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& csm, const Extent& unbufferedExtent, cell_t tile) const;
-		std::vector<CoordXYZ> _readHighPointsFromXYZArray(cell_t tile) const;
+		struct TaoInfo {
+			coord_t x, y;
+			csm_t height;
+			coord_t area;
+		};
 
-	private:
+		void _writeHighPointsAsArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& bufferedCsm, const Raster<taoid_t>& bufferedSegments,
+			const Extent& unbufferedExtent, cell_t tile) const;
+		std::vector<TaoInfo> _readHighPointsFromArray(cell_t tile) const;
+
 		ParamGetter* _getter;
 
 		void _updateMap(const Raster<taoid_t>& segments, const std::vector<cell_t>& highPoints, const Extent& unbufferedExtent, cell_t tileidx);
-		void _fixTaoIdsThread(cell_t tile) const;
-		void _writeHighPointsAsShp(const Raster<taoid_t>& segments, cell_t tile) const;
+		Raster<taoid_t> _fixTaoIdsThread(cell_t tile) const;
+		void _writeHighPointsAsShp(const Raster<taoid_t>& segments, const std::vector<TaoInfo>& highPoints, cell_t tile) const;
 
 		std::string _taoBasename = "TAOs";
 		std::string _segmentsBasename = "Segments";

@@ -14,6 +14,7 @@ namespace lapis {
 		setReasonableFineIntDefaults(spoof);
 
 		FineIntHandler fih{ &spoof };
+		fih.prepareForRun();
 
 
 		std::filesystem::remove_all(spoof.outFolder());
@@ -64,6 +65,7 @@ namespace lapis {
 		spoof.addLasExtent(*spoof.fineIntAlign());
 
 		FineIntHandler fih{ &spoof };
+		fih.prepareForRun();
 
 		std::filesystem::remove_all(spoof.outFolder());
 

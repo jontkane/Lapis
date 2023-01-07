@@ -59,6 +59,9 @@ namespace lapis {
 	PointMetricHandler::PointMetricHandler(ParamGetter* p) : ProductHandler(p)
 	{
 		_getter = p;
+	}
+	void PointMetricHandler::prepareForRun()
+	{
 
 		std::filesystem::remove_all(pointMetricDir());
 

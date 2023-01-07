@@ -10,6 +10,7 @@ namespace lapis {
 		using ParamGetter = CsmParameterGetter;
 		CsmHandler(ParamGetter* p);
 
+		void prepareForRun() override;
 		void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) override;
 		void handleDem(const Raster<coord_t>& dem, size_t index) override;
 		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
@@ -34,11 +35,10 @@ namespace lapis {
 			CSMMetricRaster(ParamGetter* getter, const std::string& name, CsmMetricFunc fun, OutputUnitLabel unit);
 		};
 		std::vector<CSMMetricRaster> _csmMetrics;
-
-	private:
-		ParamGetter* _getter;
-
 		std::string _csmBaseName = "CanopySurfaceModel";
+
+		ParamGetter* _getter;
+		
 	};
 }
 

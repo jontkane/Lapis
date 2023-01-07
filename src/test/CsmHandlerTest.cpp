@@ -30,6 +30,7 @@ namespace lapis {
 		setReasonableCsmDefaults(spoof);
 
 		CsmHandlerProtectedAccess ch(&spoof);
+		ch.prepareForRun();
 
 		EXPECT_GT(ch.csmMetrics().size(), 0);
 		for (size_t i = 0; i < ch.csmMetrics().size(); ++i) {
@@ -46,6 +47,7 @@ namespace lapis {
 		setReasonableCsmDefaults(spoof);
 
 		CsmHandlerProtectedAccess ch(&spoof);
+		ch.prepareForRun();
 
 		namespace fs = std::filesystem;
 		fs::remove_all(spoof.outFolder());
@@ -102,6 +104,7 @@ namespace lapis {
 		spoof.setCsmPostProcessor(new DoNothingCsm());
 
 		CsmHandlerProtectedAccess ch(&spoof);
+		ch.prepareForRun();
 
 		namespace fs = std::filesystem;
 		fs::remove_all(spoof.outFolder());

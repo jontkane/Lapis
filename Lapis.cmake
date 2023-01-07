@@ -2,7 +2,7 @@ file(GLOB LAPIS_GIS_SOURCES
 	${LAPIS_DIR}/src/gis/*.hpp
 	${LAPIS_DIR}/src/gis/*.cpp)
 
-file(GLOB_RECURSE LAPIS_PARAMETERS_SOURCES
+file(GLOB LAPIS_PARAMETERS_SOURCES
 	${LAPIS_DIR}/src/parameters/*.hpp
 	${LAPIS_DIR}/src/parameters/*.cpp)
 
@@ -37,8 +37,8 @@ add_executable(Lapis_test ${LAPIS_TEST_SOURCES})
 
 add_library(Lapis_gis STATIC ${LAPIS_GIS_SOURCES})
 add_library(Lapis_algorithms STATIC ${LAPIS_ALGO_SOURCES})
-add_library(Lapis_params STATIC ${LAPIS_PARAMETERS_SOURCES})
-add_library(Lapis_run STATIC ${LAPIS_RUN_SOURCES})
+add_library(Lapis_params OBJECT ${LAPIS_PARAMETERS_SOURCES})
+add_library(Lapis_run OBJECT ${LAPIS_RUN_SOURCES})
 add_library(Lapis_logger STATIC ${LAPIS_LOGGER_SOURCES})
 add_library(Lapis_imgui STATIC ${LAPIS_IMGUI_SOURCES})
 
@@ -116,7 +116,7 @@ target_precompile_headers(Lapis_gis PRIVATE ${LAPIS_DIR}/src/gis/gis_pch.hpp)
 target_precompile_headers(Lapis_algorithms PRIVATE ${LAPIS_DIR}/src/algorithms/algo_pch.hpp)
 target_precompile_headers(Lapis_test PRIVATE ${LAPIS_DIR}/src/test/test_pch.hpp)
 
-if(MSVC)
+if (MSVC)
 	target_compile_options(Lapis PRIVATE /W3 /WX)
 	target_compile_options(Lapis_logger PRIVATE /W3 /WX)
 	target_compile_options(Lapis_params PRIVATE /W3 /WX)

@@ -47,6 +47,7 @@ namespace lapis {
 		spoof.addLasExtent(Extent(1, 3, 1, 2));
 
 		PointMetricHandlerProtectedAccess pmh(&spoof);
+		pmh.prepareForRun();
 
 		std::vector<bool> expectedNLazHasValue = {
 			false,false,false,
@@ -95,6 +96,7 @@ namespace lapis {
 		spoof.setDoAllReturnMetrics(false);
 		spoof.setDoStratumMetrics(false);
 		pmh = PointMetricHandlerProtectedAccess(&spoof);
+		pmh.prepareForRun();
 		EXPECT_GT(pmh.pointMetrics().size(), withoutAdvancedMetrics);
 		for (size_t i = 0; i < pmh.pointMetrics().size(); ++i) {
 			EXPECT_FALSE(pmh.pointMetrics()[i].rasters.all.has_value());
@@ -130,6 +132,7 @@ namespace lapis {
 		spoof.addLasExtent(extenttwo);
 
 		PointMetricHandlerProtectedAccess pmh(&spoof);
+		pmh.prepareForRun();
 
 		//pointmetriccalculator has its own test so I don't want the full suite here
 		//I'm just verifying that the points make their way to the right PMC and that the functions get called at the appropriate time

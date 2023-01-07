@@ -19,12 +19,11 @@ if (_needAbort) { \
 }
 
 namespace lapis {
-	std::vector<std::unique_ptr<ProductHandler>> LapisController::_handlers = std::vector<std::unique_ptr<ProductHandler>>();
 
 	LapisController::LapisController()
 	{
-		for (size_t i = 0; i < _handlers.size(); ++i) {
-			_handlers[i].reset();
+		for (size_t i = 0; i < _handlers().size(); ++i) {
+			_handlers()[i]->reset();
 		}
 	}
 	void LapisController::processFullArea()
@@ -43,6 +42,10 @@ namespace lapis {
 		LAPIS_CHECK_ABORT_AND_DEALLOC;
 		
 		rp.demAlgorithm()->setMinMax(rp.minHt(), rp.maxHt());
+
+		for (auto& p : _handlers()) {
+			p->prepareForRun();
+		}
 
 		log.setProgress(RunProgress::lasFiles, (int)rp.lasExtents().size());
 		uint64_t soFar = 0;
@@ -95,8 +98,8 @@ namespace lapis {
 
 	size_t LapisController::registerHandler(ProductHandler* handler)
 	{
-		_handlers.emplace_back(handler);
-		return _handlers.size() - 1;
+		_handlers().emplace_back(handler);
+		return _handlers().size() - 1;
 	}
 
 	void LapisController::writeParams() const
@@ -152,7 +155,13 @@ namespace lapis {
 		}
 	}
 
-	void LapisController::lasThread(size_t n) const
+	std::vector<std::unique_ptr<ProductHandler>>& LapisController::_handlers()
+	{
+		static std::vector<std::unique_ptr<ProductHandler>> handlers = std::vector<std::unique_ptr<ProductHandler>>();
+		return handlers;
+	}
+
+	void LapisController::lasThread(size_t n)
 	{
 		RunParameters& rp = RunParameters::singleton();
 		LapisLogger& log = LapisLogger::getLogger();
@@ -182,43 +191,36 @@ namespace lapis {
 		points.shrink_to_fit();
 		LAPIS_CHECK_ABORT;
 
-		for (size_t i = 0; i < _handlers.size(); ++i) {
-			_handlers[i]->handlePoints(ground.points, projectedExtent, n);
-			_handlers[i]->handleDem(ground.dem, n);
+		for (size_t i = 0; i < _handlers().size(); ++i) {
+			_handlers()[i]->handlePoints(ground.points, projectedExtent, n);
+			_handlers()[i]->handleDem(ground.dem, n);
 			LAPIS_CHECK_ABORT;
 		}
 		LapisLogger::getLogger().incrementTask();
 	}
 
-	void LapisController::tileThread(cell_t tile) const
+	void LapisController::tileThread(cell_t tile)
 	{
-		Raster<csm_t> bufferedCsm;
-
-		for (size_t i = 0; i < _handlers.size(); ++i) {
-			CsmHandler* csmHandler = dynamic_cast<CsmHandler*>(_handlers[i].get());
-			if (csmHandler) {
-				bufferedCsm = csmHandler->getBufferedCsm(tile);
-				break;
-			}
-		}
+		CsmHandler* csmhandler = dynamic_cast<CsmHandler*>(_handlers()[CsmHandler::handlerRegisteredIndex].get());
+		Raster<csm_t> bufferedCsm = csmhandler->getBufferedCsm(tile);
 		if (!bufferedCsm.hasAnyValue()) {
 			return;
 		}
 
-		for (size_t i = 0; i < _handlers.size(); ++i) {
-			_handlers[i]->handleCsmTile(bufferedCsm, tile);
+		for (size_t i = 0; i < _handlers().size(); ++i) {
+			_handlers()[i]->handleCsmTile(bufferedCsm, tile);
 			LAPIS_CHECK_ABORT;
 		}
 
 		LapisLogger::getLogger().incrementTask();
 	}
 
-	void LapisController::cleanUp() const
+	void LapisController::cleanUp()
 	{
 		writeLayout();
-		for (size_t i = 0; i < _handlers.size(); ++i) {
+		for (size_t i = 0; i < _handlers().size(); ++i) {
 			LAPIS_CHECK_ABORT;
-			_handlers[i]->cleanup();
+			_handlers()[i]->cleanup();
 		}
 	}
 

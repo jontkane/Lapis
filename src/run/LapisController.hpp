@@ -21,15 +21,15 @@ namespace lapis {
 		static size_t registerHandler(ProductHandler* handler);
 		template<class HANDLER>
 		static void replaceHandlerWithMod(HANDLER* handler) {
-			_handlers[HANDLER::handlerRegisteredIndex].reset(handler);
+			_handlers()[HANDLER::handlerRegisteredIndex].reset(handler);
 		}
 
 	protected:
 		mutable std::atomic_bool _isRunning = false;
 
-		void lasThread(size_t n) const;
-		void tileThread(cell_t tile) const;
-		void cleanUp() const;
+		void lasThread(size_t n);
+		void tileThread(cell_t tile);
+		void cleanUp();
 
 		void writeLayout() const;
 		void writeParams() const;
@@ -54,7 +54,7 @@ namespace lapis {
 			}
 		}
 
-		static std::vector<std::unique_ptr<ProductHandler>> _handlers;
+		static std::vector<std::unique_ptr<ProductHandler>>& _handlers();
 	};
 }
 

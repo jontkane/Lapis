@@ -214,7 +214,7 @@ namespace lapis {
 		static NFD::UniquePathU8 outputIniFile;
 		ImGui::SameLine();
 		if (ImGui::Button("Export Parameters")) {
-			NFD::OpenDialog(outputIniFile, &iniFileFilter, 1);
+			NFD::SaveDialog(outputIniFile, &iniFileFilter, 1);
 		}
 		if (outputIniFile) {
 			std::ofstream ofs{ outputIniFile.get() };

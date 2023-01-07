@@ -3,9 +3,16 @@
 #include"..\logger\LapisLogger.hpp"
 
 namespace lapis {
+	IntegerTextBox::IntegerTextBox(const std::string& guiDesc, const std::string& cmdName, int defaultValue)
+		: GuiCmdElement(guiDesc, cmdName), _boostValue(defaultValue)
+	{
+		_buffer[0] = '\0';
+		importFromBoost();
+	}
 	IntegerTextBox::IntegerTextBox(const std::string& guiDesc, const std::string& cmdName, int defaultValue, const std::string& cmdDescription)
 		: GuiCmdElement(guiDesc, cmdName, cmdDescription), _boostValue(defaultValue)
 	{
+		_buffer[0] = '\0';
 		importFromBoost();
 	}
 	void IntegerTextBox::addToCmd(BoostOptDesc& visible, BoostOptDesc& hidden)
@@ -53,5 +60,14 @@ namespace lapis {
 			log.logMessage("Error reading value of " + _guiDesc);
 			return 1;
 		}
+	}
+
+	const char* IntegerTextBox::asText() const {
+		return _buffer.data();
+	}
+
+	void IntegerTextBox::setValue(int i) {
+		std::string s = std::to_string(i);
+		strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size());
 	}
 }

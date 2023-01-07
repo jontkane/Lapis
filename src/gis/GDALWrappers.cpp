@@ -24,8 +24,16 @@ namespace lapis {
 	}
 
 	GDALDatasetWrapper::GDALDatasetWrapper(GDALDatasetWrapper&& other) noexcept {
+		*this = std::move(other);
+	}
+
+	GDALDatasetWrapper& GDALDatasetWrapper::operator=(GDALDatasetWrapper&& other) noexcept
+	{
+		auto temp = gd;
 		gd = other.gd;
-		other.gd = nullptr;
+		other.gd = temp;
+		_file = std::move(other._file);
+		return *this;
 	}
 
 	GDALDatasetWrapper rasterGDALWrapper(const std::string& filename) {

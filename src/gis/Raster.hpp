@@ -44,7 +44,7 @@ namespace lapis {
 		Raster<T>& operator=(Raster<S>&& r) = delete;
 
 		Raster(const Raster<T>& r) = default;
-		Raster(Raster<T>&& r) {
+		Raster(Raster<T>&& r) noexcept {
 			*this = r;
 		}
 		Raster<T>& operator=(const Raster<T>& r) = default;

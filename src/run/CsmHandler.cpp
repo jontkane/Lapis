@@ -14,6 +14,9 @@ namespace lapis {
 	CsmHandler::CsmHandler(ParamGetter* p) : ProductHandler(p)
 	{
 		_getter = p;
+	}
+	void CsmHandler::prepareForRun()
+	{
 
 		std::filesystem::remove_all(csmDir());
 		std::filesystem::remove_all(csmTempDir());

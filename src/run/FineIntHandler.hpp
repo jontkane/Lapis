@@ -10,6 +10,7 @@ namespace lapis {
 		using ParamGetter = FineIntParameterGetter;
 		FineIntHandler(ParamGetter* p);
 
+		void prepareForRun() override;
 		void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) override;
 		void handleDem(const Raster<coord_t>& dem, size_t index) override;
 		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
@@ -20,12 +21,12 @@ namespace lapis {
 		std::filesystem::path fineIntDir() const;
 		std::filesystem::path fineIntTempDir() const;
 
-	private:
-		ParamGetter* _getter;
-
+	protected:
 		std::string _numeratorBasename = "numerator";
 		std::string _denominatorBasename = "denominator";
 		std::string _fineIntBaseName;
+
+		ParamGetter* _getter;
 	};
 }
 

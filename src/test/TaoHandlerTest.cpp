@@ -11,18 +11,21 @@ namespace lapis {
 
 		TaoHandlerProtectedAccess(ParamGetter* getter) : TaoHandler(getter) {}
 
-		void writeXYZArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& csm, const Extent& unbufferedExtent, cell_t tile) {
-			_writeHighPointsAsXYZArray(highPoints, csm, unbufferedExtent, tile);
+		void writeArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& csm, const Raster<taoid_t>& segments,
+			const Extent& unbufferedExtent, cell_t tile) {
+			_writeHighPointsAsArray(highPoints, csm, segments, unbufferedExtent, tile);
 		}
-		std::vector<CoordXYZ> readXYZArray(cell_t tile) {
-			return _readHighPointsFromXYZArray(tile);
+		std::vector<TaoInfo> readArray(cell_t tile) {
+			return _readHighPointsFromArray(tile);
 		}
+		
+		using TaoInfoProtected = TaoInfo;
 	};
 
 	void setReasonableTaoDefaults(TaoParameterSpoofer& spoof) {
 		setReasonableSharedDefaults(spoof);
 		spoof.setTaoIdAlgorithm(new HighPoints(2, 0));
-		spoof.setTaoSegAlgorithm(new WatershedSegment(2,100,0.01));
+		spoof.setTaoSegAlgorithm(new WatershedSegment(2, 100, 0.01));
 	}
 
 	TEST(TaoHandlerTest, xyzarraytest) {
@@ -31,6 +34,7 @@ namespace lapis {
 		setReasonableTaoDefaults(spoof);
 
 		TaoHandlerProtectedAccess th(&spoof);
+		th.prepareForRun();
 
 		std::filesystem::remove_all(spoof.outFolder());
 
@@ -40,31 +44,38 @@ namespace lapis {
 			r[cell].has_value() = true;
 		}
 
-Extent unbuffered = Extent(r.xmin(),
-	(r.xmin() + r.xmax()) / 2,
-	r.ymin(),
-	(r.ymin() + r.ymax()) / 2);
-std::vector<cell_t> highPoints;
-std::vector<CoordXYZ> expected;
-for (cell_t cell = 0; cell < r.ncell(); ++cell) {
-	highPoints.push_back(cell);
-	if (unbuffered.contains(r.xFromCell(cell), r.yFromCell(cell))) {
-		expected.push_back({ r.xFromCell(cell), r.yFromCell(cell), r[cell].value() });
-	}
-}
+		Extent unbuffered = Extent(r.xmin(),
+			(r.xmin() + r.xmax()) / 2,
+			r.ymin(),
+			(r.ymin() + r.ymax()) / 2);
+		std::vector<cell_t> highPoints;
+		std::vector<TaoHandlerProtectedAccess::TaoInfoProtected> expected;
+		for (cell_t cell = 0; cell < r.ncell(); ++cell) {
+			highPoints.push_back(cell);
+			if (unbuffered.contains(r.xFromCell(cell), r.yFromCell(cell))) {
+				expected.push_back({ r.xFromCell(cell), r.yFromCell(cell), r[cell].value(), 0.25*r.ncell()});
+			}
+		}
 
-th.writeXYZArray(highPoints, r, unbuffered, 0);
-std::vector<CoordXYZ> actual = th.readXYZArray(0);
+		Raster<taoid_t> fakeSegments((Alignment)r);
+		for (cell_t cell = 0; cell < fakeSegments.ncell(); ++cell) {
+			fakeSegments[cell].value() = 1;
+			fakeSegments[cell].has_value() = true;
+		}
 
-ASSERT_EQ(expected.size(), actual.size());
+		th.writeArray(highPoints, r, fakeSegments, unbuffered, 0);
+		auto actual = th.readArray(0);
 
-for (size_t i = 0; i < expected.size(); ++i) {
-	EXPECT_EQ(expected[i].x, actual[i].x);
-	EXPECT_EQ(expected[i].y, actual[i].y);
-	EXPECT_EQ(expected[i].z, actual[i].z);
-}
+		ASSERT_EQ(expected.size(), actual.size());
 
-std::filesystem::remove_all(spoof.outFolder());
+		for (size_t i = 0; i < expected.size(); ++i) {
+			EXPECT_EQ(expected[i].x, actual[i].x);
+			EXPECT_EQ(expected[i].y, actual[i].y);
+			EXPECT_EQ(expected[i].height, actual[i].height);
+			EXPECT_EQ(expected[i].area, actual[i].area);
+		}
+
+		std::filesystem::remove_all(spoof.outFolder());
 	}
 
 	TEST(TaoHandlerTest, handletiletest) {
@@ -72,6 +83,7 @@ std::filesystem::remove_all(spoof.outFolder());
 		setReasonableTaoDefaults(spoof);
 
 		TaoHandlerProtectedAccess th(&spoof);
+		th.prepareForRun();
 
 		std::filesystem::remove_all(spoof.outFolder());
 
@@ -91,7 +103,7 @@ std::filesystem::remove_all(spoof.outFolder());
 		Extent tileExtent = spoof.layout()->extentFromCell(testTile);
 
 		std::vector<cell_t> expectedHighPoints = spoof.taoIdAlgorithm()->identifyTaos(fullCsm);
-		std::vector<CoordXYZ> actualHighPoints = th.readXYZArray(testTile);
+		auto actualHighPoints = th.readArray(testTile);
 		EXPECT_GT(actualHighPoints.size(), 0);
 		for (size_t i = 0; i < expectedHighPoints.size(); ++i) {
 
@@ -105,7 +117,7 @@ std::filesystem::remove_all(spoof.outFolder());
 			for (size_t j = 0; j < actualHighPoints.size(); ++j) {
 				if (expectedHighPoints[i] == fullCsm.cellFromXY(actualHighPoints[j].x, actualHighPoints[j].y)) {
 					foundCount++;
-					EXPECT_NEAR(fullCsm[expectedHighPoints[i]].value(), actualHighPoints[j].z, 0.0001);
+					EXPECT_NEAR(fullCsm[expectedHighPoints[i]].value(), actualHighPoints[j].height, 0.0001);
 				}
 			}
 			EXPECT_EQ(foundCount, wantToFind);
@@ -161,6 +173,7 @@ std::filesystem::remove_all(spoof.outFolder());
 		setReasonableTaoDefaults(spoof);
 
 		TaoHandlerProtectedAccess th(&spoof);
+		th.prepareForRun();
 
 		std::filesystem::remove_all(spoof.outFolder());
 
@@ -183,7 +196,7 @@ std::filesystem::remove_all(spoof.outFolder());
 		for (cell_t tile = 0; tile < spoof.layout()->ncell(); ++tile) {
 			std::filesystem::path filename = th.getFullTileFilename(th.taoDir(), "TAOs", OutputUnitLabel::Unitless, tile, "shp");
 			EXPECT_TRUE(std::filesystem::exists(filename));
-		
+
 			GDALDatasetWrapper highPoints = vectorGDALWrapper(filename.string());
 			ASSERT_FALSE(highPoints.isNull());
 			OGRLayer* layer = highPoints->GetLayer(0);

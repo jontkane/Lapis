@@ -18,9 +18,9 @@ namespace lapis {
 	public:
 		using ParamGetter = SharedParameterGetter;
 		ProductHandler(ParamGetter* p);
-
 		virtual ~ProductHandler() = default;
 
+		virtual void prepareForRun() = 0;
 		//this function can assume that all points pass all filters, are normalized to the ground
 		//are in the same projection (including Z units) as the extent, and are contained in the extent
 		virtual void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) = 0;

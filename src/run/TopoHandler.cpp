@@ -13,7 +13,9 @@ namespace lapis {
 	TopoHandler::TopoHandler(ParamGetter* p) : ProductHandler(p)
 	{
 		_getter = p;
-
+	}
+	void TopoHandler::prepareForRun()
+	{
 		std::filesystem::remove_all(topoDir());
 
 		if (!_getter->doTopo()) {
@@ -26,7 +28,6 @@ namespace lapis {
 		using oul = OutputUnitLabel;
 		_topoMetrics.emplace_back("Slope", viewSlope<coord_t, metric_t>, oul::Radian);
 		_topoMetrics.emplace_back("Aspect", viewAspect<coord_t, metric_t>, oul::Radian);
-
 	}
 	void TopoHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
 	{
