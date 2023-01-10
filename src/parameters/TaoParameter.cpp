@@ -27,6 +27,9 @@ namespace lapis {
 			"Watershed: expand each identified tree downwards from the center until it would have to go upwards again.\n"
 			"The watershed algorithm requires no parameterization");
 
+		_mindist.addHelpText("If two TAOs are very close to each other, it may represent an error rather than two separate trees. "
+			"If this is set to a value greater than 0, then if two TAOs are too close, the shorter one will be removed.");
+
 	}
 	void TaoParameter::addToCmd(BoostOptDesc& visible,
 		BoostOptDesc& hidden) {
