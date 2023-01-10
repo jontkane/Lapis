@@ -19,13 +19,6 @@ namespace lapis {
 	}
 	RunParameters::RunParameters()
 	{
-#ifndef NDEBUG
-		CPLSetErrorHandler(&RunParameters::logGDALErrors);
-		proj_log_func(ProjContextByThread::get(), nullptr, &RunParameters::logProjErrors);
-#else
-		CPLSetErrorHandler(&RunParameters::silenceGDALErrors);
-		proj_log_level(ProjContextByThread::get(), PJ_LOG_NONE);
-#endif
 	}
 	void RunParameters::setPrevUnits(const Unit& u)
 	{
@@ -403,14 +396,6 @@ namespace lapis {
 				_params[i]->printToIni(out);
 		}
 		return out;
-	}
-
-	void RunParameters::logGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg) {
-		LapisLogger::getLogger().logMessage(pszErrorMsg);
-	}
-
-	void RunParameters::logProjErrors(void* v, int i, const char* c) {
-		LapisLogger::getLogger().logMessage(c);
 	}
 
 	//these functions used to belong here but is going to be moved; until they find their forever home, I don't want to delete the implementation

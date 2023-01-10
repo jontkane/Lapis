@@ -18,6 +18,15 @@
 
 namespace lapis {
 
+
+	void logGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg) {
+		LapisLogger::getLogger().logMessage(pszErrorMsg);
+	}
+
+	void logProjErrors(void* v, int i, const char* c) {
+		LapisLogger::getLogger().logMessage(c);
+	}
+
 	template<class PARAMETER>
 	void addModParameterToGui(const std::string& name) {
 		LapisGui<LapisController>::singleton().addModParameter<PARAMETER>(name);
@@ -32,6 +41,15 @@ namespace lapis {
 		if (!args.size()) {
 			args.push_back("--help");
 		}
+
+#ifndef NDEBUG
+		CPLSetErrorHandler(&logGDALErrors);
+		proj_log_func(ProjContextByThread::get(), nullptr, &logProjErrors);
+#else
+		CPLSetErrorHandler(silenceGDALErrors);
+		proj_log_level(ProjContextByThread::get(), PJ_LOG_NONE);
+#endif
+
 		RunParameters& rp = RunParameters::singleton();
 		using pr = RunParameters::ParseResults;
 		pr parsed = rp.parseArgs(args);
@@ -61,6 +79,7 @@ namespace lapis {
 			std::cout << "Unknown Error\nRun Aborted\n";
 			return 1;
 		}
+
 		return 0;
 	}
 

@@ -126,10 +126,6 @@ namespace lapis {
 		std::vector<std::string> _failedLas;
 
 		std::shared_ptr<Raster<bool>> _layout;
-
-		static void logGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg);
-		static void silenceGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg) {}
-		static void logProjErrors(void* v, int i, const char* c);
 	};
 
 	template<class PARAMETER>
