@@ -11,9 +11,9 @@ namespace lapis {
 	void LapisLogger::renderGui()
 	{
 		_updateEllipsis();
-		ImGui::BeginChild("logger main progress", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f - 2, ImGui::GetContentRegionAvail().y), true, 0);
+		ImGui::BeginChild("logger main progress", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y * 0.5f - 2), true, 0);
 
-		ImGui::BeginChild("progress main field", ImVec2(ImGui::GetContentRegionAvail().x * 0.7f, ImGui::GetContentRegionAvail().y), false, 0);
+		ImGui::BeginChild("progress main field", ImVec2(ImGui::GetContentRegionAvail().x * 0.3f, ImGui::GetContentRegionAvail().y), false, 0);
 		for (int i = (int)_progressTracker.size() - 1; i >= 0; --i) {
 			ImGui::Text(_progressTracker.at(i).c_str());
 		}
@@ -28,8 +28,7 @@ namespace lapis {
 
 		ImGui::EndChild();
 
-		ImGui::SameLine();
-		ImGui::BeginChild("logger messages", ImVec2(ImGui::GetContentRegionAvail().x - 2, ImGui::GetContentRegionAvail().y), true, 0);
+		ImGui::BeginChild("logger messages", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y - 2), true, ImGuiWindowFlags_HorizontalScrollbar);
 		for (int i = (int)_messages.size()-1; i >= 0; --i) {
 			ImGui::Text(_messages[i].c_str());
 		}
