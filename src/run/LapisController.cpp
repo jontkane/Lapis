@@ -9,6 +9,7 @@ namespace fs = std::filesystem;
 
 #define LAPIS_CHECK_ABORT_AND_DEALLOC \
 if (_needAbort) { \
+	LapisLogger::getLogger().logMessage("Aborting"); \
 	RunParameters::singleton().cleanAfterRun(); \
 	_isRunning = false; \
 	return; \
@@ -32,6 +33,19 @@ namespace lapis {
 		LapisLogger& log = LapisLogger::getLogger();
 		RunParameters& rp = RunParameters::singleton();
 		log.reset();
+
+		PJ* test_proj = proj_create(ProjContextByThread::get(), "EPSG:2927");
+		if (test_proj == nullptr) {
+			log.logMessage("proj.db not loaded");
+			sendAbortSignal();
+		}
+		else {
+			proj_destroy(test_proj);
+#ifndef NDEBUG
+			log.logMessage("proj.db successfully loaded");
+#endif
+		}
+		LAPIS_CHECK_ABORT_AND_DEALLOC;
 
 		if (!rp.prepareForRun()) {
 			sendAbortSignal();

@@ -149,8 +149,12 @@ namespace lapis {
 			{
 				static const std::regex meterpattern{ ".*m.*",std::regex::icase };
 				static const std::regex usfootpattern{ ".*us.*",std::regex::icase };
+				static const std::regex unspecifiedpattern{ ".*unsp.*",std::regex::icase };
 				static const std::regex intfootpattern{ ".*f.*",std::regex::icase };
 
+				if (std::regex_match(s, unspecifiedpattern)) {
+					return UnitRadio::UNKNOWN;
+				}
 				if (std::regex_match(s, meterpattern)) {
 					return UnitRadio::METERS;
 				}
