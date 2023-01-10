@@ -203,7 +203,7 @@ namespace lapis {
 		static const nfdu8filteritem_t iniFileFilter{ "ini files", "ini" };
 		ImGui::SameLine();
 		static NFD::UniquePathU8 inputIniFile;
-		if (ImGui::Button("Import Parameters")) {
+		if (ImGui::Button("Load Parameters")) {
 			NFD::OpenDialog(inputIniFile, &iniFileFilter, 1);
 		}
 		if (inputIniFile) {
@@ -213,7 +213,7 @@ namespace lapis {
 
 		static NFD::UniquePathU8 outputIniFile;
 		ImGui::SameLine();
-		if (ImGui::Button("Export Parameters")) {
+		if (ImGui::Button("Save Parameters")) {
 			NFD::SaveDialog(outputIniFile, &iniFileFilter, 1);
 		}
 		if (outputIniFile) {

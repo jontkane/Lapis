@@ -26,7 +26,7 @@ namespace lapis {
 
 	private:
 		static constexpr size_t LAPIS_MAX_STRATUM_COUNT = 16;
-		std::vector<NumericTextBoxWithUnits> _buffers;
+		std::list<NumericTextBoxWithUnits> _buffers;
 		std::string _boostString;
 		std::vector<coord_t> _cachedValues;
 

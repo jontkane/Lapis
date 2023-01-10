@@ -8,7 +8,6 @@ namespace lapis {
 	MultiNumericTextBoxWithUnits::MultiNumericTextBoxWithUnits(const std::string& guiDesc, const std::string& cmdName, const std::string& defaultValue)
 		: GuiCmdElement(guiDesc, cmdName), _boostString(defaultValue)
 	{
-		_buffers.reserve(LAPIS_MAX_STRATUM_COUNT);
 		_cachedValues.reserve(LAPIS_MAX_STRATUM_COUNT);
 		importFromBoost();
 	}
@@ -25,8 +24,8 @@ namespace lapis {
 	std::ostream& MultiNumericTextBoxWithUnits::printToIni(std::ostream& o) const
 	{
 		o << _cmdName << "=";
-		for (size_t i = 0; i < _buffers.size(); ++i) {
-			o << _buffers[i].asText() << ",";
+		for (auto& buffer : _buffers) {
+			o << buffer.asText() << ",";
 		}
 		o << "\n";
 		return o;
@@ -40,8 +39,8 @@ namespace lapis {
 			_displayWindow = true;
 		}
 		displayHelp();
-		for (size_t i = 0; i < _buffers.size(); ++i) {
-			ImGui::Text(_buffers[i].asText());
+		for (auto& buffer : _buffers) {
+			ImGui::Text(buffer.asText());
 			ImGui::SameLine();
 			ImGui::Text(RunParameters::singleton().unitPlural().c_str());
 		}
@@ -73,7 +72,7 @@ namespace lapis {
 			_buffers.clear();
 			for (size_t i = 0; i < numericStrata.size(); ++i) {
 				_addBuffer();
-				_buffers[i].setValue(numericStrata[i]);
+				_buffers.back().setValue(numericStrata[i]);
 			}
 		}
 		_boostString.clear();
@@ -84,8 +83,8 @@ namespace lapis {
 	{
 		RunParameters& rp = RunParameters::singleton();
 		if (rp.prevUnits().convFactor != rp.outUnits().convFactor) {
-			for (size_t i = 0; i < _buffers.size(); ++i) {
-				_buffers[i].updateUnits();
+			for (auto& buffer : _buffers) {
+				buffer.updateUnits();
 			}
 			_cache();
 		}
@@ -98,10 +97,10 @@ namespace lapis {
 	{
 		_cachedValues.clear();
 		std::set<coord_t> uniqueValues;
-		for (size_t i = 0; i < _buffers.size(); ++i) {
+		for (auto& buffer : _buffers) {
 			coord_t v;
 			try {
-				v = std::stod(_buffers[i].asText());
+				v = std::stod(buffer.asText());
 				uniqueValues.insert(v);
 			}
 			catch (std::invalid_argument e) {}
@@ -114,7 +113,7 @@ namespace lapis {
 		_buffers.clear();
 		for (size_t i = 0; i < _cachedValues.size(); ++i) {
 			_addBuffer();
-			_buffers[i].setValue(_cachedValues[i]);
+			_buffers.back().setValue(_cachedValues[i]);
 		}
 	}
 	void MultiNumericTextBoxWithUnits::_addBuffer()
@@ -155,8 +154,21 @@ namespace lapis {
 		}
 
 		bool changed = false;
-		for (size_t i = 0; i < _buffers.size(); ++i) {
-			changed = _buffers[i].renderGui() || changed;
+		std::list<NumericTextBoxWithUnits>::iterator slatedForDeletion = _buffers.end();
+		int idx = -1;
+		for (auto it = _buffers.begin(); it != _buffers.end(); ++it) {
+			idx++;
+			changed = it->renderGui() || changed;
+			ImGui::SameLine();
+			std::string label = "Remove##" + std::to_string(idx);
+			if (ImGui::Button(label.c_str())) {
+				slatedForDeletion = it;
+			}
+		}
+
+		if (slatedForDeletion != _buffers.end()) {
+			LapisLogger::getLogger().logMessage(slatedForDeletion->asText());
+			_buffers.erase(slatedForDeletion);
 		}
 
 		ImGui::End();
