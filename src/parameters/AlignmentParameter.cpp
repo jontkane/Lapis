@@ -205,7 +205,6 @@ namespace lapis {
 		}
 		RunParameters& rp = RunParameters::singleton();
 		LapisLogger& log = LapisLogger::getLogger();
-		log.setProgress(RunProgress::settingUp);
 
 		Extent e = rp.fullExtent();
 

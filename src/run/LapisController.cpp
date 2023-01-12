@@ -11,6 +11,7 @@ namespace fs = std::filesystem;
 if (_needAbort) { \
 	LapisLogger::getLogger().logMessage("Aborting"); \
 	RunParameters::singleton().cleanAfterRun(); \
+	LapisLogger::getLogger().setProgress("Aborted",0,false); \
 	_isRunning = false; \
 	return; \
 }
@@ -32,7 +33,6 @@ namespace lapis {
 		_isRunning = true;
 		LapisLogger& log = LapisLogger::getLogger();
 		RunParameters& rp = RunParameters::singleton();
-		log.reset();
 
 		PJ* test_proj = proj_create(ProjContextByThread::get(), "EPSG:2927");
 		if (test_proj == nullptr) {
@@ -61,7 +61,7 @@ namespace lapis {
 			p->prepareForRun();
 		}
 
-		log.setProgress(RunProgress::lasFiles, (int)rp.lasExtents().size());
+		log.setProgress("Processing LAS Files", (int)rp.lasExtents().size());
 		uint64_t soFar = 0;
 		std::vector<std::thread> threads;
 		auto lasThreadFunc = [&]() {
@@ -76,7 +76,7 @@ namespace lapis {
 		LAPIS_CHECK_ABORT_AND_DEALLOC;
 
 
-		log.setProgress(RunProgress::csmTiles, (int)rp.layout()->ncell());
+		log.setProgress("Processing Tiles", (int)rp.layout()->ncell());
 		soFar = 0;
 		threads.clear();
 		auto tileThreadFunc = [&]() {
@@ -90,13 +90,13 @@ namespace lapis {
 		}
 		LAPIS_CHECK_ABORT_AND_DEALLOC;
 
-		log.setProgress(RunProgress::cleanUp);
+		log.setProgress("Final Processing and Cleanup");
 		cleanUp();
 		LAPIS_CHECK_ABORT_AND_DEALLOC;
 
 		rp.cleanAfterRun();
 
-		log.setProgress(RunProgress::finished);
+		log.setProgress("Done!",0,false);
 		_isRunning = false;
 	}
 
@@ -194,31 +194,37 @@ namespace lapis {
 
 		Extent projectedExtent = QuadExtent(lr, rp.metricAlign()->crs()).outerExtent();
 		points.transform(projectedExtent.crs());
-		for (cell_t tile : rp.layout()->cellsFromExtent(projectedExtent, SnapType::out)) {
-			auto v = rp.layout()->atCellUnsafe(tile);
-			v.has_value() = true;
-			v.value() = true;
-		}
 		
-		auto ground = rp.demAlgorithm()->normalizeToGround(points, projectedExtent);
-		points.clear();
-		points.shrink_to_fit();
+		//also normalizes the point in-place
+		Raster<coord_t> ground = rp.demAlgorithm()->normalizeToGround(points, projectedExtent);
 		LAPIS_CHECK_ABORT;
 
 		for (size_t i = 0; i < _handlers().size(); ++i) {
-			_handlers()[i]->handlePoints(ground.points, projectedExtent, n);
-			_handlers()[i]->handleDem(ground.dem, n);
+			_handlers()[i]->handlePoints(points, projectedExtent, n);
+			_handlers()[i]->handleDem(ground, n);
 			LAPIS_CHECK_ABORT;
 		}
-		LapisLogger::getLogger().incrementTask();
+		LapisLogger::getLogger().incrementTask("Las File Finished");
 	}
 
 	void LapisController::tileThread(cell_t tile)
 	{
+		RunParameters& rp = RunParameters::singleton();
+
 		CsmHandler* csmhandler = dynamic_cast<CsmHandler*>(_handlers()[CsmHandler::handlerRegisteredIndex].get());
 		Raster<csm_t> bufferedCsm = csmhandler->getBufferedCsm(tile);
-		if (!bufferedCsm.hasAnyValue()) {
+
+		if (!bufferedCsm.overlaps(*rp.layout())) { //indicates a filler value due to the buffered tile not having any data
 			return;
+		}
+		CropView cv{ &bufferedCsm,rp.layout()->extentFromCell(tile),SnapType::out };
+		if (!cv.hasAnyValue()) {
+			return;
+		}
+		else {
+			auto v = rp.layout()->atCellUnsafe(tile);
+			v.has_value() = true;
+			v.value() = true;
 		}
 
 		for (size_t i = 0; i < _handlers().size(); ++i) {
@@ -226,7 +232,7 @@ namespace lapis {
 			LAPIS_CHECK_ABORT;
 		}
 
-		LapisLogger::getLogger().incrementTask();
+		LapisLogger::getLogger().incrementTask("Tile Finished");
 	}
 
 	void LapisController::cleanUp()

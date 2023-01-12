@@ -10,8 +10,8 @@ namespace lapis {
 		}
 
 		Extent cropE{ 1,3,1,3 };
-		CropView<int> cv{ &r,cropE }; //should be {{1,2},{4,5}}
-
+		CropView<int> cv{ &r,cropE, SnapType::near }; //should be {{1,2},{4,5}}
+		
 		EXPECT_EQ(1, cv[0].value());
 		EXPECT_EQ(5, cv.atRC(1, 1).value());
 		EXPECT_EQ(2, cv.atXY(2.5, 2.5).value());

@@ -12,7 +12,7 @@ namespace lapis {
 	public:
 		CropView() = delete; //there are no possible sensible defaults
 
-		CropView(Raster<T>* parent, const Extent& e, const SnapType snap = SnapType::near);
+		CropView(Raster<T>* parent, const Extent& e, const SnapType snap);
 
 		auto operator[](cell_t cell) {
 			return _parent->atRCUnsafe(rowFromCellUnsafe(cell) + _rowoffset, colFromCellUnsafe(cell) + _coloffset);
@@ -20,6 +20,15 @@ namespace lapis {
 		const auto operator[](cell_t cell) const {
 			return _parent->atRCUnsafe(rowFromCellUnsafe(cell) + _rowoffset, colFromCellUnsafe(cell) + _coloffset);
 		}
+
+		auto atCellUnsafe(cell_t cell) {
+			return operator[](cell);
+		}
+
+		const auto atCellUnsafe(cell_t cell) const {
+			return operator[](cell);
+		}
+
 		auto atRCUnsafe(rowcol_t row, rowcol_t col) {
 			return _parent->atRCUnsafe(row + _rowoffset, col + _coloffset);
 		}
@@ -50,6 +59,15 @@ namespace lapis {
 		}
 		const auto atXY(coord_t x, coord_t y) const {
 			return _parent->atXY(x, y);
+		}
+
+		bool hasAnyValue() const {
+			for (cell_t cell = 0; cell < ncell(); ++cell) {
+				if (atCellUnsafe(cell).has_value()) {
+					return true;
+				}
+			}
+			return false;
 		}
 
 	private:

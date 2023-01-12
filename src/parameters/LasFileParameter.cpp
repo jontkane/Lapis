@@ -78,7 +78,7 @@ namespace lapis {
 			return true;
 		}
 		LapisLogger& log = LapisLogger::getLogger();
-		log.setProgress(RunProgress::findingLasFiles);
+		log.setProgress("Identifying LAS Files");
 
 		std::set<LasFileExtent> s = _specifiers.getFiles<LasOpener,LasFileExtent>(LasOpener(_crs.cachedCrs(),_unit.currentSelection()));
 

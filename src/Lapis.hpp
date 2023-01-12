@@ -37,6 +37,15 @@ namespace lapis {
 		LapisController::replaceHandlerWithMod<HANDLER>(newBehavior);
 	}
 
+	void setProjDataDirectory(char* exeName) {
+		std::string parent = std::filesystem::path(exeName).parent_path().string();
+		char* cStr = new char[parent.size() + 1];
+		strncpy_s(cStr,parent.size() + 1, parent.c_str(), parent.size() + 1);
+		proj_context_set_search_paths(nullptr, 1, &cStr);
+
+		delete[] cStr;
+	}
+
 	int lapisUnifiedMain(std::vector<std::string> args) {
 		if (!args.size()) {
 			args.push_back("--help");
@@ -84,6 +93,7 @@ namespace lapis {
 	}
 
 	int lapisMain(int argc, char* argv[]) {
+		setProjDataDirectory(argv[0]);
 		std::vector<std::string> args;
 		for (int i = 1; i < argc; ++i) { //starting from 1 to skip the exe location, to match the WinMain entry
 			args.push_back(std::string(argv[i]));
@@ -97,6 +107,11 @@ namespace lapis {
 		_In_opt_ HINSTANCE hPrevInstance,
 		_In_ LPSTR lpCmdLine,
 		_In_ int nShowCmd) {
+
+		char exePath[255];
+		GetModuleFileNameA(nullptr, exePath, 255);
+		setProjDataDirectory(exePath);
+
 		bool attachResult = AttachConsole(ATTACH_PARENT_PROCESS);
 		if (!attachResult) { //there is no parent console. Just open the GUI
 			LapisGui<LapisController>::singleton().renderFullGui();

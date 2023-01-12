@@ -141,7 +141,7 @@ namespace lapis {
 				return false;
 			}
 
-			log.setProgress(RunProgress::findingDemFiles);
+			log.setProgress("Identifying DEM Files");
 
 			fileAligns = _specifiers.getFiles<DemOpener, DemFileAlignment>(DemOpener(_crs.cachedCrs(),_unit.currentSelection()));
 			log.logMessage(std::to_string(fileAligns.size()) + " Dem Files Found");

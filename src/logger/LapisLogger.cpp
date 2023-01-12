@@ -13,7 +13,7 @@ namespace lapis {
 		_updateEllipsis();
 		ImGui::BeginChild("logger main progress", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y * 0.5f - 2), true, 0);
 
-		ImGui::BeginChild("progress main field", ImVec2(ImGui::GetContentRegionAvail().x * 0.3f, ImGui::GetContentRegionAvail().y), false, 0);
+		ImGui::BeginChild("progress main field", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f, ImGui::GetContentRegionAvail().y), false, 0);
 		for (int i = (int)_progressTracker.size() - 1; i >= 0; --i) {
 			ImGui::Text(_progressTracker.at(i).c_str());
 		}
@@ -34,34 +34,33 @@ namespace lapis {
 		}
 		ImGui::EndChild();
 	}
-	void LapisLogger::setProgress(RunProgress p, int total)
+	void LapisLogger::setProgress(const std::string& displayString, int total, bool needEllipsis)
 	{
-		if (p == _currentTask) {
-			return;
-		}
 		if (_progressTracker.size()) {
 			size_t previdx = _progressTracker.size() - 1;
-			_progressTracker[previdx] = taskMessage.at(_currentTask) + "...";
+			_progressTracker[previdx] = _lastProgressNoEllipsis + "...";
 			_incrementStrings[previdx] = "Done!";
 		}
 
-		std::cout << taskMessage[p] << "\n";
+		_needEllipsis = needEllipsis;
+		_lastProgressNoEllipsis = displayString;
+
+		std::cout << displayString << "\n";
 		_totalForTask = total;
-		_progressTracker.push_back(taskMessage.at(p));
+		_progressTracker.push_back(displayString);
 		_currentOutOfTotal = 0;
-		_currentTask = p;
 
 		_incrementStrings.push_back("");
 		if (total > 0) {
 			_updateIncStr();
 		}
 	}
-	void LapisLogger::incrementTask()
+	void LapisLogger::incrementTask(const std::string& message)
 	{
 		std::scoped_lock(_mut);
 		_currentOutOfTotal++;
-		if (incrementMessage.contains(_currentTask)) {
-			std::cout << incrementMessage[_currentTask] << _currentOutOfTotal << "/" << _totalForTask;
+		if (message.size()) {
+			std::cout << message << " " << _currentOutOfTotal << "/" << _totalForTask << "\n";
 		}
 		if (_totalForTask > 0) {
 			_updateIncStr();
@@ -78,7 +77,6 @@ namespace lapis {
 		_progressTracker.clear();
 		_incrementStrings.clear();
 		_messages.clear();
-		_currentTask = RunProgress::notStarted;
 	}
 	LapisLogger::LapisLogger()
 	{
@@ -86,9 +84,7 @@ namespace lapis {
 	void LapisLogger::_updateEllipsis()
 	{
 		_frameCounter = (_frameCounter + 1) % 60;
-		if (_currentTask == RunProgress::notStarted ||
-			_currentTask == RunProgress::finished ||
-			_currentTask == RunProgress::runAborted) {
+		if (!_needEllipsis) {
 			return;
 		}
 		size_t idx = _progressTracker.size() - 1;
@@ -102,7 +98,7 @@ namespace lapis {
 		else {
 			ellipsis = "...";
 		}
-		_progressTracker[idx] = taskMessage.at(_currentTask) + ellipsis;
+		_progressTracker[idx] = _lastProgressNoEllipsis + ellipsis;
 	}
 	void LapisLogger::_updateIncStr()
 	{

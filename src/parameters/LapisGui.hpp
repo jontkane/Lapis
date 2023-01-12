@@ -171,7 +171,7 @@ namespace lapis {
 		else {
 			if (ImGui::Button("Cancel")) {
 				_runner->sendAbortSignal();
-				LapisLogger::getLogger().setProgress(RunProgress::canceling);
+				LapisLogger::getLogger().setProgress("Cancelling");
 			}
 			_renderLogger();
 		}
