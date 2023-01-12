@@ -14,7 +14,7 @@ namespace lapis {
 	public:
 		VendorRaster(FILEGETTER* getter);
 
-		PointsAndDem normalizeToGround(const LidarPointVector& points, const Extent& e) override;
+		Raster<coord_t> normalizeToGround(LidarPointVector& points, const Extent& e) override;
 
 	private:
 		FILEGETTER* _getter;
@@ -30,9 +30,7 @@ namespace lapis {
 	}
 
 	template<class FILEGETTER>
-	inline DemAlgorithm::PointsAndDem VendorRaster<FILEGETTER>::normalizeToGround(const LidarPointVector& points, const Extent& e) {
-
-		DemAlgorithm::PointsAndDem out{};
+	inline Raster<coord_t> VendorRaster<FILEGETTER>::normalizeToGround(LidarPointVector& points, const Extent& e) {
 
 		coord_t minRes = std::numeric_limits<coord_t>::max();
 		coord_t xOriginOfFinest = 0;
@@ -60,45 +58,35 @@ namespace lapis {
 		std::sort(overlappingDems.begin(), overlappingDems.end(),
 			[](const auto& a, const auto& b) {return a.xres() * a.yres() < b.xres() * b.yres(); });
 		//at the end of all this, the list should now be sorted by cellsize. DEMs in the same CRS as the points should have had to undergo any loss of precision
-		out.dem = Raster<coord_t>{ Alignment(e,xOriginOfFinest,yOriginOfFinest,minRes,minRes) };
+		Raster<coord_t> outDem = Raster<coord_t>{ Alignment(e,xOriginOfFinest,yOriginOfFinest,minRes,minRes) };
 		for (Raster<coord_t>& dem : overlappingDems) {
-			if (dem.crs().getZUnits() != out.dem.crs().getZUnits()) {
-				coord_t convFactor = convertUnits(1, dem.crs().getZUnits(), out.dem.crs().getZUnits());
+			if (dem.crs().getZUnits() != outDem.crs().getZUnits()) {
+				coord_t convFactor = convertUnits(1, dem.crs().getZUnits(), outDem.crs().getZUnits());
 				for (cell_t cell = 0; cell < dem.ncell(); ++cell) {
 					dem[cell].value() *= convFactor;
 				}
 			}
 			Raster<coord_t> resampled;
-			if (!out.dem.isSameAlignment(dem)) {
-				resampled = dem.resample(out.dem, ExtractMethod::bilinear);
+			if (!outDem.isSameAlignment(dem)) {
+				resampled = dem.resample(outDem, ExtractMethod::bilinear);
 			}
-			const Raster<coord_t>* useRaster = out.dem.isSameAlignment(dem) ? &dem : &resampled;
+			const Raster<coord_t>* useRaster = outDem.isSameAlignment(dem) ? &dem : &resampled;
 
-			out.dem.overlay(*useRaster, [](coord_t a, coord_t b) {return a; });
+			outDem.overlay(*useRaster, [](coord_t a, coord_t b) {return a; });
 		}
 
-		for (const LasPoint& point : points) {
-			auto v = out.dem.extract(point.x, point.y, ExtractMethod::bilinear);
+		auto normalize = [&outDem](LasPoint& point)->bool {
+			auto v = outDem.extract(point.x, point.y, ExtractMethod::bilinear);
 			if (!v.has_value()) {
-				continue;
+				return false;
 			}
+			point.z = point.z - v.value();
+			return true;
+		};
 
-			coord_t z = point.z - v.value();
-			if (z > _maxHt) {
-				continue;
-			}
-			if (z < _minHt) {
-				continue;
-			}
-			out.points.emplace_back(
-				point.x,
-				point.y,
-				z,
-				point.intensity,
-				point.returnNumber);
-		}
+		_normalizeByFunction(points, normalize);
 
-		return out;
+		return outDem;
 	}
 
 	class EmptyFileGetter {

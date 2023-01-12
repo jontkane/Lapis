@@ -9,7 +9,7 @@ namespace lapis {
 	//The most basic possible algorithm: none. The input data is already normalized to the ground
 	class AlreadyNormalized : public DemAlgorithm {
 	public:
-		PointsAndDem normalizeToGround(const LidarPointVector& points, const Extent& e);
+		Raster<coord_t> normalizeToGround(LidarPointVector& points, const Extent& e) override;
 	};
 }
 
