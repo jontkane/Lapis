@@ -14,7 +14,7 @@ Lapis is currently in alpha. It should compile (if cmake cooperates), and has be
 
 Lapis is dependent on a number of packages. The ones that are more difficult to find automatically with cmake are embedded into this repository; the others will have to be acquired separately. While any configuration that gets the cmake find_package() calls to succeed should work, it has only been tested with vcpkg. The following vcpkg call should get all the libraries you need on windows:
 
-vcpkg install --triplet=x64-windows boost gdal proj libgeotiff xtl gtest glfw3 podofo
+vcpkg install --triplet=x64-windows boost gdal proj libgeotiff xtl gtest glfw3
 
 Lapis is dependent on having the files proj.db and proj.ini, from the PROJ package, in the same directory as the executable. copyprojandcmake.bat.example contains an example script for combining the process of running cmake and getting those files where they need to be in windows batch format.
 
