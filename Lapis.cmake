@@ -49,6 +49,7 @@ find_package(PROJ REQUIRED)
 find_package(xtl REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(OpenGL REQUIRED)
+find_package(PoDoFo REQUIRED)
 
 add_subdirectory(${LAPIS_DIR}/src/nativefiledialog-extended nfd)
 #not using add_subdirectory here because lazperf generates a very annoying number of targets

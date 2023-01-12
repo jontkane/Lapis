@@ -8,11 +8,14 @@ Lapis is currently in alpha. It should compile (if cmake cooperates), and has be
 
 - Increased customization for the canopy surface model, ground model, and tree segmentation algorithms.
 - Metadata output documenting the output produced by a run.
-- Features to check for common problems in input data before the user wastes time on a doomed run.
-
+- Quality of life features to improve the ease of use
 
 # Building Lapis
 
-Lapis is dependent on a number of packages. The ones that are more difficult to find automatically with cmake are embedded into this repository; the others will have to be acquired separately. windowsbuildinstructions.txt has suggestions to help cmake find those on windows using conda.
+Lapis is dependent on a number of packages. The ones that are more difficult to find automatically with cmake are embedded into this repository; the others will have to be acquired separately. While any configuration that gets the cmake find_package() calls to succeed should work, it has only been tested with vcpkg. The following vcpkg call should get all the libraries you need on windows:
+
+vcpkg install --triplet=x64-windows boost gdal proj libgeotiff xtl gtest glfw3 podofo
+
+Lapis is dependent on having the files proj.db and proj.ini, from the PROJ package, in the same directory as the executable. copyprojandcmake.bat.example contains an example script for combining the process of running cmake and getting those files where they need to be in windows batch format.
 
 No compiled binaries are provided at this point.
