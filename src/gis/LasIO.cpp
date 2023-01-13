@@ -28,7 +28,8 @@ namespace lapis {
 			_initChunks();
 		}
 
-		_ifs->seekg(header.OffsetToPointData + sizeof(uint64_t), std::ios_base::beg);
+		std::streampos offset = header.isCompressed() ? header.OffsetToPointData + sizeof(uint64_t) : header.OffsetToPointData;
+		_ifs->seekg(offset, std::ios_base::beg);
 
 		_pointInChunk = 0;
 		_currentChunk = nullptr;
