@@ -1,7 +1,6 @@
 #include"param_pch.hpp"
 #include"GuiNumericTextBoxWithUnits.hpp"
 #include"RunParameters.hpp"
-#include"..\logger\LapisLogger.hpp"
 
 namespace lapis {
 	NumericTextBoxWithUnits::NumericTextBoxWithUnits(const std::string& guiDesc, const std::string& cmdName, coord_t defaultValue)

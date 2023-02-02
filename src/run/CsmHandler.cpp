@@ -25,16 +25,7 @@ namespace lapis {
 		if (!_getter->doCsmMetrics()) {
 			return;
 		}
-		using oul = OutputUnitLabel;
-
-		auto addMetric = [&](CsmMetricFunc fun, const std::string& name, oul unit) {
-			_csmMetrics.emplace_back(_getter, name, fun, unit);
-		};
-
-		addMetric(&viewMax<csm_t>, "MaxCSM", oul::Default);
-		addMetric(&viewMean<csm_t>, "MeanCSM", oul::Default);
-		addMetric(&viewStdDev<csm_t>, "StdDevCSM", oul::Default);
-		addMetric(&viewRumple<csm_t>, "RumpleCSM", oul::Unitless);
+		_initMetrics();
 	}
 	void CsmHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
 	{
@@ -52,7 +43,7 @@ namespace lapis {
 	void CsmHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
 	{
 		for (CSMMetricRaster& metric : _csmMetrics) {
-			Raster<metric_t> tileMetric = aggregate(bufferedCsm, cropAlignment(*_getter->metricAlign(), bufferedCsm, SnapType::out), metric.fun);
+			Raster<metric_t> tileMetric = aggregate<metric_t, csm_t>(bufferedCsm, cropAlignment(*_getter->metricAlign(), bufferedCsm, SnapType::out), metric.fun);
 			metric.raster.overlayInside(tileMetric);
 		}
 
@@ -74,6 +65,78 @@ namespace lapis {
 		}
 		_csmMetrics.clear();
 		_csmMetrics.shrink_to_fit();
+	}
+
+	void CsmHandler::describeInPdf(MetadataPdf& pdf)
+	{
+		if (!_getter->doCsm()) {
+			return;
+		}
+		pdf.newPage();
+		pdf.writePageTitle("Canopy Surface Model");
+		pdf.writeSubsectionTitle("Overall Description");
+		
+		std::stringstream overall;
+		overall << "A canopy surface model (CSM) is a raster product representing Lapis' best guess at the height of the canopy "
+			"at each point in the area. ";
+		overall << "The CSM files can be found in the CanopySurfaceModel directory. They have names like ";
+		overall << getFullTileFilename("", _csmBaseName, OutputUnitLabel::Default, 0, "tif") << ". ";
+		
+		int nTiles = 0;
+		for (cell_t cell = 0; cell < _getter->layout()->ncell(); ++cell) {
+			if (_getter->layout()->atCellUnsafe(cell).has_value()) {
+				nTiles++;
+				if (nTiles > 1) {
+					break;
+				}
+			}
+		}
+		if (nTiles > 1) {
+			overall << "To avoid unusably large files, the CSM has been split into tiles. "
+				"The filename indicates the column and row of each tile. The location of each tile is contained in the "
+				"TileLayout.shp file in the Layout directory.";
+		}
+		pdf.writeTextBlockWithWrap(overall.str());
+		pdf.blankLine();
+		
+		std::stringstream cellAndUnits;
+		cellAndUnits << "The cellsize of the CSM is " <<
+			pdf.numberWithUnits(
+				convertUnits(_getter->csmAlign()->xres(),
+					_getter->csmAlign()->crs().getXYUnits(),
+					_getter->outUnits()),
+				_getter->unitSingular(), _getter->unitPlural()) << ". ";
+		cellAndUnits << "The values of the rasters are in " << pdf.strToLower(_getter->unitPlural()) << ".";
+
+		_getter->csmAlgorithm()->describeInPdf(pdf, _getter);
+		_getter->csmPostProcessAlgorithm()->describeInPdf(pdf, _getter);
+
+		if (!_getter->doCsmMetrics()) {
+			return;
+		}
+		pdf.newPage();
+		pdf.writePageTitle("Canopy Metrics");
+		pdf.writeTextBlockWithWrap("The metrics in the CanopyMetrics directory are "
+			"derived products from the canopy surface model. Each one is calculated by applying a summary statistic to "
+			"the canopy pixels contained in the larger metric pixel.");
+
+		for (auto& metric : _csmMetrics) {
+			pdf.writeSubsectionTitle(getFullFilename("", metric.name, metric.unit).string());
+			std::stringstream desc;
+			desc << metric.pdfDesc << " ";
+			switch (metric.unit) {
+			case OutputUnitLabel::Default:
+				desc << "The units are " << pdf.strToLower(_getter->unitPlural()) << ".";
+				break;
+			case OutputUnitLabel::Percent:
+				desc << "The units are percent.";
+				break;
+			case OutputUnitLabel::Unitless:
+				desc << "This metric is unitless.";
+				break;
+			}
+			pdf.writeTextBlockWithWrap(desc.str());
+		}
 	}
 
 	Raster<csm_t> CsmHandler::getBufferedCsm(cell_t tile) const
@@ -157,8 +220,29 @@ namespace lapis {
 		return parentDir() / "CanopyMetrics";
 	}
 
-	CsmHandler::CSMMetricRaster::CSMMetricRaster(ParamGetter* getter, const std::string& name, CsmMetricFunc fun, OutputUnitLabel unit)
-		: name(name), fun(fun), unit(unit), raster(*getter->metricAlign())
+	void CsmHandler::_initMetrics()
+	{
+		using oul = OutputUnitLabel;
+
+		auto addMetric = [&](CsmMetricFunc fun, const std::string& name, 
+			oul unit, const std::string& desc) {
+			_csmMetrics.emplace_back(_getter, name, fun, unit, desc);
+		};
+
+		addMetric(&viewMax<metric_t, csm_t>, "MaxCSM", oul::Default,
+			"The maximum value attained in the CSM.");
+		addMetric(&viewMean<metric_t, csm_t>, "MeanCSM", oul::Default,
+			"The mean of the values of the CSM.");
+		addMetric(&viewStdDev<metric_t, csm_t>, "StdDevCSM", oul::Default,
+			"The standard deviation of the values of the CSM.");
+		addMetric(&viewRumple<metric_t, csm_t>, "RumpleCSM", oul::Unitless,
+			"The surface area of the CSM, divided by the area of the ground beneath it. "
+			"A larger value indicates a more complex canopy.");
+	}
+
+	CsmHandler::CSMMetricRaster::CSMMetricRaster(ParamGetter* getter, const std::string& name, CsmMetricFunc fun,
+		OutputUnitLabel unit, const std::string& pdfDesc)
+		: name(name), fun(fun), unit(unit), raster(*getter->metricAlign()), pdfDesc(pdfDesc)
 	{
 	}
 }

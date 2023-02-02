@@ -7,6 +7,8 @@
 namespace lapis {
 
 	class UniqueIdGenerator;
+	class MetadataPdf;
+	class TaoParameterGetter;
 
 	class TaoSegmentAlgorithm {
 	public:
@@ -14,6 +16,8 @@ namespace lapis {
 		virtual ~TaoSegmentAlgorithm() = default;
 
 		virtual Raster<taoid_t> segment(const Raster<csm_t>& csm, const std::vector<cell_t>& taos, UniqueIdGenerator& idGenerator) = 0;
+
+		virtual void describeInPdf(MetadataPdf& pdf, TaoParameterGetter* getter) = 0;
 	};
 
 	class UniqueIdGenerator {

@@ -5,6 +5,8 @@
 #include"Parameter.hpp"
 
 namespace lapis {
+	class MetadataPdf;
+
 	class FilterParameter : public Parameter {
 	public:
 
@@ -32,6 +34,8 @@ namespace lapis {
 		coord_t minht() const;
 		coord_t maxht() const;
 
+		void describeInPdf(MetadataPdf& pdf);
+
 	private:
 
 		NumericTextBoxWithUnits _minht{ "Minimum Height:","minht",-8,
@@ -46,6 +50,10 @@ namespace lapis {
 		std::vector<std::shared_ptr<LasFilter>> _filters;
 
 		bool _runPrepared = false;
+
+		void _outlierPdf(MetadataPdf& pdf);
+		void _withheldPdf(MetadataPdf& pdf);
+		void _classPdf(MetadataPdf& pdf);
 	};
 }
 

@@ -18,13 +18,15 @@ namespace lapis {
 		void reset() override;
 		static size_t handlerRegisteredIndex;
 
+		void describeInPdf(MetadataPdf& pdf) override;
+
 		std::filesystem::path topoDir() const;
 
 	protected:
 		Raster<coord_t> _elevNumerator;
 		Raster<coord_t> _elevDenominator;
 
-		using TopoFunc = ViewFunc<coord_t, metric_t>;
+		using TopoFunc = ViewFunc<metric_t, coord_t>;
 		struct TopoMetric {
 			std::string name;
 			TopoFunc fun;

@@ -18,6 +18,8 @@ namespace lapis {
 		void reset() override;
 		static size_t handlerRegisteredIndex;
 
+		void describeInPdf(MetadataPdf& pdf) override;
+
 		std::filesystem::path pointMetricDir() const;
 
 		//protected to make testing easier
@@ -45,8 +47,10 @@ namespace lapis {
 			MetricFunc fun;
 			OutputUnitLabel unit;
 			TwoRasters rasters;
+			std::string pdfDesc;
 
-			PointMetricRasters(ParamGetter* getter, const std::string& name, MetricFunc fun, OutputUnitLabel unit);
+			PointMetricRasters(ParamGetter* getter, const std::string& name,
+				MetricFunc fun, OutputUnitLabel unit, const std::string& pdfDesc);
 		};
 		std::vector<PointMetricRasters> _pointMetrics;
 
@@ -56,8 +60,10 @@ namespace lapis {
 			StratumFunc fun;
 			OutputUnitLabel unit;
 			std::vector<TwoRasters> rasters;
+			std::string pdfDesc;
 
-			StratumMetricRasters(ParamGetter* getter, const std::string& baseName, StratumFunc fun, OutputUnitLabel unit);
+			StratumMetricRasters(ParamGetter* getter, const std::string& baseName,
+				StratumFunc fun, OutputUnitLabel unit, const std::string& pdfDesc);
 		};
 		std::vector<StratumMetricRasters> _stratumMetrics;
 
@@ -67,6 +73,10 @@ namespace lapis {
 		void _assignPointsToCalculators(const LidarPointVector& points);
 		void _writePointMetricRasters(const std::filesystem::path& dir, ReturnType r);
 		void _processPMCCell(cell_t cell, PointMetricCalculator& pmc, ReturnType r);
+
+		void _initMetrics();
+		void _stratumPdf(MetadataPdf& pdf);
+		void _metricPdf(MetadataPdf& pdf);
 	};
 }
 

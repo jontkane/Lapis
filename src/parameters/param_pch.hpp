@@ -28,11 +28,11 @@
 #include"../gis/Unit.hpp"
 #include"../gis/LasReader.hpp"
 #include"../gis/LasFilter.hpp"
-#include"../logger/LapisLogger.hpp"
+#include"../utils/LapisLogger.hpp"
 
 #include<nfd.hpp>
 
-
+#include<hpdf.h>
 
 using BoostOptDesc = boost::program_options::options_description;
 

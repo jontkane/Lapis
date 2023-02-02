@@ -18,7 +18,6 @@
 
 namespace lapis {
 
-
 	void logGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg) {
 		LapisLogger::getLogger().logMessage(pszErrorMsg);
 	}

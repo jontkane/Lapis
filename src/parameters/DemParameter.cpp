@@ -66,9 +66,10 @@ namespace lapis {
 		_unit.addOption("US Survey Feet", UnitRadio::USFEET, LinearUnitDefs::surveyFoot);
 
 		_demAlgo.addOption("Provide pre-made DEM rasters", DemAlgo::VENDORRASTER, DemAlgo::VENDORRASTER);
-		_demAlgo.addOption("This data is already normalized", DemAlgo::DONTNORMALIZE, DemAlgo::DONTNORMALIZE);
+		_demAlgo.addOption("This data represents height above ground, not elevation above sea level (uncommon)",
+			DemAlgo::DONTNORMALIZE, DemAlgo::DONTNORMALIZE);
 		_demAlgo.addHelpText("Most lidar data is provided as elevation above sea level, not height above ground.\n"
-			"Normalize to height above ground is an important step in processing lidar data.\n"
+			"Normalizing to height above ground is an important step in processing lidar data.\n"
 			"Currently, the only normalization method supported is providing a DEM calculated in another program, usually done by the lidar vendor and provided to their customers.");
 	}
 	void DemParameter::addToCmd(BoostOptDesc& visible,
@@ -178,10 +179,17 @@ namespace lapis {
 		prepareForRun();
 		return _demAligns;
 	}
-	Raster<coord_t> DemParameter::getDem(size_t n)
+	std::optional<Raster<coord_t>> DemParameter::getDem(size_t n, const Extent& e)
 	{
 		prepareForRun();
-		Raster<coord_t> out = Raster<coord_t>(_demFileNames[n]);
+
+		Extent projE = QuadExtent(e, _demAligns[n].crs()).outerExtent();
+		if (!projE.overlaps(_demAligns[n])) {
+			return std::optional<Raster<coord_t>>();
+		}
+
+		std::optional<Raster<coord_t>> outopt{ std::in_place, _demFileNames[n], projE, SnapType::out};
+		Raster<coord_t>& out = outopt.value();
 		const CoordRef& crsOverride = _crs.cachedCrs();
 		const Unit& unitOverride = _unit.currentSelection();
 		if (!crsOverride.isEmpty()) {

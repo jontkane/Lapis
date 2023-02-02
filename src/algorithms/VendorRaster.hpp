@@ -3,6 +3,7 @@
 #define LP_VENDORRASTER_H
 
 #include"DemAlgorithm.hpp"
+#include"..\utils\MetadataPdf.hpp"
 
 namespace lapis {
 
@@ -15,6 +16,8 @@ namespace lapis {
 		VendorRaster(FILEGETTER* getter);
 
 		Raster<coord_t> normalizeToGround(LidarPointVector& points, const Extent& e) override;
+
+		void describeInPdf(MetadataPdf& pdf) override;
 
 	private:
 		FILEGETTER* _getter;
@@ -47,11 +50,14 @@ namespace lapis {
 				yOriginOfFinest = projAlign.yOrigin();
 			}
 
-			Raster<coord_t> dem = _getter->getDem(i);
-			if (!dem.crs().isConsistentHoriz(e.crs())) {
-				dem = dem.transformRaster(e.crs(), ExtractMethod::bilinear);
+			std::optional<Raster<coord_t>> dem = _getter->getDem(i, e);
+			if (!dem.has_value()) {
+				continue;
 			}
-			overlappingDems.emplace_back(std::move(dem));
+			if (!dem.value().crs().isConsistentHoriz(e.crs())) {
+				dem = dem.value().transformRaster(e.crs(), ExtractMethod::bilinear);
+			}
+			overlappingDems.emplace_back(std::move(dem.value()));
 		}
 
 
@@ -89,10 +95,21 @@ namespace lapis {
 		return outDem;
 	}
 
+	template<class FILEGETTER>
+	inline void VendorRaster<FILEGETTER>::describeInPdf(MetadataPdf& pdf)
+	{
+		pdf.newPage();
+		pdf.writePageTitle("Ground Model Algorithm");
+
+		pdf.writeTextBlockWithWrap("In this run, Lapis did not calculate its own ground model. "
+			"Instead, the user supplied a rasterized ground model produced by previous software. "
+			"The elevation of the ground beneath each point was estimated with a bilinear interpolation from those rasters.");
+	}
+
 	class EmptyFileGetter {
 	public:
 		const std::vector<Alignment>& demAligns() { return _aligns; }
-		Raster<coord_t> getDem(size_t n) { return Raster<coord_t>(); }
+		std::optional<Raster<coord_t>> getDem(size_t n, const Extent& e) { return Raster<coord_t>(); }
 
 	private:
 		std::vector<Alignment> _aligns;

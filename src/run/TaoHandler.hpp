@@ -18,6 +18,8 @@ namespace lapis {
 		void reset() override;
 		static size_t handlerRegisteredIndex;
 
+		void describeInPdf(MetadataPdf& pdf) override;
+
 		std::filesystem::path taoDir() const;
 		std::filesystem::path taoTempDir() const;
 

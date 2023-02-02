@@ -10,9 +10,9 @@ file(GLOB LAPIS_RUN_SOURCES
 	${LAPIS_DIR}/src/run/*.hpp
 	${LAPIS_DIR}/src/run/*.cpp)
 
-file(GLOB LAPIS_LOGGER_SOURCES
-	${LAPIS_DIR}/src/logger/*.cpp
-	${LAPIS_DIR}/src/logger/*.hpp)
+file(GLOB LAPIS_UTILS_SOURCES
+	${LAPIS_DIR}/src/utils/*.cpp
+	${LAPIS_DIR}/src/utils/*.hpp)
 
 file(GLOB LAPIS_ALGO_SOURCES
 	${LAPIS_DIR}/src/algorithms/*.cpp
@@ -39,7 +39,7 @@ add_library(Lapis_gis STATIC ${LAPIS_GIS_SOURCES})
 add_library(Lapis_algorithms STATIC ${LAPIS_ALGO_SOURCES})
 add_library(Lapis_params OBJECT ${LAPIS_PARAMETERS_SOURCES})
 add_library(Lapis_run OBJECT ${LAPIS_RUN_SOURCES})
-add_library(Lapis_logger STATIC ${LAPIS_LOGGER_SOURCES})
+add_library(Lapis_utils STATIC ${LAPIS_UTILS_SOURCES})
 add_library(Lapis_imgui STATIC ${LAPIS_IMGUI_SOURCES})
 
 find_package(GDAL REQUIRED)
@@ -49,7 +49,8 @@ find_package(PROJ REQUIRED)
 find_package(xtl REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(OpenGL REQUIRED)
-find_package(PoDoFo REQUIRED)
+find_package(unofficial-libharu CONFIG REQUIRED)
+
 
 add_subdirectory(${LAPIS_DIR}/src/nativefiledialog-extended nfd)
 #not using add_subdirectory here because lazperf generates a very annoying number of targets
@@ -67,6 +68,7 @@ set(LAPIS_EXTERNAL_INCLUDES
 	${xtl_INCLUDE_DIR}
 	${glfw_INCLUDE_DIRS}
 	${OpenGL_INCLUDE_DIRS}
+	${LIBHARU_INCLUDE_DIRS}
 	${LAPIS_DIR}/src/nativefiledialog-extended/src/include
 	${LAPIS_DIR}/src/lazperf/cpp
 	)
@@ -78,6 +80,7 @@ set(LAPIS_EXTERNAL_LINKS
 	${PROJ_LIBRARIES}
 	glfw
 	OpenGL::GL
+	unofficial::libharu::hpdf
 	nfd
 	lazperf
 	)
@@ -87,7 +90,7 @@ set(LAPIS_INTERNAL_LINKS
 	Lapis_algorithms
 	Lapis_params
 	Lapis_run
-	Lapis_logger
+	Lapis_utils
 	Lapis_imgui
 	)
 	
@@ -95,7 +98,7 @@ target_include_directories(Lapis_gis PRIVATE ${LAPIS_EXTERNAL_INCLUDES})
 target_include_directories(Lapis_algorithms PRIVATE ${LAPIS_EXTERNAL_INCLUDES})
 target_include_directories(Lapis_params PRIVATE ${LAPIS_EXTERNAL_INCLUDES})
 target_include_directories(Lapis_run PRIVATE ${LAPIS_EXTERNAL_INCLUDES})
-target_include_directories(Lapis_logger PRIVATE ${LAPIS_EXTERNAL_INCLUDES})
+target_include_directories(Lapis_utils PRIVATE ${LAPIS_EXTERNAL_INCLUDES})
 target_include_directories(Lapis_imgui PRIVATE ${LAPIS_EXTERNAL_INCLUDES})
 
 target_include_directories(Lapis PRIVATE ${LAPIS_EXTERNAL_INCLUDES})
@@ -119,7 +122,7 @@ target_precompile_headers(Lapis_test PRIVATE ${LAPIS_DIR}/src/test/test_pch.hpp)
 
 if (MSVC)
 	target_compile_options(Lapis PRIVATE /W3 /WX)
-	target_compile_options(Lapis_logger PRIVATE /W3 /WX)
+	target_compile_options(Lapis_utils PRIVATE /W3 /WX)
 	target_compile_options(Lapis_params PRIVATE /W3 /WX)
 	target_compile_options(Lapis_algorithms PRIVATE /W3 /WX)
 	target_compile_options(Lapis_run PRIVATE /W3 /WX)
@@ -130,7 +133,7 @@ if (MSVC)
 	target_compile_options(Lapis_imgui PRIVATE /W0)
 else()
 	target_compile_options(Lapis PRIVATE -Wall -Wextra -Werror)
-	target_compile_options(Lapis_logger PRIVATE -Wall -Wextra -Werror)
+	target_compile_options(Lapis_utils PRIVATE -Wall -Wextra -Werror)
 	target_compile_options(Lapis_params PRIVATE -Wall -Wextra -Werror)
 	target_compile_options(Lapis_algorithms PRIVATE -Wall -Wextra -Werror)
 	target_compile_options(Lapis_run PRIVATE -Wall -Wextra -Werror)
@@ -139,3 +142,5 @@ else()
 endif()
 
 add_compile_definitions(LAPISTESTFILES="${LAPIS_DIR}/src/test/testfiles/")
+add_compile_definitions(LAPIS_VERSION_MAJOR=0)
+add_compile_definitions(LAPIS_VERSION_MINOR=5)

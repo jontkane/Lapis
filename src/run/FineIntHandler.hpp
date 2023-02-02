@@ -18,6 +18,8 @@ namespace lapis {
 		void reset() override;
 		static size_t handlerRegisteredIndex;
 
+		void describeInPdf(MetadataPdf& pdf) override;
+
 		std::filesystem::path fineIntDir() const;
 		std::filesystem::path fineIntTempDir() const;
 

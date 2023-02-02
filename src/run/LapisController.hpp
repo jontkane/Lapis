@@ -2,7 +2,7 @@
 #ifndef LP_LAPISCONTROLLER_H
 #define LP_LAPISCONTROLLER_H
 
-#include"..\logger\lapislogger.hpp"
+#include"..\utils\lapislogger.hpp"
 #include"ProductHandler.hpp"
 
 namespace lapis {
@@ -33,6 +33,7 @@ namespace lapis {
 
 		void writeLayout() const;
 		void writeParams() const;
+		void writeMetadata() const;
 
 	private:
 		

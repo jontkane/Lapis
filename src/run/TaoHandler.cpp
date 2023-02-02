@@ -282,6 +282,48 @@ namespace lapis {
 		std::filesystem::remove_all(taoTempDir());
 		deleteTempDirIfEmpty();
 	}
+	void TaoHandler::describeInPdf(MetadataPdf& pdf)
+	{
+		pdf.newPage();
+		pdf.writePageTitle("Tree-Approximate Objects");
+		pdf.writeTextBlockWithWrap("Tree-approximate objects (TAOs) represent Lapis' best guess at where individual trees are. The name TAO reflects "
+			"the uncertainty inherent in this task.");
+
+		_getter->taoIdAlgorithm()->describeInPdf(pdf, _getter);
+		_getter->taoSegAlgorithm()->describeInPdf(pdf, _getter);
+
+		pdf.writeSubsectionTitle("Products");
+		pdf.writeTextBlockWithWrap("The output TAO data can be found in the TreeApproximateObjects directory. There are three kinds of products: the TAOs themselves, the segment "
+			"rasters, and the max height rasters. To avoid unusably large filesizes, they are tiled. Their filenames indicate the row and olumn each tile belongs to. "
+			"The location of each tile is available in TileLayout.shp, in the Layout directory.");
+
+		pdf.writeSubsectionTitle("TAOs");
+		std::stringstream ss;
+		ss << "The TAOs themselves are stored in files with names like " << getFullTileFilename("", _taoBasename, OutputUnitLabel::Unitless, 0, "shp") << ". ";
+		ss << "These are point vector files, whose locations represent the TAOs identified by the identification algorithm. ";
+		ss << "There are six attributes in the attribute table. ID is a unique identifier for each TAO. X and Y are the coordinates of the TAO. ";
+		ss << "Height is the height of the TAO, measured from the canopy surface model, in " << pdf.strToLower(_getter->unitPlural()) << ". ";
+		ss << "Area is the area of the region assigned to each TAO by the segmentation algorithm, in square " << pdf.strToLower(_getter->unitPlural()) << ". ";
+		ss << "Radius is the estimated crown radius of the TAO, derived directly from the area, as if the TAO was a circle, in " << pdf.strToLower(_getter->unitPlural()) << ".";
+		pdf.writeTextBlockWithWrap(ss.str());
+
+		pdf.writeSubsectionTitle("Segments");
+		ss.str("");
+		ss.clear();
+		ss << "The files with names like " << getFullTileFilename("", _segmentsBasename, OutputUnitLabel::Unitless, 0) << " ";
+		ss << "represent the division of the landscape into TAOs. The value of each pixel is 0 if that pixel does not belong to any TAO, ";
+		ss << "or matches the ID of the TAO it belongs to, if any. The files have the same resolution as the canoyp surface model.";
+		pdf.writeTextBlockWithWrap(ss.str());
+
+		pdf.writeSubsectionTitle("Max Height");
+		ss.str("");
+		ss.clear();
+		ss << "The files with names like " << getFullTileFilename("", _maxHeightBasename, OutputUnitLabel::Default, 0) << " ";
+		ss << "are similar to the segments files, but instead of using the TAO's ID as their value, they use the TAO's height. ";
+		ss << "These are thus similar in concept to a canopy surface model, but as if trees were a constant height, instead of having varying heights throughout their area.";
+		pdf.writeTextBlockWithWrap(ss.str());
+
+	}
 	std::filesystem::path TaoHandler::taoDir() const
 	{
 		return parentDir() / "TreeApproximateObjects";

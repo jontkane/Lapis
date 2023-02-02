@@ -11,6 +11,8 @@ namespace lapis {
 
 		Raster<taoid_t> segment(const Raster<csm_t>& csm, const std::vector<cell_t>& taos, UniqueIdGenerator& idGenerator);
 
+		void describeInPdf(MetadataPdf& pdf, TaoParameterGetter* getter);
+
 	private:
 		coord_t _canopyCutoff;
 		coord_t _maxHt;

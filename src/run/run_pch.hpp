@@ -23,4 +23,10 @@
 #include"../gis/LasReader.hpp"
 #include"../gis/RasterAlgos.hpp"
 
+//harupdf
+#include<hpdf.h>
+
+//lapis_utils
+#include"../utils/LapisLogger.hpp"
+
 #endif

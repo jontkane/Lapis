@@ -168,7 +168,7 @@ namespace lapis {
 
 		//Writes the Raster object to the harddrive. Missing values will be replaced by naValue. It's up to the user to make sure the driver and the file extension correspond.
 		//You can specify the datatype of the file, or leave it as GDT_Unknown to choose the one that corresponds to the template of the raster object.
-		void writeRaster(const std::string& file, const std::string driver = "GTiff", const T navalue = std::numeric_limits<T>::lowest());
+		void writeRaster(const std::string& file, const std::string driver = "GTiff", const T navalue = std::numeric_limits<T>::lowest(), GDALDataType gdt = GDT_Unknown);
 
 		//This function produces a new raster, with alignment a, where the values are what you get by extracting at the cell centers of this
 		Raster<T> resample(const Alignment& a, ExtractMethod method) const;
@@ -507,8 +507,10 @@ namespace lapis {
 	}
 
 	template<class T>
-	void Raster<T>::writeRaster(const std::string& file, const std::string driver, const T navalue) {
-		auto dataType = GDT();
+	void Raster<T>::writeRaster(const std::string& file, const std::string driver, const T navalue, GDALDataType dataType) {
+		if (dataType == GDT_Unknown) {
+			dataType = GDT();
+		}
 		GDALDatasetWrapper wgd{ driver,file,ncol(),nrow(),dataType };
 		if (wgd.isNull()) {
 			throw InvalidRasterFileException();

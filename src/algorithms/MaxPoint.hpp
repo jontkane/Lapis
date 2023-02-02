@@ -16,6 +16,8 @@ namespace lapis {
 
 		csm_t combineCells(csm_t a, csm_t b) override;
 
+		void describeInPdf(MetadataPdf& pdf, CsmParameterGetter* getter) override;
+
 		//just for testing
 		coord_t footprintRadius();
 

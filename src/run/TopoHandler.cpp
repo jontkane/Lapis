@@ -26,8 +26,8 @@ namespace lapis {
 		_elevDenominator = Raster<coord_t>(*_getter->metricAlign());
 
 		using oul = OutputUnitLabel;
-		_topoMetrics.emplace_back("Slope", viewSlope<coord_t, metric_t>, oul::Radian);
-		_topoMetrics.emplace_back("Aspect", viewAspect<coord_t, metric_t>, oul::Radian);
+		_topoMetrics.emplace_back("Slope", viewSlope<metric_t, coord_t>, oul::Radian);
+		_topoMetrics.emplace_back("Aspect", viewAspect<metric_t, coord_t>, oul::Radian);
 	}
 	void TopoHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
 	{
@@ -38,10 +38,10 @@ namespace lapis {
 			return;
 		}
 
-		Raster<coord_t> coarseSum = aggregate<coord_t, coord_t>(dem, *_getter->metricAlign(), &viewSum<coord_t>);
+		Raster<coord_t> coarseSum = aggregate<coord_t, coord_t>(dem, *_getter->metricAlign(), &viewSum<coord_t, coord_t>);
 		_elevNumerator.overlay(coarseSum, [](coord_t a, coord_t b) {return a + b; });
 
-		Raster<coord_t> coarseCount = aggregate<coord_t, coord_t>(dem, *_getter->metricAlign(), &viewCount<coord_t>);
+		Raster<coord_t> coarseCount = aggregate<coord_t, coord_t>(dem, *_getter->metricAlign(), &viewCount<coord_t, coord_t>);
 		_elevDenominator.overlay(coarseCount, [](coord_t a, coord_t b) {return a + b; });
 	}
 	void TopoHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
@@ -59,9 +59,15 @@ namespace lapis {
 		writeRasterLogErrors(getFullFilename(topoDir(), "Elevation", OutputUnitLabel::Default), elev);
 
 		for (TopoMetric& metric : _topoMetrics) {
-			Raster<metric_t> r = focal(elev, 3, metric.fun);
+			Raster<metric_t> r = focal<metric_t, coord_t>(elev, 3, metric.fun);
 			writeRasterLogErrors(getFullFilename(topoDir(), metric.name, metric.unit), r);
 		}
+	}
+	void TopoHandler::describeInPdf(MetadataPdf& pdf)
+	{
+		pdf.newPage();
+		pdf.writePageTitle("Topographic Metrics");
+		pdf.writeTextBlockWithWrap("Placeholder");
 	}
 	std::filesystem::path TopoHandler::topoDir() const
 	{

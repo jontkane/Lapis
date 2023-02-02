@@ -13,6 +13,8 @@ namespace lapis {
 
 		std::vector<cell_t> identifyTaos(const Raster<csm_t>& csm);
 
+		void describeInPdf(MetadataPdf& pdf, TaoParameterGetter* getter);
+
 		//for testing
 		coord_t minHt();
 		coord_t minDist();

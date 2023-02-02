@@ -4,7 +4,10 @@
 
 #include"Parameter.hpp"
 
+
 namespace lapis {
+	class MetadataPdf;
+
 	class AlignmentParameter : public Parameter {
 	public:
 
@@ -33,6 +36,8 @@ namespace lapis {
 		std::shared_ptr<Alignment> metricAlign();
 
 		bool isDebug() const;
+
+		void describeInPdf(MetadataPdf& pdf);
 
 	private:
 

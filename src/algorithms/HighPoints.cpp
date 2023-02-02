@@ -1,5 +1,7 @@
 #include"algo_pch.hpp"
 #include"HighPoints.hpp"
+#include"..\utils\MetadataPdf.hpp"
+#include"..\parameters\ParameterGetter.hpp"
 
 namespace lapis {
 	HighPoints::HighPoints(coord_t minHtCsmZUnits, coord_t minDistCsmXYUnits)
@@ -66,6 +68,24 @@ namespace lapis {
 		}
 
 		return out;
+	}
+	void HighPoints::describeInPdf(MetadataPdf& pdf, TaoParameterGetter* getter)
+	{
+		pdf.writeSubsectionTitle("High Points TAO Identification Algorithm");
+		std::string candidate = _minDist > 0 ? "TAO candidate" : "TAO";
+		std::stringstream ss;
+		ss << "This run used the High Points algorithm to identify the locations of TAOs. "
+			"This is a canopy surface model-based algorithm; it it calculated entirely on the CSM, without reference to the original lidar points. "
+			"A pixel in the CSM is considered a " << candidate << " if it is higher than the eight pixels surrounding it. "
+			<< "This algorithm works well with tree species, such as conifers, that have a well-defined top. ";
+		if (_minDist > 0) {
+			ss << "TAOs were required to be at least " <<
+				pdf.numberWithUnits(convertUnits(_minDist, getter->metricAlign()->crs().getXYUnits(), getter->outUnits()),
+					getter->unitSingular(), getter->unitPlural())
+				<< " apart. If two candidates were closer than that, only the taller one was retained. "
+				<< " This can correct for situations where a single tree has multiple TAO candidates.";
+		}
+		pdf.writeTextBlockWithWrap(ss.str());
 	}
 	coord_t HighPoints::minHt()
 	{

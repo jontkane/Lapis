@@ -66,6 +66,10 @@ namespace lapis {
 	{
 		return std::to_string(tile);
 	}
+	std::shared_ptr<void> SharedParameterSpoofer::pdf()
+	{
+		return std::shared_ptr<void>();
+	}
 	void PointMetricParameterSpoofer::setDoPointMetrics(bool b)
 	{
 		_doPointMetrics = b;

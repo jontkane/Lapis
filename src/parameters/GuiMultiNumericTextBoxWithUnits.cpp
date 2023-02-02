@@ -2,7 +2,6 @@
 #include"GuiMultiNumericTextBoxWithUnits.hpp"
 #include"GuiNumericTextBoxWithUnits.hpp"
 #include"RunParameters.hpp"
-#include"..\logger\LapisLogger.hpp"
 
 namespace lapis {
 	MultiNumericTextBoxWithUnits::MultiNumericTextBoxWithUnits(const std::string& guiDesc, const std::string& cmdName, const std::string& defaultValue)

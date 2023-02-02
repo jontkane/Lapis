@@ -5,6 +5,9 @@
 #include"algo_pch.hpp"
 
 namespace lapis {
+	class MetadataPdf;
+	class CsmParameterGetter;
+
 	class CsmAlgorithm {
 	public:
 
@@ -17,6 +20,8 @@ namespace lapis {
 
 		//A function appropriate to pass to overlay, to combine points of overlap between two previously-produced CSMs
 		virtual csm_t combineCells(csm_t a, csm_t b) = 0;
+
+		virtual void describeInPdf(MetadataPdf& pdf, CsmParameterGetter* getter) = 0;
 	};
 }
 

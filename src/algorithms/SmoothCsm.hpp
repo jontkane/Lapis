@@ -11,6 +11,8 @@ namespace lapis {
 
 		virtual Raster<csm_t> postProcess(const Raster<csm_t>& csm);
 
+		void describeInPdf(MetadataPdf& pdf, CsmParameterGetter* getter) override;
+
 	protected:
 		void _smoothSingleValue(const Raster<csm_t>& original, Raster<csm_t>& out, cell_t cell);
 

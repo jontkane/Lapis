@@ -120,6 +120,44 @@ namespace lapis {
 		std::filesystem::remove_all(fineIntTempDir());
 		deleteTempDirIfEmpty();
 	}
+	void FineIntHandler::describeInPdf(MetadataPdf& pdf)
+	{
+		if (!_getter->doFineInt()) {
+			return;
+		}
+		pdf.newPage();
+		pdf.writePageTitle("Intensity");
+		pdf.writeTextBlockWithWrap("Intensity is a measure of how bright a lidar return is. It is unitless, and the scale varies from sensor to sensor, "
+			"so the values should not be compared between acquisitions. A large number of things can result in one lidar return having lower intensity than another: "
+			"the larger the distance between the sensor and ground, the lower the intensity; lidar pulses which strike slopes will have "
+			"some of their light scatter and not return to the sensor, lowering the intensity; and the reflectance of the object struck by the lidar pulse "
+			"will effect the amount of light returned to the sensor. Importantly, if this lidar uses near infrared light (as is usual), then "
+			"chlorophyll is very reflective, and live vegetation will have higher intensity than dead vegetation or the ground (on average).");
+		pdf.blankLine();
+		
+		std::stringstream productDesc;
+		productDesc << "To reduce filesize, the intensity layers have been tiled. ";
+		productDesc << "The tiles have names like: " << getFullTileFilename("", _fineIntBaseName, OutputUnitLabel::Unitless, 0) << ". ";
+		productDesc << "The filename indicates the row and column of the tile. The location of each tile can be viewed in the file TileLayout.shp in the Layout directory. ";
+		pdf.writeTextBlockWithWrap(productDesc.str());
+		pdf.blankLine();
+		productDesc.clear();
+		productDesc.str("");
+
+		productDesc << "The value of each cell is the mean intensity of the lidar returns that fall within that cell. ";
+		if (_getter->fineIntCanopyCutoff() > -10000) {
+			productDesc << "Returns less than " << pdf.numberWithUnits(_getter->fineIntCanopyCutoff(), _getter->unitSingular(), _getter->unitPlural());
+			productDesc << " above the ground were ignored. This is usually to exclude the ground from the values, but if this is set high enough, it may ";
+			productDesc << "exclude shrubs or some trees as well. ";
+		}
+		std::string cellsize = pdf.numberWithUnits(convertUnits(_getter->fineIntAlign()->xres(),
+			_getter->fineIntAlign()->crs().getXYUnits(),
+			_getter->outUnits()),
+			_getter->unitSingular(),
+			_getter->unitPlural());
+		productDesc << "The cellsize of the intensity rasters is " << cellsize << ".";
+		pdf.writeTextBlockWithWrap(productDesc.str());
+	}
 	std::filesystem::path FineIntHandler::fineIntDir() const
 	{
 		return parentDir() / "Intensity";

@@ -1,5 +1,7 @@
 #include"algo_pch.hpp"
 #include"WatershedSegment.hpp"
+#include"..\utils\MetadataPdf.hpp"
+#include"..\parameters\ParameterGetter.hpp"
 
 namespace lapis {
 	//this data structure is taken from https://www.researchgate.net/publication/261191274_Hierarchical_Queues_general_description_and_implementation_in_MAMBA_Image_library
@@ -116,5 +118,16 @@ namespace lapis {
 			}
 		}
 		return labels;
+	}
+	void WatershedSegment::describeInPdf(MetadataPdf& pdf, TaoParameterGetter* getter)
+	{
+		pdf.writeSubsectionTitle("Watershed Segmentation Algorithm");
+		pdf.writeTextBlockWithWrap(
+			"A tree segmentation algorithm takes the TAOs identified by the identification algorithm and assigns regions of the acquisition to each one. "
+			"The watershed segmentation algorithm is a canopy surface model-based algorithm; it is performed entirely on the CSM, without reference "
+			"to the original point data. It gets its name from hydrology, where it is used to segment landscapes into watersheds. "
+			"The algorithm turns the canopy upside-down and treats it as if it were terrain; each TAO is assigned to the 'watershed' it would "
+			"belong to if this imaginary terrain were filled with water."
+		);
 	}
 }

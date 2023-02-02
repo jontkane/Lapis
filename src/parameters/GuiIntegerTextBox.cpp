@@ -1,6 +1,5 @@
 #include"param_pch.hpp"
 #include"GuiIntegerTextBox.hpp"
-#include"..\logger\LapisLogger.hpp"
 
 namespace lapis {
 	IntegerTextBox::IntegerTextBox(const std::string& guiDesc, const std::string& cmdName, int defaultValue)

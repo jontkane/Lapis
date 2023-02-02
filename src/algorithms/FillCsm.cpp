@@ -1,5 +1,7 @@
 #include"algo_pch.hpp"
 #include"FillCsm.hpp"
+#include"..\utils\MetadataPdf.hpp"
+#include"..\parameters\ParameterGetter.hpp"
 
 namespace lapis {
 	FillCsm::FillCsm(int neighborsNeeded, coord_t lookDistCsmXYUnits)
@@ -20,6 +22,15 @@ namespace lapis {
 		}
 
 		return out;
+	}
+	void FillCsm::describeInPdf(MetadataPdf& pdf, CsmParameterGetter* getter)
+	{
+		pdf.writeSubsectionTitle("Hole-Filling");
+		std::stringstream desc;
+		desc << "It is normal, especially in lower-density lidar acquisitions, "
+			<< "for some small areas to not receive any lidar pulses. ";
+		desc << "Small holes in the CSM were filled with an inverse distance weighted mean of the values in nearby cells.";
+		pdf.writeTextBlockWithWrap(desc.str());
 	}
 	void FillCsm::_fillSingleValue(const Raster<csm_t>& original, Raster<csm_t>& output, cell_t cell)
 	{

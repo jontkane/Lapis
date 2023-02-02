@@ -5,6 +5,7 @@
 #include"param_pch.hpp"
 #include"Parameter.hpp"
 #include"ParameterGetter.hpp"
+#include"..\utils\MetadataPdf.hpp"
 
 namespace lapis {
 
@@ -76,6 +77,8 @@ namespace lapis {
 
 		const std::filesystem::path& outFolder();
 		const std::string& name();
+		//this fuction is intended to produce matadata only for parameters not associated with a single product
+		void describeParameters(MetadataPdf& pdf);
 
 		coord_t fineIntCanopyCutoff();
 
@@ -126,6 +129,8 @@ namespace lapis {
 		std::vector<std::string> _failedLas;
 
 		std::shared_ptr<Raster<bool>> _layout;
+
+		std::shared_ptr<void> _pdf;
 	};
 
 	template<class PARAMETER>

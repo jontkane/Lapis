@@ -1,5 +1,6 @@
 #include"algo_pch.hpp"
 #include"SmoothAndFill.hpp"
+#include"..\parameters\ParameterGetter.hpp"
 
 namespace lapis {
 	SmoothAndFill::SmoothAndFill(int smoothWindow, int neighborsNeeded, coord_t lookDistCsmXYUnits)
@@ -20,5 +21,10 @@ namespace lapis {
 		}
 
 		return out;
+	}
+	void SmoothAndFill::describeInPdf(MetadataPdf& pdf, CsmParameterGetter* getter)
+	{
+		SmoothCsm::describeInPdf(pdf, getter);
+		FillCsm::describeInPdf(pdf, getter);
 	}
 }

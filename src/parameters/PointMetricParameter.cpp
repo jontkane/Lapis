@@ -111,6 +111,7 @@ namespace lapis {
 					return s;
 				};
 				const std::vector<coord_t>& strata = _strata.cachedValues();
+				_strataNames.clear();
 				_strataNames.push_back("LessThan" + to_string_with_precision(strata[0]) + rp.unitPlural());
 				for (size_t i = 1; i < strata.size(); ++i) {
 					_strataNames.push_back(to_string_with_precision(strata[i - 1]) + "To" + to_string_with_precision(strata[i]) + rp.unitPlural());

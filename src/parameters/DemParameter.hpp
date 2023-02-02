@@ -42,7 +42,7 @@ namespace lapis {
 		DemAlgorithm* demAlgorithm();
 
 		const std::vector<Alignment>& demAligns();
-		Raster<coord_t> getDem(size_t n);
+		std::optional<Raster<coord_t>> getDem(size_t n, const Extent& e);
 
 	private:
 		FileSpecifierSet _specifiers{ "Dem","dem",

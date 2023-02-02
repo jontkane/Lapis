@@ -1,7 +1,6 @@
 #include"param_pch.hpp"
 #include"RunParameters.hpp"
 #include"AllParameters.hpp"
-#include"..\logger\LapisLogger.hpp"
 #include"LapisGui.hpp"
 
 namespace lapis {
@@ -95,6 +94,7 @@ namespace lapis {
 			_params[i]->reset();
 			_params[i]->importFromBoost();
 		}
+		_pdf.reset();
 	}
 
 	const Extent& RunParameters::fullExtent()
@@ -222,6 +222,14 @@ namespace lapis {
 	{
 		return getParam<NameParameter>().name();
 	}
+
+	void RunParameters::describeParameters(MetadataPdf& pdf)
+	{
+		getParam<FilterParameter>().describeInPdf(pdf);
+		getParam<AlignmentParameter>().describeInPdf(pdf);
+		demAlgorithm()->describeInPdf(pdf);
+	}
+
 	coord_t RunParameters::fineIntCanopyCutoff() {
 		return getParam<FineIntParameter>().fineIntCutoff();
 	}

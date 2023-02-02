@@ -37,6 +37,8 @@ namespace lapis {
 
 		std::string layoutTileName(cell_t tile) override;
 
+		std::shared_ptr<void> pdf() override;
+
 	private:
 		Unit _outUnits;
 		std::shared_ptr<Alignment> _metricAlign;

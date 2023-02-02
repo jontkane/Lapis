@@ -5,6 +5,8 @@
 #include"algo_pch.hpp"
 
 namespace lapis {
+
+	class MetadataPdf;
 	
 	class DemAlgorithm {
 	public:
@@ -19,6 +21,8 @@ namespace lapis {
 		//the points vector will be modified in-place to not contain any points outside of the min and max filters
 		//and will not contain any points that couldn't be normalized
 		virtual Raster<coord_t> normalizeToGround(LidarPointVector& points, const Extent& e) = 0;
+
+		virtual void describeInPdf(MetadataPdf& pdf) = 0;
 
 		void setMinMax(coord_t minHt, coord_t maxHt) {
 			_minHt = minHt;

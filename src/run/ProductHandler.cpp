@@ -1,7 +1,6 @@
 #include"run_pch.hpp"
 #include"ProductHandler.hpp"
 #include"PointMetricCalculator.hpp"
-#include"..\logger\LapisLogger.hpp"
 
 namespace lapis {
 
@@ -23,7 +22,7 @@ namespace lapis {
 	void ProductHandler::deleteTempDirIfEmpty() const
 	{
 		namespace fs = std::filesystem;
-		if (fs::is_empty(tempDir())) {
+		if (fs::exists(tempDir()) && fs::is_empty(tempDir())) {
 			fs::remove(tempDir());
 		}
 	}

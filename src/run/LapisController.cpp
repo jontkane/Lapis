@@ -2,6 +2,7 @@
 #include"LapisController.hpp"
 #include"AllHandlers.hpp"
 #include"..\parameters\RunParameters.hpp"
+#include"..\utils\MetadataPdf.hpp"
 
 
 namespace chr = std::chrono;
@@ -60,6 +61,7 @@ namespace lapis {
 		for (auto& p : _handlers()) {
 			p->prepareForRun();
 		}
+		writeMetadata(); //this call has to happen in between preparing for the run and cleaning up
 
 		log.setProgress("Processing LAS Files", (int)rp.lasExtents().size());
 		uint64_t soFar = 0;
@@ -167,6 +169,77 @@ namespace lapis {
 		else {
 			rp.writeOptions(computer, ParamCategory::computer);
 		}
+	}
+
+	void writeSplashPage(MetadataPdf& pdf) {
+		pdf.newPage();
+		auto displayText = [&](const std::string& text, HPDF_REAL fontSize, bool bold) {
+			pdf.writeCenterAlignedTextLine(text,
+				bold ? pdf.boldFont() : pdf.normalFont(),
+				fontSize);
+		};
+
+		displayText(RunParameters::singleton().name(), 24.f, true);
+		displayText("Processed Using", 12.f, false);
+		displayText("Lapis Version " + std::to_string(LAPIS_VERSION_MAJOR) + "." + std::to_string(LAPIS_VERSION_MINOR),
+			18.f, true);
+
+		time_t t = std::time(nullptr);
+		tm buf;
+		localtime_s(&buf, &t);
+		std::stringstream ss;
+		ss << std::put_time(&buf, "%B %e, %Y") << std::endl;
+		displayText(ss.str(), 16, false);
+	}
+
+	void writeIniDescription(MetadataPdf& pdf) {
+		pdf.newPage();
+
+		pdf.writePageTitle("RunParameters Folder");
+
+		pdf.writeTextBlockWithWrap(
+			"The RunParameters folder contains files that have the full details of this run, which can be loaded into Lapis to"
+			" duplicate part or all of this run."
+		);
+
+		auto describeIni = [&](const std::string& header, const std::string& block) {
+			pdf.writeSubsectionTitle(header);
+			pdf.writeTextBlockWithWrap(block);
+		};
+
+		describeIni("FullParameters.ini", "FullParameters.ini contains all parameters used in this run. "
+			"Loading it will allow you to duplicate it precisely.");
+		describeIni("DataParameters.ini", "DataParameters.ini contains the parameters that describe the input data "
+			"of the run. Loading it will allow you to process the same data with new options.");
+		describeIni("ProcessingParameters.ini", "ProcessingParameters.ini contains the parameters that describe the method "
+			"by which the data was processed. Loading it will allow you to process a new dataset with the same methods.");
+		describeIni("ComputerParameters.ini", "ComputerParameters.ini contains the parameters which are specific to the computer "
+			"on which the run was performed. Loading it will allow you to perform runs on the same computer without needing to re-set them.");
+		describeIni("ProcessingAndComputerParameters.ini", "ProcessingAndComputerParameters.ini contains all parameters "
+			"in either ComputerParameters.ini or ProcessingParameters.ini. It's like a profile for how you process lidar, which you "
+			"can apply to new datasets.");
+	}
+
+	void LapisController::writeMetadata() const
+	{
+		RunParameters& rp = RunParameters::singleton();
+		
+		MetadataPdf pdf{};
+
+		writeSplashPage(pdf);
+		writeIniDescription(pdf);
+		rp.describeParameters(pdf);
+
+		for (auto& handler : _handlers()) {
+			handler->describeInPdf(pdf);
+		}
+
+		namespace fs = std::filesystem;
+		fs::path pdfFileName = rp.outFolder() / (rp.name() + "_Lapis_Metadata.pdf");
+		if (fs::exists(pdfFileName)) {
+			fs::remove(pdfFileName);
+		}
+		pdf.writeToFile(pdfFileName.string());
 	}
 
 	std::vector<std::unique_ptr<ProductHandler>>& LapisController::_handlers()

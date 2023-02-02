@@ -22,6 +22,8 @@ namespace lapis {
 
 		std::shared_ptr<LasFilter> getFilter() const;
 
+		const std::vector<std::string>& classNames() const;
+
 	private:
 		std::array<bool, 256> _checks;
 		std::string _boostString;

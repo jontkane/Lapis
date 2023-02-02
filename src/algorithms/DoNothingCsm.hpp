@@ -10,6 +10,8 @@ namespace lapis {
 	class DoNothingCsm : public CsmPostProcessor {
 	public:
 		Raster<csm_t> postProcess(const Raster<csm_t>& csm) override;
+
+		void describeInPdf(MetadataPdf& pdf, CsmParameterGetter* getter) override;
 	};
 }
 

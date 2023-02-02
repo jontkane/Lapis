@@ -13,6 +13,8 @@ namespace lapis {
 		SmoothAndFill(int smoothWindow, int neighborsNeeded, coord_t lookDistCsmXYUnits);
 
 		Raster<csm_t> postProcess(const Raster<csm_t>& csm) override;
+		void describeInPdf(MetadataPdf& pdf, CsmParameterGetter* getter) override;
+
 
 	private:
 		int _smooth;

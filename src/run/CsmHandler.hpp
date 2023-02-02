@@ -18,6 +18,8 @@ namespace lapis {
 		void reset() override;
 		static size_t handlerRegisteredIndex;
 
+		void describeInPdf(MetadataPdf& pdf) override;
+
 		virtual Raster<csm_t> getBufferedCsm(cell_t tile) const;
 
 		std::filesystem::path csmTempDir() const;
@@ -25,19 +27,23 @@ namespace lapis {
 		std::filesystem::path csmMetricDir() const;
 
 	protected:
-		using CsmMetricFunc = ViewFunc<csm_t, metric_t>;
+		using CsmMetricFunc = ViewFunc<metric_t, csm_t>;
 		struct CSMMetricRaster {
 			std::string name;
 			CsmMetricFunc fun;
 			OutputUnitLabel unit;
 			Raster<metric_t> raster;
+			std::string pdfDesc;
 
-			CSMMetricRaster(ParamGetter* getter, const std::string& name, CsmMetricFunc fun, OutputUnitLabel unit);
+			CSMMetricRaster(ParamGetter* getter, const std::string& name, CsmMetricFunc fun,
+				OutputUnitLabel unit, const std::string& pdfDesc);
 		};
 		std::vector<CSMMetricRaster> _csmMetrics;
 		std::string _csmBaseName = "CanopySurfaceModel";
 
 		ParamGetter* _getter;
+
+		void _initMetrics();
 		
 	};
 }

@@ -265,6 +265,48 @@ namespace lapis {
 	{
 		return _debugNoAlign.currentState();
 	}
+	void AlignmentParameter::describeInPdf(MetadataPdf& pdf)
+	{
+		RunParameters& rp = RunParameters::singleton();
+
+		prepareForRun();
+		pdf.newPage();
+		pdf.writePageTitle("Output Data Characteristics");
+	
+		std::string xresDisplay = pdf.numberWithUnits(
+			convertUnits(_align->xres(), _align->crs().getXYUnits(), rp.outUnits()),
+			rp.unitSingular(),rp.unitPlural());
+		std::string yresDisplay = pdf.numberWithUnits(
+			convertUnits(_align->yres(), _align->crs().getXYUnits(), rp.outUnits()),
+			rp.unitSingular(),rp.unitPlural());
+		std::string cellsizeDesc;
+		if (_align->xres() == _align->yres()) {
+			cellsizeDesc = "All metrics were processed at a cellsize of " +
+				xresDisplay + ".";
+		}
+		else {
+			cellsizeDesc = "Metrics were processed with cells of unequal x and y size. The x resolution is " +
+				xresDisplay + " and the y resolution is " +
+				yresDisplay + ".";
+		}
+		pdf.writeTextBlockWithWrap(cellsizeDesc);
+		std::string unitDisplay = rp.unitPlural();
+		std::transform(unitDisplay.begin(), unitDisplay.end(), unitDisplay.begin(),
+			[](unsigned char c) { return std::tolower(c); });
+		pdf.writeTextBlockWithWrap("Where appropriate, the units of all output data are " + unitDisplay + ".");
+
+
+		std::string crs = "All output data of this run is in the following coordinate reference system: " +
+			_align->crs().getShortName() + ". The full WKT string is provided below for reference:";
+		pdf.writeTextBlockWithWrap(crs);
+		pdf.blankLine();
+
+		std::istringstream wkt{ _align->crs().getPrettyWKT() };
+		std::string line;
+		while (std::getline(wkt, line)) {
+			pdf.writeLeftAlignedTextLine(line, pdf.normalFont(), 12.f);
+		}
+	}
 	void AlignmentParameter::_manualWindow()
 	{
 		ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize;

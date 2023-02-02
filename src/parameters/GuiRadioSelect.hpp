@@ -3,7 +3,6 @@
 #define LP_GUIRADIOSELECT_H
 
 #include"GuiCmdElement.hpp"
-#include"..\logger\LapisLogger.hpp"
 
 namespace lapis {
 	

@@ -1,5 +1,7 @@
 #include"algo_pch.hpp"
 #include"SmoothCsm.hpp"
+#include"..\utils\MetadataPdf.hpp"
+#include"..\parameters\ParameterGetter.hpp"
 
 namespace lapis {
 	SmoothCsm::SmoothCsm(int smoothWindow)
@@ -20,6 +22,18 @@ namespace lapis {
 		}
 
 		return out;
+	}
+	void SmoothCsm::describeInPdf(MetadataPdf& pdf, CsmParameterGetter* getter)
+	{
+		pdf.writeSubsectionTitle("Smoothing");
+		std::stringstream desc;
+		int smooth = _smoothLookDist * 2 + 1;
+		desc << "After producing the initial CSM, it was smoothed by applying a "
+			<< smooth << "x" << smooth << " mean filter smooth. ";
+		desc << "This means that each pixel was assigned a value equal to the mean of the values in the "
+			<< smooth << "x" << smooth << " window surrounding it. This process is designed to reduce "
+			<< "noise in the CSM.";
+		pdf.writeTextBlockWithWrap(desc.str());
 	}
 	void SmoothCsm::_smoothSingleValue(const Raster<csm_t>& original, Raster<csm_t>& out, cell_t cell)
 	{

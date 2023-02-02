@@ -16,6 +16,8 @@ namespace lapis {
 		virtual ~SharedParameterGetter() = default;
 
 		virtual const Unit& outUnits() = 0;
+		virtual const std::string& unitSingular() = 0;
+		virtual const std::string& unitPlural() = 0;
 		virtual const std::shared_ptr<Alignment> metricAlign() = 0;
 		virtual std::shared_ptr<Raster<bool>> layout() = 0;
 		virtual std::mutex& cellMutex(cell_t cell) = 0;

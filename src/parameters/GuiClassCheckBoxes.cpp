@@ -1,6 +1,5 @@
 #include"param_pch.hpp"
 #include"GuiClassCheckboxes.hpp"
-#include"..\logger\LapisLogger.hpp"
 
 namespace lapis {
 
@@ -131,6 +130,29 @@ namespace lapis {
 			return std::dynamic_pointer_cast<LasFilter>(std::make_shared<LasFilterClassWhitelist>(classes));
 		}
 	}
+	const std::vector<std::string>& ClassCheckBoxes::classNames() const
+	{
+		const static std::vector<std::string> names = { "Never Classified",
+				"Unassigned",
+				"Ground",
+				"Low Vegetation",
+				"Medium Vegetation",
+				"High Vegetation",
+				"Building",
+				"Low Point",
+				"Model Key (LAS 1.0-1.3)/Reserved (LAS 1.4)",
+				"Water",
+				"Rail",
+				"Road Surface",
+				"Overlap (LAS 1.0-1.3)/Reserved (LAS 1.4)",
+				"Wire - Guard (Shield)",
+				"Wire - Conductor (Phase)",
+				"Transmission Tower",
+				"Wire-Structure Connector (Insulator)",
+				"Bridge Deck",
+				"High Noise" };
+		return names;
+	}
 	void ClassCheckBoxes::_updateDisplayString()
 	{
 		_displayString.clear();
@@ -203,31 +225,11 @@ namespace lapis {
 				_updateDisplayString();
 			}
 
-			const static std::vector<std::string> classNames = { "Never Classified",
-				"Unassigned",
-				"Ground",
-				"Low Vegetation",
-				"Medium Vegetation",
-				"High Vegetation",
-				"Building",
-				"Low Point",
-				"Model Key (LAS 1.0-1.3)/Reserved (LAS 1.4)",
-				"Water",
-				"Rail",
-				"Road Surface",
-				"Overlap (LAS 1.0-1.3)/Reserved (LAS 1.4)",
-				"Wire - Guard (Shield)",
-				"Wire - Conductor (Phase)",
-				"Transmission Tower",
-				"Wire-Structure Connector (Insulator)",
-				"Bridge Deck",
-				"High Noise" };
-
 			ImGui::BeginChild("##classcheckboxchild", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y - 60), true, 0);
 			for (size_t i = 0; i < _checks.size(); ++i) {
 				std::string label = std::to_string(i);
-				if (i < classNames.size()) {
-					label += " " + classNames[i];
+				if (i < classNames().size()) {
+					label += " " + classNames()[i];
 				}
 
 				if (ImGui::Checkbox(label.c_str(), &_checks[i])) {

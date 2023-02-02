@@ -1,4 +1,6 @@
 #include"MaxPoint.hpp"
+#include"..\utils\MetadataPdf.hpp"
+#include"..\parameters\ParameterGetter.hpp"
 
 namespace lapis {
 	MaxPoint::MaxPoint(coord_t footprintDiameter)
@@ -58,6 +60,19 @@ namespace lapis {
 	csm_t MaxPoint::combineCells(csm_t a, csm_t b)
 	{
 		return std::max(a, b);
+	}
+	void MaxPoint::describeInPdf(MetadataPdf& pdf, CsmParameterGetter* getter)
+	{
+		pdf.writeSubsectionTitle("CSM Creation Algorithm");
+		std::stringstream desc;
+		desc << "The CSM for this run was produced with the Max Point algorithm. In this algorithm, the value of a cell "
+			"in the output raster is equal to the maximum height of lidar returns that fall in that cell. ";
+		if (_footprintRadius > 0) {
+			desc << "Returns were treated as circles with radius " <<
+				pdf.numberWithUnits(_footprintRadius, getter->unitSingular(), getter->unitPlural()) << ", ";
+			desc << "in order to account for the width of a lidar pulse.";
+		}
+		pdf.writeTextBlockWithWrap(desc.str());
 	}
 	coord_t MaxPoint::footprintRadius()
 	{

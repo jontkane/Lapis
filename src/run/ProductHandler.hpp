@@ -9,6 +9,7 @@ namespace lapis {
 
 	class PointMetricCalculator;
 	class MetricFunc;
+	class MetadataPdf;
 
 	enum class OutputUnitLabel {
 		Default, Radian, Percent, Unitless
@@ -28,6 +29,8 @@ namespace lapis {
 		virtual void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) = 0;
 		virtual void cleanup() = 0;
 		virtual void reset() = 0;
+
+		virtual void describeInPdf(MetadataPdf& pdf) = 0;
 
 		std::filesystem::path parentDir() const;
 		std::filesystem::path tempDir() const;

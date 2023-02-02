@@ -10,6 +10,7 @@ namespace lapis {
 	class AlreadyNormalized : public DemAlgorithm {
 	public:
 		Raster<coord_t> normalizeToGround(LidarPointVector& points, const Extent& e) override;
+		void describeInPdf(MetadataPdf& pdf) override;
 	};
 }
 
