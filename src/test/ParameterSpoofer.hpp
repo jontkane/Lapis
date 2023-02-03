@@ -37,7 +37,8 @@ namespace lapis {
 
 		std::string layoutTileName(cell_t tile) override;
 
-		std::shared_ptr<void> pdf() override;
+		const std::string& unitSingular() override;
+		const std::string& unitPlural() override;
 
 	private:
 		Unit _outUnits;

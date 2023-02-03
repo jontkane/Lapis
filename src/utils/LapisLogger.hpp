@@ -22,6 +22,7 @@ namespace lapis {
 		void logMessage(const std::string& s);
 
 		void reset();
+
 	private:
 		LapisLogger();
 

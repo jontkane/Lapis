@@ -137,9 +137,9 @@ namespace lapis {
 		//pointmetriccalculator has its own test so I don't want the full suite here
 		//I'm just verifying that the points make their way to the right PMC and that the functions get called at the appropriate time
 		pmh.pointMetrics().clear();
-		pmh.pointMetrics().emplace_back(&spoof, "CoverTest", &PointMetricCalculator::canopyCover, OutputUnitLabel::Percent);
+		pmh.pointMetrics().emplace_back(&spoof, "CoverTest", &PointMetricCalculator::canopyCover, OutputUnitLabel::Percent, "");
 		pmh.stratumMetrics().clear();
-		pmh.stratumMetrics().emplace_back(&spoof, "PercentTest", &PointMetricCalculator::stratumPercent, OutputUnitLabel::Percent);
+		pmh.stratumMetrics().emplace_back(&spoof, "PercentTest", &PointMetricCalculator::stratumPercent, OutputUnitLabel::Percent, "");
 
 		LidarPointVector points;
 		points.push_back(LasPoint{ 0.5,0.5,3,0,0 });

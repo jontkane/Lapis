@@ -12,7 +12,7 @@ namespace lapis {
 		}
 
 		const std::vector<Alignment>& demAligns() { return _aligns; }
-		Raster<coord_t> getDem(size_t n) { return _rasters[n]; }
+		Raster<coord_t> getDem(size_t n, const Extent& e) { return _rasters[n]; }
 
 	private:
 		std::vector<Alignment> _aligns;

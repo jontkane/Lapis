@@ -25,7 +25,7 @@ namespace lapis {
 	};
 	
 	TEST_F(RasterAlgosTest, AggregateMax) {
-		ViewFunc<double, double> f{ &viewMax<double> };
+		ViewFunc<double, double> f{ &viewMax<double, double> };
 		auto out = aggregate(r, a, f);
 
 		EXPECT_EQ((Alignment)out, a);
@@ -41,7 +41,7 @@ namespace lapis {
 	}
 
 	TEST_F(RasterAlgosTest, AggregateMean) {
-		ViewFunc<double, double> f{ &viewMean<double> };
+		ViewFunc<double, double> f{ &viewMean<double, double> };
 		auto out = aggregate(r, a, f);
 
 		EXPECT_EQ((Alignment)out, a);
@@ -57,7 +57,7 @@ namespace lapis {
 	}
 
 	TEST_F(RasterAlgosTest, AggregateStdDev) {
-		ViewFunc<double, double> f{ &viewStdDev<double> };
+		ViewFunc<double, double> f{ &viewStdDev<double, double> };
 		auto out = aggregate(r, a, f);
 
 		EXPECT_EQ((Alignment)out, a);
