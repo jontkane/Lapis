@@ -284,6 +284,9 @@ namespace lapis {
 	}
 	void TaoHandler::describeInPdf(MetadataPdf& pdf)
 	{
+		if (!_getter->doTaos()) {
+			return;
+		}
 		pdf.newPage();
 		pdf.writePageTitle("Tree-Approximate Objects");
 		pdf.writeTextBlockWithWrap("Tree-approximate objects (TAOs) represent Lapis' best guess at where individual trees are. The name TAO reflects "

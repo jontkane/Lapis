@@ -42,6 +42,9 @@ namespace lapis {
 	}
 	void CsmHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
 	{
+		if (!_getter->doCsm()) {
+			return;
+		}
 		for (CSMMetricRaster& metric : _csmMetrics) {
 			Raster<metric_t> tileMetric = aggregate<metric_t, csm_t>(bufferedCsm, cropAlignment(*_getter->metricAlign(), bufferedCsm, SnapType::out), metric.fun);
 			metric.raster.overlayInside(tileMetric);
