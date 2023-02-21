@@ -7,7 +7,6 @@
 
 namespace lapis {
 
-
 	namespace DemAlgo {
 		enum DemAlgo {
 			OTHER,
@@ -17,6 +16,10 @@ namespace lapis {
 	}
 
 	class DemParameter : public Parameter {
+
+	private:
+		class DemContainerWrapper; //forward declare
+
 	public:
 
 		DemParameter();
@@ -41,8 +44,14 @@ namespace lapis {
 
 		DemAlgorithm* demAlgorithm();
 
-		const std::vector<Alignment>& demAligns();
+		DemContainerWrapper demAligns();
 		std::optional<Raster<coord_t>> getDem(size_t n, const Extent& e);
+
+		//this function is used to expand an elevation raster calculated using whatever algorithm by background DEMs
+		//The output is a raster which matched the alignment of the input raster, with an extent at least as large as desired
+		//The values in the places where unbuffered has values will not be altered, but where unbuffered is NoData, the values will be filled in, where possible,
+		//using a bilinear extraction from the rasters provided by the user
+		Raster<coord_t> bufferElevation(const Raster<coord_t>& unbuffered, const Extent& desired);
 
 	private:
 		FileSpecifierSet _specifiers{ "Dem","dem",
@@ -51,7 +60,7 @@ namespace lapis {
 			"As a folder name, which will haves it and its subfolders searched for raster files\n"
 			"As a folder name with a wildcard specifier, e.g. C:\\data\\*.tif\n"
 			"This option can be specified multiple times\n"
-			"Most raster formats are supported, but arcGIS .gdb geodatabases are not" ,
+			"Most raster formats are supported, but ESRI .gdb geodatabases are not" ,
 			{"*.*"},
 		std::unique_ptr<nfdnfilteritem_t>() };
 
@@ -72,8 +81,7 @@ namespace lapis {
 			const Unit& _unitOverride;
 		};
 
-		std::vector<Alignment> _demAligns;
-		std::vector<std::string> _demFileNames;
+		std::vector<DemFileAlignment> _demFileAligns;
 
 		bool _runPrepared = false;
 
@@ -91,6 +99,40 @@ namespace lapis {
 		RadioSelect<DemAlgoDecider, DemAlgo::DemAlgo> _demAlgo{ "Ground Model Method:","dem-algo" };
 
 		void _renderAdvancedOptions();
+
+		class DemIterator {
+		public:
+			DemIterator(std::vector<DemFileAlignment>::const_iterator it) : _it(it) {}
+			DemIterator& operator++() {
+				++_it;
+				return *this;
+			}
+			const Alignment* operator->() {
+				return &_it->align;
+			}
+			const Alignment& operator*() {
+				return _it->align;
+			}
+
+			bool operator!=(const DemIterator& other) {
+				return _it != other._it;
+			}
+		private:
+			std::vector<DemFileAlignment>::const_iterator _it;
+		};
+		class DemContainerWrapper {
+		public:
+			DemContainerWrapper(std::vector<DemFileAlignment>& v) : _vec(v) {}
+			DemIterator begin() {
+				return DemIterator(_vec.begin());
+			}
+			DemIterator end() {
+				return DemIterator(_vec.end());
+			}
+
+		private:
+			const std::vector<DemFileAlignment>& _vec;
+		};
 	};
 }
 

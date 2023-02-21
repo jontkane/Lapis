@@ -10,6 +10,11 @@ namespace lapis {
 		*this = TaoHandler(_getter);
 	}
 
+	std::string TaoHandler::name()
+	{
+		return "TAOs";
+	}
+
 	void TaoHandler::_writeHighPointsAsArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& bufferedCsm, const Raster<taoid_t>& bufferedSegments, 
 		const Extent& unbufferedExtent, cell_t tile) const {
 

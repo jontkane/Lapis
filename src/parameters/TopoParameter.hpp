@@ -27,6 +27,14 @@ namespace lapis {
 
 		void reset() override;
 		static size_t parameterRegisteredIndex;
+
+		const std::vector<coord_t>& topoWindows();
+		const std::vector<std::string>& topoWindowNames();
+
+	private:
+		MultiNumericTextBoxWithUnits _topoWindows;
+		std::vector<std::string> _topoWindowNames;
+		bool _runPrepared = false;
 	};
 }
 

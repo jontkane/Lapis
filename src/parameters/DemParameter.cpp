@@ -2,6 +2,7 @@
 #include"DemParameter.hpp"
 #include"RunParameters.hpp"
 #include"..\algorithms\AllDemAlgorithms.hpp"
+#include"..\gis\CropView.hpp"
 
 namespace lapis {
 
@@ -129,7 +130,6 @@ namespace lapis {
 		LapisLogger& log = LapisLogger::getLogger();
 
 		std::set<DemFileAlignment> fileAligns;
-		RunParameters& rp = RunParameters::singleton();
 
 		switch (_demAlgo.currentSelection()) {
 		case DemAlgo::DONTNORMALIZE:
@@ -151,8 +151,7 @@ namespace lapis {
 			}
 
 			for (const DemFileAlignment& d : fileAligns) {
-				_demAligns.push_back(d.align);
-				_demFileNames.push_back(d.file.string());
+				_demFileAligns.push_back(d);
 			}
 			_algorithm = std::make_unique<VendorRaster<DemParameter>>(this);
 			break;
@@ -161,12 +160,26 @@ namespace lapis {
 			return false;
 		}
 
+		if (_demFileAligns.size()) {
+
+			auto demSort = [](const DemFileAlignment& a, const DemFileAlignment& b) {
+				if (a.align.crs().isConsistentHoriz(b.align.crs())) {
+					return (a.align.xres() * a.align.yres()) < (b.align.xres() * b.align.yres());
+				}
+				else {
+					Alignment tmp = b.align.transformAlignment(a.align.crs());
+					return (a.align.xres() * a.align.yres()) < (tmp.xres() * tmp.yres());
+				}
+			};
+			std::sort(_demFileAligns.begin(), _demFileAligns.end(), demSort);
+
+		}
+
 		_runPrepared = true;
 		return true;
 	}
 	void DemParameter::cleanAfterRun() {
-		_demFileNames.clear();
-		_demAligns.clear();
+		_demFileAligns.clear();
 		_algorithm.reset();
 		_runPrepared = false;
 	}
@@ -174,21 +187,27 @@ namespace lapis {
 	{
 		return _algorithm.get();
 	}
-	const std::vector<Alignment>& DemParameter::demAligns()
+	DemParameter::DemContainerWrapper DemParameter::demAligns()
 	{
 		prepareForRun();
-		return _demAligns;
+		return DemContainerWrapper{ _demFileAligns };
 	}
 	std::optional<Raster<coord_t>> DemParameter::getDem(size_t n, const Extent& e)
 	{
 		prepareForRun();
 
-		Extent projE = QuadExtent(e, _demAligns[n].crs()).outerExtent();
-		if (!projE.overlaps(_demAligns[n])) {
+		if (n >= _demFileAligns.size()) {
 			return std::optional<Raster<coord_t>>();
 		}
 
-		std::optional<Raster<coord_t>> outopt{ std::in_place, _demFileNames[n], projE, SnapType::out};
+		Alignment& thisAlign = _demFileAligns[n].align;
+
+		Extent projE = QuadExtent(e, thisAlign.crs()).outerExtent();
+		if (!projE.overlaps(thisAlign)) {
+			return std::optional<Raster<coord_t>>();
+		}
+
+		std::optional<Raster<coord_t>> outopt{ std::in_place, _demFileAligns[n].file.string(), projE, SnapType::out};
 		Raster<coord_t>& out = outopt.value();
 		const CoordRef& crsOverride = _crs.cachedCrs();
 		const Unit& unitOverride = _unit.currentSelection();
@@ -197,6 +216,63 @@ namespace lapis {
 		}
 		if (!unitOverride.isUnknown()) {
 			out.setZUnits(unitOverride);
+		}
+		return outopt;
+	}
+	Raster<coord_t> DemParameter::bufferElevation(const Raster<coord_t>& unbuffered, const Extent& desired)
+	{
+		if (!desired.overlaps(unbuffered)) {
+			throw OutsideExtentException();
+		}
+
+		Alignment a = unbuffered;
+		a = extendAlignment(a, desired, SnapType::out);
+		a = cropAlignment(a, desired, SnapType::out);
+
+		Raster<coord_t> out{ a };
+		
+		CropView<coord_t> view{ &out, unbuffered, SnapType::near };
+		for (cell_t cell = 0; cell < unbuffered.ncell(); ++cell) {
+			if (unbuffered[cell].has_value()) {
+				view[cell].has_value() = true;
+				view[cell].value() = unbuffered[cell].value();
+			}
+		}
+
+		if (!_demFileAligns.size()) {
+			return out;
+		}
+
+		RunParameters& rp = RunParameters::singleton();
+		Alignment layout = *rp.layout();
+
+		layout = extendAlignment(layout, a, SnapType::out);
+
+
+		for (size_t i = 0; i < _demFileAligns.size(); ++i) {
+			Extent e = QuadExtent(_demFileAligns[i].align,layout.crs()).outerExtent();
+			for (cell_t tile = 0; tile < layout.ncell(); ++tile) {
+				if (!e.overlaps(layout.extentFromCell(tile))) {
+					continue;
+				}
+				std::optional<Raster<coord_t>> demopt = getDem(i, layout.extentFromCell(tile));
+				if (!demopt.has_value()) {
+					continue;
+				}
+				Raster<coord_t>& dem = demopt.value();
+				dem = dem.transformRaster(out.crs(), ExtractMethod::bilinear);
+
+				for (cell_t cell = 0; cell < out.ncell(); ++cell) {
+					if (out[cell].has_value()) {
+						continue;
+					}
+					auto v = dem.extract(out.xFromCell(cell), out.yFromCell(cell), ExtractMethod::bilinear);
+					if (v.has_value()) {
+						out[cell].has_value() = true;
+						out[cell].value() = v.value();
+					}
+				}
+			}
 		}
 		return out;
 	}

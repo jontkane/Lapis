@@ -6,17 +6,56 @@
 
 namespace lapis {
 
+	//more optimized versions of aggregate for the calls which get made the most
+	template<class T>
+	inline Raster<T> aggregateSum(const Raster<T>& r, const Alignment& a) {
+		Raster<T> out{ a };
+		for (cell_t bigCell : a.cellsFromExtentIterator(r,SnapType::out)) {
+			Extent e = a.extentFromCell(bigCell);
+			for (cell_t smallCell : r.cellsFromExtentIterator(e, SnapType::near)) {
+				if (r[smallCell].has_value()) {
+					out[bigCell].value() += r[smallCell].value();
+				}
+			}
+		}
+
+		for (cell_t cell : a.allCellsIterator()) {
+			if (out[cell].value() != 0) {
+				out[cell].has_value() = true;
+			}
+		}
+
+		return out;
+	}
+
+	template<class T>
+	inline Raster<T> aggregateCount(const Raster<T>& r, const Alignment& a) {
+		Raster<T> out{ a };
+		for (cell_t bigCell : a.cellsFromExtentIterator(r, SnapType::out)) {
+			Extent e = a.extentFromCell(bigCell);
+			for (cell_t smallCell : r.cellsFromExtentIterator(e, SnapType::near)) {
+				if (r[smallCell].has_value()) {
+					out[bigCell].value()++;
+				}
+			}
+		}
+
+		for (cell_t cell : a.allCellsIterator()) {
+			if (out[cell].value() != 0) {
+				out[cell].has_value() = true;
+			}
+		}
+		return out;
+	}
+
 	template<class OUTPUT, class INPUT>
 	using ViewFunc = std::function<const xtl::xoptional<OUTPUT>(const CropView<INPUT>&)>;
 
 	template<class OUTPUT, class INPUT>
 	inline Raster<OUTPUT> aggregate(const Raster<INPUT>& r, const Alignment& a, ViewFunc<OUTPUT, INPUT> f) {
 		Raster<OUTPUT> out{ a };
-		for (cell_t cell = 0; cell < a.ncell(); ++cell) {
+		for (cell_t cell : a.cellsFromExtentIterator(r, SnapType::out)) {
 			Extent e = a.extentFromCell(cell);
-			if (!e.overlaps(r)) {
-				continue;
-			}
 			Raster<INPUT>* po = const_cast<Raster<INPUT>*>(&r); //I promise I'm not actually going to modify it; forgive this const_cast
 			const CropView<INPUT> cv{ po, e, SnapType::near }; //see, I even made the view const
 
@@ -252,6 +291,78 @@ namespace lapis {
 				return xtl::missing<OUTPUT>();
 			}
 		}
+	}
+
+	struct RowColOffset {
+		rowcol_t rowOffset, colOffset;
+	};
+	inline std::vector<RowColOffset> cellOffsetsFromRadius(const Alignment& a, coord_t radius) {
+		//This algorithm is pretty inefficient but it was really easy to write and should be fast enough for the actual use case
+
+		std::vector<RowColOffset> out;
+
+		rowcol_t xRadius = (rowcol_t)(radius / a.xres());
+		rowcol_t yRadius = (rowcol_t)(radius / a.yres());
+
+		coord_t maxdistSq = radius + (a.xres() + a.yres()) / 2;
+		maxdistSq *= maxdistSq;
+		coord_t mindistSq = radius - (a.xres() + a.yres()) / 2.;
+		mindistSq = std::max(mindistSq, 0.);
+		mindistSq *= mindistSq;
+		for (rowcol_t row = -yRadius; row <= yRadius; ++row) {
+			for (rowcol_t col = -xRadius; col <= xRadius; ++col) {
+				coord_t xdistSq = col * a.xres();
+				xdistSq *= xdistSq;
+				coord_t ydistSq = row * a.yres();
+				ydistSq *= ydistSq;
+				coord_t distSq = ydistSq + xdistSq;
+				if (distSq >= mindistSq && distSq <= maxdistSq) {
+					out.push_back(RowColOffset{ row,col });
+				}
+			}
+		}
+		return out;
+	}
+
+	inline Raster<metric_t> topoPosIndex(const Raster<coord_t>& bufferedElev, coord_t radius, const Extent& unbuffered) {
+		Raster<metric_t> tpi{ (Alignment)bufferedElev };
+		std::vector<RowColOffset> circle = cellOffsetsFromRadius(bufferedElev, radius);
+		
+		for (rowcol_t row = 0; row < tpi.nrow(); ++row) {
+			for (rowcol_t col = 0; col < tpi.ncol(); ++col) {
+				cell_t cell = bufferedElev.cellFromRowColUnsafe(row, col);
+				if (!bufferedElev[cell].has_value()) {
+					continue;
+				}
+				coord_t center = bufferedElev[cell].value();
+
+				coord_t numerator = 0;
+				coord_t denominator = 0;
+
+				for (RowColOffset offset : circle) {
+					rowcol_t otherrow = row + offset.rowOffset;
+					rowcol_t othercol = col + offset.colOffset;
+					if (otherrow < 0 || othercol < 0 || otherrow >= bufferedElev.nrow() || othercol >= bufferedElev.ncol()) {
+						continue;
+					}
+					auto v = bufferedElev.atRCUnsafe(otherrow, othercol);
+					if (!v.has_value()) {
+						continue;
+					}
+					denominator++;
+					numerator += v.value();
+				}
+
+				if (denominator == 0) {
+					continue;
+				}
+				tpi[cell].has_value() = true;
+				tpi[cell].value() = (metric_t)(center - (numerator / denominator));
+			}
+		}
+
+		tpi = cropRaster(tpi, unbuffered, SnapType::out);
+		return tpi;
 	}
 
 

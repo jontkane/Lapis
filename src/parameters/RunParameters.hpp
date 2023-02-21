@@ -75,6 +75,10 @@ namespace lapis {
 		TaoIdAlgorithm* taoIdAlgorithm();
 		TaoSegmentAlgorithm* taoSegAlgorithm();
 
+		Raster<coord_t> bufferedElev(const Raster<coord_t>& unbufferedElev);
+		const std::vector<coord_t>& topoWindows();
+		const std::vector<std::string>& topoWindowNames();
+
 		const std::filesystem::path& outFolder();
 		const std::string& name();
 		//this fuction is intended to produce matadata only for parameters not associated with a single product

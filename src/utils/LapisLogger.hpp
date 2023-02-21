@@ -6,6 +6,7 @@
 #include<unordered_map>
 #include<vector>
 #include<mutex>
+#include<chrono>
 
 namespace lapis {
 
@@ -23,6 +24,11 @@ namespace lapis {
 
 		void reset();
 
+		void displayBenchmarking();
+		void stopBenchmarking();
+		void beginBenchmarkTimer(const std::string& what);
+		void endBenchmarkTimer(const std::string& what);
+
 	private:
 		LapisLogger();
 
@@ -32,7 +38,7 @@ namespace lapis {
 		std::vector<std::string> _progressTracker;
 		constexpr static size_t incrementStrLength = 15;
 		std::vector<std::string> _incrementStrings;
-		std::vector<std::string> _messages;
+		std::list<std::string> _messages;
 
 		int _totalForTask = 0;
 		int _currentOutOfTotal = 0;
@@ -47,6 +53,11 @@ namespace lapis {
 		mutable std::mutex _mut;
 
 		void _updateIncStr();
+
+		bool _benchmark = false;
+
+		using Time = decltype(std::chrono::high_resolution_clock::now());
+		std::unordered_map<std::thread::id, std::unordered_map<std::string, Time>> _benchmarkTimers;
 	};
 }
 

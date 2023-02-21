@@ -171,8 +171,18 @@ namespace lapis {
 		void setDoTopo(bool b);
 		bool doTopo() override;
 
+		void setBufferedElev(const Raster<coord_t>& elev);
+		Raster<coord_t> bufferedElev(const Raster<coord_t>& unbufferedElev);
+
+		void setWindows(const std::vector<coord_t>& windows);
+		const std::vector<coord_t>& topoWindows();
+		const std::vector<std::string>& topoWindowNames();
+
 	private:
 		bool _doTopo = true;
+		Raster<coord_t> _elev;
+		std::vector<coord_t> _windows;
+		std::vector<std::string> _names;
 	};
 
 #pragma warning(pop)

@@ -16,6 +16,7 @@ namespace lapis {
 		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
 		void cleanup() override;
 		void reset() override;
+		std::string name() override;
 		static size_t handlerRegisteredIndex;
 
 		void describeInPdf(MetadataPdf& pdf) override;

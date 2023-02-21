@@ -81,6 +81,9 @@ namespace lapis {
 		virtual ~TopoParameterGetter() = default;
 
 		virtual bool doTopo() = 0;
+		virtual Raster<coord_t> bufferedElev(const Raster<coord_t>& unbufferedElev) = 0;
+		virtual const std::vector<coord_t>& topoWindows() = 0;
+		virtual const std::vector<std::string>& topoWindowNames() = 0;
 	};
 
 	class ParameterGetter :

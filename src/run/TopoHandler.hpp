@@ -16,6 +16,7 @@ namespace lapis {
 		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
 		void cleanup() override;
 		void reset() override;
+		std::string name() override;
 		static size_t handlerRegisteredIndex;
 
 		void describeInPdf(MetadataPdf& pdf) override;
@@ -31,10 +32,22 @@ namespace lapis {
 			std::string name;
 			TopoFunc fun;
 			OutputUnitLabel unit;
+			std::string pdfDesc;
 
-			TopoMetric(const std::string& name, TopoFunc fun, OutputUnitLabel unit);
+			TopoMetric(const std::string& name, TopoFunc fun, OutputUnitLabel unit, const std::string& pdfDesc);
 		};
 		std::vector<TopoMetric> _topoMetrics;
+
+		using TopoRadiusFunc = std::function<Raster<metric_t>(const Raster<coord_t>&, coord_t, const Extent&)>;
+		struct TopoRadiusMetric {
+			std::string name;
+			TopoRadiusFunc fun;
+			OutputUnitLabel unit;
+			std::string pdfDesc;
+
+			TopoRadiusMetric(const std::string& name, TopoRadiusFunc fun, OutputUnitLabel unit, const std::string& pdfDesc);
+		};
+		std::vector<TopoRadiusMetric> _topoRadiusMetrics;
 
 		ParamGetter* _getter;
 	};

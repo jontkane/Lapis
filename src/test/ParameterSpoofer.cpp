@@ -247,4 +247,28 @@ namespace lapis {
 	{
 		return _doTopo;
 	}
+	void TopoParameterSpoofer::setBufferedElev(const Raster<coord_t>& elev)
+	{
+		_elev = elev;
+	}
+	Raster<coord_t> TopoParameterSpoofer::bufferedElev(const Raster<coord_t>& unbufferedElev)
+	{
+		return _elev;
+	}
+	void TopoParameterSpoofer::setWindows(const std::vector<coord_t>& windows)
+	{
+		_windows = windows;
+		_names.clear();
+		for (auto& v : windows) {
+			_names.push_back(std::to_string(v));
+		}
+	}
+	const std::vector<coord_t>& TopoParameterSpoofer::topoWindows()
+	{
+		return _windows;
+	}
+	const std::vector<std::string>& TopoParameterSpoofer::topoWindowNames()
+	{
+		return _names;
+	}
 }

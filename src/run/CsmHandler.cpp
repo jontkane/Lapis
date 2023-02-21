@@ -11,6 +11,11 @@ namespace lapis {
 		*this = CsmHandler(_getter);
 	}
 
+	std::string CsmHandler::name()
+	{
+		return "CSM";
+	}
+
 	CsmHandler::CsmHandler(ParamGetter* p) : ProductHandler(p)
 	{
 		_getter = p;

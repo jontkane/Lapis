@@ -214,6 +214,25 @@ namespace lapis {
 	{
 		return getParam<TaoParameter>().taoSegAlgo();
 	}
+	Raster<coord_t> RunParameters::bufferedElev(const Raster<coord_t>& unbufferedElev)
+	{
+		if (!topoWindows().size()) {
+			return unbufferedElev;
+		}
+		coord_t maxTopoWindow = topoWindows()[topoWindows().size() - 1];
+		maxTopoWindow = convertUnits(maxTopoWindow, outUnits(), unbufferedElev.crs().getXYUnits());
+		Extent desiredExtent = bufferExtent(unbufferedElev, maxTopoWindow);
+
+		return getParam<DemParameter>().bufferElevation(unbufferedElev, desiredExtent);
+	}
+	const std::vector<coord_t>& RunParameters::topoWindows()
+	{
+		return getParam<TopoParameter>().topoWindows();
+	}
+	const std::vector<std::string>& RunParameters::topoWindowNames()
+	{
+		return getParam<TopoParameter>().topoWindowNames();
+	}
 	const std::filesystem::path& RunParameters::outFolder()
 	{
 		return getParam<OutputParameter>().path();

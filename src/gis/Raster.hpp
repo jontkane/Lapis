@@ -45,7 +45,7 @@ namespace lapis {
 
 		Raster(const Raster<T>& r) = default;
 		Raster(Raster<T>&& r) noexcept {
-			*this = r;
+			*this = std::move(r);
 		}
 		Raster<T>& operator=(const Raster<T>& r) = default;
 		Raster<T>& operator=(Raster<T>&& r) noexcept {
@@ -188,6 +188,9 @@ namespace lapis {
 
 		//returns true if has_value is true for any cell; false otherwise
 		bool hasAnyValue() const;
+
+		template<class S>
+		void mask(const Raster<S>& m);
 
 		//basic element-wise artihmetic
 		template<class S>
@@ -620,6 +623,19 @@ namespace lapis {
 			}
 		}
 		return false;
+	}
+
+	template<class T>
+	template<class S>
+	void Raster<T>::mask(const Raster<S>& m) {
+		if (!isSameAlignment(m)) {
+			throw AlignmentMismatchException("Alignment mismatch in mask");
+		}
+		for (cell_t cell = 0; cell < ncell(); ++cell) {
+			if (!m[cell].has_value()) {
+				atCellUnsafe(cell).has_value() = false;
+			}
+		}
 	}
 
 

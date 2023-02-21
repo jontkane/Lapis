@@ -29,6 +29,7 @@ namespace lapis {
 		virtual void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) = 0;
 		virtual void cleanup() = 0;
 		virtual void reset() = 0;
+		virtual std::string name() = 0;
 
 		virtual void describeInPdf(MetadataPdf& pdf) = 0;
 

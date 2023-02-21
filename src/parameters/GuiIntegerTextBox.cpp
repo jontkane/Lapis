@@ -40,10 +40,8 @@ namespace lapis {
 			return false;
 		}
 		std::string s = std::to_string(_boostValue);
-		s.erase(s.find_last_not_of('0') + 1, std::string::npos);
-		s.erase(s.find_last_not_of('.') + 1, std::string::npos);
 		if (s.size() > _buffer.size() - 1) {
-			s.erase(_buffer.size() - 1, std::string::npos);
+			s = "999";
 		}
 		strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size());
 		_boostValue = -1;

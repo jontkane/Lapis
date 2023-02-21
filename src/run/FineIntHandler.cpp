@@ -10,6 +10,11 @@ namespace lapis {
 		*this = FineIntHandler(_getter);
 	}
 
+	std::string FineIntHandler::name()
+	{
+		return "Fine Int";
+	}
+
 	FineIntHandler::FineIntHandler(ParamGetter* p) : ProductHandler(p)
 	{
 		_getter = p;

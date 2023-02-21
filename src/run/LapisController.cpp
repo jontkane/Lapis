@@ -250,8 +250,11 @@ namespace lapis {
 
 	void LapisController::lasThread(size_t n)
 	{
+
 		RunParameters& rp = RunParameters::singleton();
 		LapisLogger& log = LapisLogger::getLogger();
+
+		log.beginBenchmarkTimer("Las File");
 
 		LasReader lr;
 		try {
@@ -262,21 +265,30 @@ namespace lapis {
 		}
 		LAPIS_CHECK_ABORT;
 
+		log.beginBenchmarkTimer("Read Points");
 		LidarPointVector points = lr.getPoints(lr.nPoints());
+		log.endBenchmarkTimer("Read Points");
 		LAPIS_CHECK_ABORT;
 
+		log.beginBenchmarkTimer("Transform Points");
 		Extent projectedExtent = QuadExtent(lr, rp.metricAlign()->crs()).outerExtent();
 		points.transform(projectedExtent.crs());
+		log.endBenchmarkTimer("Transform Points");
 		
+		log.beginBenchmarkTimer("Normalize Points");
 		//also normalizes the point in-place
 		Raster<coord_t> ground = rp.demAlgorithm()->normalizeToGround(points, projectedExtent);
 		LAPIS_CHECK_ABORT;
+		log.endBenchmarkTimer("Normalize Points");
 
 		for (size_t i = 0; i < _handlers().size(); ++i) {
+			log.beginBenchmarkTimer(_handlers()[i]->name());
 			_handlers()[i]->handlePoints(points, projectedExtent, n);
 			_handlers()[i]->handleDem(ground, n);
 			LAPIS_CHECK_ABORT;
+			log.endBenchmarkTimer(_handlers()[i]->name());
 		}
+		log.endBenchmarkTimer("Las File");
 		LapisLogger::getLogger().incrementTask("Las File Finished");
 	}
 

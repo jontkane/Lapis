@@ -11,6 +11,11 @@ namespace lapis {
 		*this = PointMetricHandler(_getter);
 	}
 
+	std::string PointMetricHandler::name()
+	{
+		return "Point Metrics";
+	}
+
 	template<bool ALL_RETURNS, bool FIRST_RETURNS>
 	void PointMetricHandler::_assignPointsToCalculators(const LidarPointVector& points)
 	{

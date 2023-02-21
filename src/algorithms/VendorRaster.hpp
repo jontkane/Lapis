@@ -35,22 +35,20 @@ namespace lapis {
 	template<class FILEGETTER>
 	inline Raster<coord_t> VendorRaster<FILEGETTER>::normalizeToGround(LidarPointVector& points, const Extent& e) {
 
-		coord_t minRes = std::numeric_limits<coord_t>::max();
-		coord_t xOriginOfFinest = 0;
-		coord_t yOriginOfFinest = 0;
 		std::vector<Raster<coord_t>> overlappingDems;
-		for (size_t i = 0; i < _getter->demAligns().size(); ++i) {
-			Alignment projAlign = _getter->demAligns()[i].transformAlignment(e.crs());
+
+		Alignment finestAlign = *(_getter->demAligns().begin());
+		finestAlign = finestAlign.transformAlignment(e.crs());
+
+		int index = -1;
+		for (const Alignment& thisAlign : _getter->demAligns()) {
+			++index;
+			Alignment projAlign = thisAlign.transformAlignment(e.crs());
 			if (!projAlign.overlaps(e)) {
 				continue;
 			}
-			if (projAlign.xres() < minRes || projAlign.yres() < minRes) {
-				minRes = std::min(projAlign.xres(), projAlign.yres());
-				xOriginOfFinest = projAlign.xOrigin();
-				yOriginOfFinest = projAlign.yOrigin();
-			}
 
-			std::optional<Raster<coord_t>> dem = _getter->getDem(i, e);
+			std::optional<Raster<coord_t>> dem = _getter->getDem(index, e);
 			if (!dem.has_value()) {
 				continue;
 			}
@@ -60,11 +58,10 @@ namespace lapis {
 			overlappingDems.emplace_back(std::move(dem.value()));
 		}
 
+		Alignment outAlign = extendAlignment(finestAlign, e, SnapType::out);
+		outAlign = cropAlignment(outAlign, e, SnapType::out);
+		Raster<coord_t> outDem = Raster<coord_t>{ outAlign };
 
-		std::sort(overlappingDems.begin(), overlappingDems.end(),
-			[](const auto& a, const auto& b) {return a.xres() * a.yres() < b.xres() * b.yres(); });
-		//at the end of all this, the list should now be sorted by cellsize. DEMs in the same CRS as the points should have had to undergo any loss of precision
-		Raster<coord_t> outDem = Raster<coord_t>{ Alignment(e,xOriginOfFinest,yOriginOfFinest,minRes,minRes) };
 		for (Raster<coord_t>& dem : overlappingDems) {
 			if (dem.crs().getZUnits() != outDem.crs().getZUnits()) {
 				coord_t convFactor = convertUnits(1, dem.crs().getZUnits(), outDem.crs().getZUnits());
@@ -106,9 +103,16 @@ namespace lapis {
 			"The elevation of the ground beneath each point was estimated with a bilinear interpolation from those rasters.");
 	}
 
+
+	//this class exists to make VendorRaster easier to navigate in IDEs, because DemParameter is not in the same library
+	//it shows the skeleton of the minimum VendorRaster needs to function
 	class EmptyFileGetter {
 	public:
+		//this function doesn't have to return a vector; it just needs to return something iterable
+		//the list should be sorted though, so that, when multiple dems overlap, the one that appears earlier is the correct one to use
 		const std::vector<Alignment>& demAligns() { return _aligns; }
+
+		//this should return the dem corresponding to the Nth element in the container demAligns returns
 		std::optional<Raster<coord_t>> getDem(size_t n, const Extent& e) { return Raster<coord_t>(); }
 
 	private:

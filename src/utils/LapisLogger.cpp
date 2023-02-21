@@ -29,8 +29,9 @@ namespace lapis {
 		ImGui::EndChild();
 
 		ImGui::BeginChild("logger messages", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y - 2), true, ImGuiWindowFlags_HorizontalScrollbar);
-		for (int i = (int)_messages.size()-1; i >= 0; --i) {
-			ImGui::Text(_messages[i].c_str());
+
+		for (auto it = _messages.rbegin(); it != _messages.rend(); ++it) {
+			ImGui::Text(it->c_str());
 		}
 		ImGui::EndChild();
 	}
@@ -71,12 +72,53 @@ namespace lapis {
 		std::scoped_lock(_mut);
 		std::cout << s << "\n";
 		_messages.push_back(s);
+		if (_messages.size() > 100000) {
+			_messages.pop_front();
+		}
 	}
 	void LapisLogger::reset()
 	{
 		_progressTracker.clear();
 		_incrementStrings.clear();
 		_messages.clear();
+	}
+	void LapisLogger::displayBenchmarking()
+	{
+		_benchmark = true;
+	}
+	void LapisLogger::stopBenchmarking()
+	{
+		_benchmark = false;
+	}
+	void LapisLogger::beginBenchmarkTimer(const std::string& what)
+	{
+		if (!_benchmark) {
+			return;
+		}
+		_benchmarkTimers[std::this_thread::get_id()][what] = std::chrono::high_resolution_clock::now();
+	}
+	void LapisLogger::endBenchmarkTimer(const std::string& what)
+	{
+		if (!_benchmark) {
+			return;
+		}
+		auto id = std::this_thread::get_id();
+		if (!_benchmarkTimers.contains(id)) {
+			return;
+		}
+		if (!_benchmarkTimers[id].contains(what)) {
+			return;
+		}
+		namespace chr = std::chrono;
+		auto duration = chr::duration_cast<chr::milliseconds>(chr::high_resolution_clock::now() - _benchmarkTimers[id][what]);
+		if (duration.count() <= 1) {
+			return;
+		}
+		std::stringstream ss;
+		ss << what << " " << duration.count();
+		logMessage(ss.str());
+
+		_benchmarkTimers[id].erase(what);
 	}
 	LapisLogger::LapisLogger()
 	{

@@ -14,13 +14,16 @@ namespace lapis {
 		_thread.addHelpText("This controls how many independent threads to run the Lapis process on.\n\n"
 			"On most computers, this should be set to 2 or 3 below the number of logical cores on the machine.\n\n"
 			"If Lapis is causing your computer to slow down, considering lowering this.");
+		_benchmark.addHelpText("Display output on how long individual steps take. Intended as a development feature, and will not be present in public releases.");
 	}
 	void ComputerParameter::addToCmd(BoostOptDesc& visible,
 		BoostOptDesc& hidden) {
 		_thread.addToCmd(visible, hidden);
+		_benchmark.addToCmd(visible, hidden);
 	}
 	std::ostream& ComputerParameter::printToIni(std::ostream& o) {
 		_thread.printToIni(o);
+		_benchmark.printToIni(o);
 		return o;
 	}
 	ParamCategory ComputerParameter::getCategory() const {
@@ -28,12 +31,21 @@ namespace lapis {
 	}
 	void ComputerParameter::renderGui() {
 		_thread.renderGui();
+		_benchmark.renderGui();
 	}
 	void ComputerParameter::importFromBoost() {
 		_thread.importFromBoost();
+		_benchmark.importFromBoost();
 	}
 	void ComputerParameter::updateUnits() {}
 	bool ComputerParameter::prepareForRun() {
+		if (_benchmark.currentState()) {
+			LapisLogger::getLogger().displayBenchmarking();
+		}
+		else {
+			LapisLogger::getLogger().stopBenchmarking();
+		}
+
 		if (_thread.getValueLogErrors() <= 0) {
 			LapisLogger& log = LapisLogger::getLogger();
 			log.logMessage("Number of threads must be positive");
