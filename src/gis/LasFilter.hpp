@@ -112,14 +112,14 @@ namespace lapis {
 
 	class LasFilterMaxScanAngle : public LasFilter {
 	public:
-		LasFilterMaxScanAngle(std::int8_t maxscan) : maxscan(maxscan) {
+		LasFilterMaxScanAngle(double maxscan) : maxscan(maxscan) {
 			priority = lasfilterpriority::mid;
 		}
 		bool isFiltered(const CurrentLasPoint& p) override {
 			return std::abs(p.scanAngle()) > maxscan;
 		}
 	private:
-		std::int8_t maxscan;
+		double maxscan;
 	};
 }
 

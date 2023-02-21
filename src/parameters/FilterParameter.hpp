@@ -46,6 +46,7 @@ namespace lapis {
 		ClassCheckBoxes _class{ "class",
 		"A comma-separated list of LAS point classifications to use for this run.\n"
 				"Alternatively, preface the list with ~ to specify a blacklist." };
+		NumericTextBox _scanAngle{ "Maximum Scan Angle:","max-scan-angle",90 };
 
 		std::vector<std::shared_ptr<LasFilter>> _filters;
 

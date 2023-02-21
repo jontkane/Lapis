@@ -61,7 +61,7 @@ namespace lapis {
 			"Lapis cannot currently create its own ground model.\n\n"
 			"If your rasters are in ESRI grid format, select the folder itself.");
 
-		_unit.addOption("Infer from files", UnitRadio::UNKNOWN, LinearUnitDefs::unkLinear);
+		_unit.addOption("Same as Horizontal Units", UnitRadio::UNKNOWN, LinearUnitDefs::unkLinear);
 		_unit.addOption("Meters", UnitRadio::METERS, LinearUnitDefs::meter);
 		_unit.addOption("International Feet", UnitRadio::INTFEET, LinearUnitDefs::foot);
 		_unit.addOption("US Survey Feet", UnitRadio::USFEET, LinearUnitDefs::surveyFoot);
@@ -102,10 +102,10 @@ namespace lapis {
 			_specifiers.renderGui();
 			ImGui::EndChild();
 
-			ImGui::Checkbox("Advanced Options", &_displayAdvanced);
-			if (_displayAdvanced) {
+			//ImGui::Checkbox("Advanced Options", &_displayAdvanced);
+			//if (_displayAdvanced) {
 				_renderAdvancedOptions();
-			}
+			//}
 			break;
 		}
 	}

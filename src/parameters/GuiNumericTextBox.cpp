@@ -1,29 +1,29 @@
 #include"param_pch.hpp"
-#include"GuiIntegerTextBox.hpp"
+#include"GuiNumericTextBox.hpp"
 
 namespace lapis {
-	IntegerTextBox::IntegerTextBox(const std::string& guiDesc, const std::string& cmdName, int defaultValue)
+	NumericTextBox::NumericTextBox(const std::string& guiDesc, const std::string& cmdName, double defaultValue)
 		: GuiCmdElement(guiDesc, cmdName), _boostValue(defaultValue)
 	{
 		_buffer[0] = '\0';
 		importFromBoost();
 	}
-	IntegerTextBox::IntegerTextBox(const std::string& guiDesc, const std::string& cmdName, int defaultValue, const std::string& cmdDescription)
+	NumericTextBox::NumericTextBox(const std::string& guiDesc, const std::string& cmdName, double defaultValue, const std::string& cmdDescription)
 		: GuiCmdElement(guiDesc, cmdName, cmdDescription), _boostValue(defaultValue)
 	{
 		_buffer[0] = '\0';
 		importFromBoost();
 	}
-	void IntegerTextBox::addToCmd(BoostOptDesc& visible, BoostOptDesc& hidden)
+	void NumericTextBox::addToCmd(BoostOptDesc& visible, BoostOptDesc& hidden)
 	{
 		addToCmdBase(visible, hidden, &_boostValue);
 	}
-	std::ostream& IntegerTextBox::printToIni(std::ostream& o) const
+	std::ostream& NumericTextBox::printToIni(std::ostream& o) const
 	{
 		o << _cmdName << "=" << _buffer.data() << "\n";
 		return o;
 	}
-	bool IntegerTextBox::renderGui()
+	bool NumericTextBox::renderGui()
 	{
 		ImGui::Text(_guiDesc.c_str());
 		ImGui::SameLine();
@@ -34,24 +34,31 @@ namespace lapis {
 		displayHelp();
 		return changed;
 	}
-	bool IntegerTextBox::importFromBoost()
+	bool NumericTextBox::importFromBoost()
 	{
 		if (_boostValue <= 0) {
 			return false;
 		}
 		std::string s = std::to_string(_boostValue);
-		if (s.size() > _buffer.size() - 1) {
-			s = "999";
+
+		std::regex hasdecimalpoint{ ".*\\..*" };
+		if (std::regex_match(s, hasdecimalpoint)) {
+			s.erase(s.find_last_not_of('0') + 1, std::string::npos);
+			s.erase(s.find_last_not_of('.') + 1, std::string::npos);
 		}
+		if (s.size() > _buffer.size() - 1) {
+			s.erase(_buffer.size() - 1, std::string::npos);
+		}
+
 		strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size());
 		_boostValue = -1;
 		return true;
 	}
-	int IntegerTextBox::getValueLogErrors() const
+	double NumericTextBox::getValueLogErrors() const
 	{
 		LapisLogger& log = LapisLogger::getLogger();
 		try {
-			return std::stoi(_buffer.data());
+			return std::stod(_buffer.data());
 		}
 		catch (std::invalid_argument e) {
 			log.logMessage("Error reading value of " + _guiDesc);
@@ -59,11 +66,11 @@ namespace lapis {
 		}
 	}
 
-	const char* IntegerTextBox::asText() const {
+	const char* NumericTextBox::asText() const {
 		return _buffer.data();
 	}
 
-	void IntegerTextBox::setValue(int i) {
+	void NumericTextBox::setValue(double i) {
 		std::string s = std::to_string(i);
 		strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size());
 	}

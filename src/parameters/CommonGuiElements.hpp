@@ -9,7 +9,7 @@
 #include"GuiRadioDoubleBoolean.hpp"
 #include"GuiNumericTextBoxWithUnits.hpp"
 #include"GuiMultiNumericTextBoxWithUnits.hpp"
-#include"GuiIntegerTextBox.hpp"
+#include"GuiNumericTextBox.hpp"
 #include"GuiTextBox.hpp"
 #include"GuiFileSpecifier.hpp"
 #include"GuiFolderTextInput.hpp"

@@ -46,7 +46,7 @@ namespace lapis {
 			LapisLogger::getLogger().stopBenchmarking();
 		}
 
-		if (_thread.getValueLogErrors() <= 0) {
+		if ((int)_thread.getValueLogErrors() <= 0) {
 			LapisLogger& log = LapisLogger::getLogger();
 			log.logMessage("Number of threads must be positive");
 			return false;
@@ -56,7 +56,7 @@ namespace lapis {
 	void ComputerParameter::cleanAfterRun() {}
 	int ComputerParameter::nThread() const
 	{
-		return _thread.getValueLogErrors();
+		return (int)_thread.getValueLogErrors();
 	}
 
 	int ComputerParameter::_defaultNThread() {

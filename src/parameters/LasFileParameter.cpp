@@ -54,10 +54,10 @@ namespace lapis {
 		ImGui::BeginChild("##lasspecifiers", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y / 2.f), false, 0);
 		_specifiers.renderGui();
 		ImGui::EndChild();
-		ImGui::Checkbox("Show advanced options", &_displayAdvancedOptions);
-		if (_displayAdvancedOptions) {
+		//ImGui::Checkbox("Show advanced options", &_displayAdvancedOptions);
+		//if (_displayAdvancedOptions) {
 			_renderAdvancedOptions();
-		}
+		//}
 	}
 	void LasFileParameter::importFromBoost() {
 		_specifiers.importFromBoost();

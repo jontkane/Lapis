@@ -25,6 +25,9 @@ namespace lapis {
 			"You can choose to exclude certain classifications from the analysis.");
 		_filterWithheld.addHelpText("Some points in laz files are marked as withheld, indicating that they should not be used.\n\n"
 			"For the vast majority of applications, they should be excluded, but you can choose to include them with this checkbox.");
+
+		_scanAngle.addHelpText("In some acquisitions, points collected when the lidar instrument is firing off-nadir are lower quality than points collected at nadir.\n\n"
+			"You can filter points with a large scan angle with this prompt. The value is in degrees.");
 	}
 	void FilterParameter::addToCmd(BoostOptDesc& visible,
 		BoostOptDesc& hidden) {
@@ -32,12 +35,14 @@ namespace lapis {
 		_maxht.addToCmd(visible, hidden);
 		_class.addToCmd(visible, hidden);
 		_filterWithheld.addToCmd(visible, hidden);
+		_scanAngle.addToCmd(visible, hidden);
 	}
 	std::ostream& FilterParameter::printToIni(std::ostream& o) {
 		_minht.printToIni(o);
 		_maxht.printToIni(o);
 		_filterWithheld.printToIni(o);
 		_class.printToIni(o);
+		_scanAngle.printToIni(o);
 		return o;
 	}
 	ParamCategory FilterParameter::getCategory() const {
@@ -47,6 +52,8 @@ namespace lapis {
 		_filterWithheld.renderGui();
 		_minht.renderGui();
 		_maxht.renderGui();
+
+		_scanAngle.renderGui();
 
 		ImGui::Text("Use Classes:");
 		ImGui::SameLine();
@@ -61,6 +68,7 @@ namespace lapis {
 		_maxht.importFromBoost();
 		_filterWithheld.importFromBoost();
 		_class.importFromBoost();
+		_scanAngle.importFromBoost();
 	}
 	bool FilterParameter::prepareForRun() {
 		if (_runPrepared) {
@@ -80,6 +88,12 @@ namespace lapis {
 			_filters.emplace_back(new LasFilterWithheld());
 		}
 		_filters.push_back(_class.getFilter());
+
+		double maxScanAngle = _scanAngle.getValueLogErrors();
+		if (!(std::isnan(maxScanAngle) || maxScanAngle == 0 || maxScanAngle >= 90)) {
+			_filters.emplace_back(new LasFilterMaxScanAngle(maxScanAngle));
+		}
+
 		_runPrepared = true;
 		return true;
 	}

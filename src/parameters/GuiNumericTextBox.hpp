@@ -5,10 +5,10 @@
 #include"GuiCmdElement.hpp"
 
 namespace lapis {
-	class IntegerTextBox : public GuiCmdElement {
+	class NumericTextBox : public GuiCmdElement {
 	public:
-		IntegerTextBox(const std::string& guiDesc, const std::string& cmdName, int defaultValue);
-		IntegerTextBox(const std::string& guiDesc, const std::string& cmdName, int defaultValue, const std::string& cmdDescription);
+		NumericTextBox(const std::string& guiDesc, const std::string& cmdName, double defaultValue);
+		NumericTextBox(const std::string& guiDesc, const std::string& cmdName, double defaultValue, const std::string& cmdDescription);
 
 		void addToCmd(BoostOptDesc& visible,
 			BoostOptDesc& hidden) override;
@@ -17,15 +17,15 @@ namespace lapis {
 		bool renderGui() override;
 		bool importFromBoost() override;
 
-		int getValueLogErrors() const;
+		double getValueLogErrors() const;
 
 		const char* asText() const;
 
-		void setValue(int i);
+		void setValue(double i);
 
 	private:
-		int _boostValue;
-		std::array<char, 4> _buffer;
+		double _boostValue;
+		std::array<char, 11> _buffer;
 	};
 }
 

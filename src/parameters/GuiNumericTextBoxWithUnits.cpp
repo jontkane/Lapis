@@ -106,8 +106,12 @@ namespace lapis {
 	std::string NumericTextBoxWithUnits::truncDtoS(coord_t v) const
 	{
 		std::string s = std::to_string(v);
-		s.erase(s.find_last_not_of('0') + 1, std::string::npos);
-		s.erase(s.find_last_not_of('.') + 1, std::string::npos);
+
+		std::regex hasdecimalpoint{ ".*\\..*" };
+		if (std::regex_match(s, hasdecimalpoint)) {
+			s.erase(s.find_last_not_of('0') + 1, std::string::npos);
+			s.erase(s.find_last_not_of('.') + 1, std::string::npos);
+		}
 		if (s.size() > _buffer.size() - 1) {
 			s.erase(_buffer.size() - 1, std::string::npos);
 		}
