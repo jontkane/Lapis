@@ -175,7 +175,11 @@ namespace lapis {
 	}
 	LasReader RunParameters::getLas(size_t i)
 	{
-		return getParam<LasFileParameter>().getLas(i);
+		auto l = getParam<LasFileParameter>().getLas(i);
+		for (auto& filter : filters()) {
+			l.addFilter(filter);
+		}
+		return l;
 	}
 	DemAlgorithm* RunParameters::demAlgorithm() 
 	{
