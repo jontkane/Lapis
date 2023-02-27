@@ -1,3 +1,6 @@
 [submodule "src/lazperf"]
 	path = src/lazperf
 	url = https://github.com/hobuinc/laz-perf
+[submodule "src/nativefiledialog-extended"]
+	path = src/nativefiledialog-extended
+	url = https://github.com/btzy/nativefiledialog-extended.git
