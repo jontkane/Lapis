@@ -255,18 +255,22 @@ namespace lapis {
 				if (!e.overlaps(layout.extentFromCell(tile))) {
 					continue;
 				}
-				std::optional<Raster<coord_t>> demopt = getDem(i, layout.extentFromCell(tile));
-				if (!demopt.has_value()) {
-					continue;
-				}
-				Raster<coord_t>& dem = demopt.value();
-				dem = dem.transformRaster(out.crs(), ExtractMethod::bilinear);
+				std::optional<Raster<coord_t>> demopt;
 
-				for (cell_t cell = 0; cell < out.ncell(); ++cell) {
+				for (cell_t cell : out.cellsFromExtent(e, SnapType::out)) {
 					if (out[cell].has_value()) {
 						continue;
 					}
-					auto v = dem.extract(out.xFromCell(cell), out.yFromCell(cell), ExtractMethod::bilinear);
+
+					if (!demopt.has_value()) {
+						demopt = getDem(i, layout.extentFromCell(tile));
+						if (!demopt.has_value()) {
+							break;
+						}
+						demopt.value() = demopt.value().transformRaster(out.crs(), ExtractMethod::bilinear);
+					}
+
+					auto v = demopt.value().extract(out.xFromCell(cell), out.yFromCell(cell), ExtractMethod::bilinear);
 					if (v.has_value()) {
 						out[cell].has_value() = true;
 						out[cell].value() = v.value();
