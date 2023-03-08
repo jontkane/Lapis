@@ -54,6 +54,12 @@ namespace lapis {
 		if (isEmpty()) {
 			return std::string("");
 		}
+
+		//Multithreading was sometimes causing problems here despite the different proj contexts. Either a bug in proj or I'm missing something about how the functions are supposed to be used.
+		//Either way, this function is called rarely enough that using a mutex to manage it doesn't really slow the code down.
+		static std::mutex mut;
+		std::scoped_lock lock{ mut };
+
 		const char* wkt = proj_as_wkt(ProjContextByThread::get(), _p.ptr(), PJ_WKT2_2019, nullptr);
 		std::string out{ wkt };
 		return out;
@@ -176,6 +182,9 @@ namespace lapis {
 			nullptr, nullptr, nullptr,
 			&convFactor, &unitName,
 			nullptr, nullptr);
+		if (unitName == nullptr) {
+			return LinearUnitDefs::unkLinear;
+		}
 		return Unit(std::string(unitName), convFactor, type, unitStatus::statedInCRS);
 	}
 
@@ -217,7 +226,11 @@ namespace lapis {
 				return "Unknown";
 			}
 			ProjPJWrapper epsgcrs{ proj_list_get(ProjContextByThread::get(),matches.ptr,0) };
-			std::string out{ proj_get_id_code(epsgcrs.ptr(),0) };
+			const char* code = proj_get_id_code(epsgcrs.ptr(), 0);
+			if (code == nullptr) {
+				return "Unknown";
+			}
+			std::string out{ code };
 			return out;
 		};
 
@@ -378,6 +391,7 @@ namespace lapis {
 		auto rast = rasterGDALWrapper(s);
 		if (!rast.isNull()) {
 			const char* r_crs = rast->GetProjectionRef();
+			
 			if (r_crs == nullptr) {
 				_p = ProjPJWrapper();
 				return;
