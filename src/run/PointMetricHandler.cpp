@@ -212,7 +212,7 @@ namespace lapis {
 	void PointMetricHandler::prepareForRun()
 	{
 
-		std::filesystem::remove_all(pointMetricDir());
+		tryRemove(pointMetricDir());
 
 		if (!_getter->doPointMetrics()) {
 			return;

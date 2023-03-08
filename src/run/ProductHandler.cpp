@@ -26,6 +26,15 @@ namespace lapis {
 			fs::remove(tempDir());
 		}
 	}
+	void ProductHandler::tryRemove(std::filesystem::path p)
+	{
+		try {
+			std::filesystem::remove_all(p);
+		}
+		catch (...) {
+			LapisLogger::getLogger().logMessage("Unable to delete " + p.string());
+		}
+	}
 	std::filesystem::path ProductHandler::getFullFilename(const std::filesystem::path& dir,
 		const std::string& baseName, OutputUnitLabel u, const std::string& extension) const
 	{

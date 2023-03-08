@@ -201,8 +201,8 @@ namespace lapis {
 	}
 	void TaoHandler::prepareForRun()
 	{
-		std::filesystem::remove_all(taoDir());
-		std::filesystem::remove_all(taoTempDir());
+		tryRemove(taoDir());
+		tryRemove(taoTempDir());
 	}
 	void TaoHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
 	{
@@ -284,7 +284,7 @@ namespace lapis {
 			threads[i].join();
 		}
 
-		std::filesystem::remove_all(taoTempDir());
+		tryRemove(taoTempDir());
 		deleteTempDirIfEmpty();
 	}
 	void TaoHandler::describeInPdf(MetadataPdf& pdf)

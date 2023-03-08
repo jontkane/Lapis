@@ -302,15 +302,20 @@ namespace lapis {
 		if (!bufferedCsm.overlaps(*rp.layout())) { //indicates a filler value due to the buffered tile not having any data
 			return;
 		}
-		CropView cv{ &bufferedCsm,rp.layout()->extentFromCell(tile),SnapType::out };
-		if (!cv.hasAnyValue()) {
+		
+		try {
+			CropView cv{ &bufferedCsm,rp.layout()->extentFromCell(tile),SnapType::out };
+			if (!cv.hasAnyValue()) {
+				return;
+			}
+		}
+		catch (OutsideExtentException e) {
 			return;
 		}
-		else {
-			auto v = rp.layout()->atCellUnsafe(tile);
-			v.has_value() = true;
-			v.value() = true;
-		}
+
+		auto v = rp.layout()->atCellUnsafe(tile);
+		v.has_value() = true;
+		v.value() = true;
 
 		for (size_t i = 0; i < _handlers().size(); ++i) {
 			_handlers()[i]->handleCsmTile(bufferedCsm, tile);

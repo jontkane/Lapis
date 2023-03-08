@@ -21,7 +21,7 @@ namespace lapis {
 	}
 	void TopoHandler::prepareForRun()
 	{
-		std::filesystem::remove_all(topoDir());
+		tryRemove(topoDir());
 
 		if (!_getter->doTopo()) {
 			return;

@@ -23,9 +23,9 @@ namespace lapis {
 	void CsmHandler::prepareForRun()
 	{
 
-		std::filesystem::remove_all(csmDir());
-		std::filesystem::remove_all(csmTempDir());
-		std::filesystem::remove_all(csmMetricDir());
+		tryRemove(csmDir());
+		tryRemove(csmTempDir());
+		tryRemove(csmMetricDir());
 
 		if (!_getter->doCsmMetrics()) {
 			return;
@@ -65,7 +65,7 @@ namespace lapis {
 		if (!_getter->doCsm()) {
 			return;
 		}
-		std::filesystem::remove_all(csmTempDir());
+		tryRemove(csmTempDir());
 		deleteTempDirIfEmpty();
 
 		for (CSMMetricRaster& metric : _csmMetrics) {

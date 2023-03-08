@@ -21,8 +21,8 @@ namespace lapis {
 	}
 	void FineIntHandler::prepareForRun()
 	{
-		std::filesystem::remove_all(fineIntDir());
-		std::filesystem::remove_all(fineIntTempDir());
+		tryRemove(fineIntDir());
+		tryRemove(fineIntTempDir());
 
 		_fineIntBaseName = _getter->fineIntCanopyCutoff() > std::numeric_limits<coord_t>::lowest() ? "MeanCanopyIntensity" : "MeanIntensity";
 	}
@@ -91,10 +91,18 @@ namespace lapis {
 			thisext = cropExtent(thisext, numerator);
 
 			try {
+				//in certain circumstances, writing a raster to the harddrive and then reading it back off will cause very minor differences to the CRS which cause them to not register as consistent.
+				//this slightly hacky solution sidesteps that problem
+				Extent e = (Extent)numerator;
+				e.defineCRS(CoordRef(""));
+
 				thisNumerator = Raster<intensity_t>{ getFullTempFilename(fineIntTempDir(),_numeratorBasename,OutputUnitLabel::Unitless,i).string(),
-					numerator, SnapType::near};
+					e, SnapType::near};
 				thisDenominator = Raster<intensity_t>{ getFullTempFilename(fineIntTempDir(),_denominatorBasename,OutputUnitLabel::Unitless,i).string(),
-					numerator, SnapType::near };
+					e, SnapType::near };
+
+				thisNumerator.defineCRS(numerator.crs());
+				thisDenominator.defineCRS(denominator.crs());
 			}
 			catch (InvalidRasterFileException e) {
 				LapisLogger::getLogger().logMessage("Issue opening temporary intensity file " + std::to_string(i));
@@ -122,7 +130,7 @@ namespace lapis {
 		writeRasterLogErrors(getFullTileFilename(fineIntDir(), _fineIntBaseName, OutputUnitLabel::Unitless, tile), meanIntensity);
 	}
 	void FineIntHandler::cleanup() {
-		std::filesystem::remove_all(fineIntTempDir());
+		tryRemove(fineIntTempDir());
 		deleteTempDirIfEmpty();
 	}
 	void FineIntHandler::describeInPdf(MetadataPdf& pdf)

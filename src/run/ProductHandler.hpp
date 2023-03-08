@@ -55,6 +55,8 @@ namespace lapis {
 
 		template<class T>
 		Raster<T> getEmptyRasterFromTile(cell_t tile, const Alignment& a, coord_t minBufferMeters) const;
+
+		void tryRemove(std::filesystem::path p);
 	};
 
 	template<class T>
