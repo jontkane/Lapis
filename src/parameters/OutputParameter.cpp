@@ -65,7 +65,7 @@ namespace lapis {
 			return true;
 		}
 		try {
-			fs::create_directory(_outPath);
+			fs::create_directories(_outPath);
 		}
 		catch (fs::filesystem_error e) {
 			log.logMessage("Unable to create output directory");
