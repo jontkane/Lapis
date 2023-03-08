@@ -126,6 +126,7 @@ namespace lapis {
 		_outlierPdf(pdf);
 		_withheldPdf(pdf);
 		_classPdf(pdf);
+		_scanAnglePdf(pdf);
 	}
 	void FilterParameter::_outlierPdf(MetadataPdf& pdf)
 	{
@@ -209,5 +210,19 @@ namespace lapis {
 			}
 			pdf.writeTextBlockWithWrap(display.str());
 		}
+	}
+	void FilterParameter::_scanAnglePdf(MetadataPdf& pdf) {
+		double maxScan = _scanAngle.getValueLogErrors();
+		if (maxScan <= 0 || maxScan >= 90 || std::isnan(maxScan)) {
+			return;
+		}
+		pdf.writeSubsectionTitle("Scan Angle Filter");
+		std::stringstream ss;
+		ss << "Aerial lidar sensors sweep back and forth as they emit pulses. "
+			"The angle that a pulse was fired at is called the scan angle for that pulse. "
+			"For some applications, points with a high scan angle are undesirable. In this run, "
+			"points with a scan angle greater than "
+			<< (int)std::round(maxScan) << " degrees were excluded.";
+		pdf.writeTextBlockWithWrap(ss.str());
 	}
 }

@@ -55,6 +55,7 @@ namespace lapis {
 		void _outlierPdf(MetadataPdf& pdf);
 		void _withheldPdf(MetadataPdf& pdf);
 		void _classPdf(MetadataPdf& pdf);
+		void _scanAnglePdf(MetadataPdf& pdf);
 	};
 }
 
