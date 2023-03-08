@@ -29,7 +29,7 @@ namespace lapis {
 		std::string ext = filename.substr(filename.size() - 4, 4);
 
 		if (ext == ".las" || ext == ".laz") {
-			LasIO las{ filename }; //This may through an InvalidLasFileException, which I'm okay with because nobody is naming a valid raster or vector file .las
+			LasIO las{ filename }; //This may throw an InvalidLasFileException, which I'm okay with because nobody is naming a valid raster or vector file .las
 			_setFromLasIO(las);
 
 			init = true;
