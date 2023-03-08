@@ -160,8 +160,9 @@ namespace lapis {
 			_xyOriginDiffCheck = false;
 		}
 
-		bool xory = _xres.importFromBoost() || _yres.importFromBoost();
-		if (xory) {
+		bool ximport = _xres.importFromBoost();
+		bool yimport = _yres.importFromBoost();
+		if (ximport || yimport) {
 			if (strcmp(_xres.asText(), _yres.asText()) == 0) {
 				_cellsize.copyFrom(_xres);
 				_xyResDiffCheck = false;
@@ -171,8 +172,9 @@ namespace lapis {
 			}
 		}
 
-		xory = _xorigin.importFromBoost() || _yorigin.importFromBoost();
-		if (xory) {
+		ximport = _xorigin.importFromBoost();
+		yimport = _yorigin.importFromBoost();
+		if (ximport || yimport) {
 			if (strcmp(_xorigin.asText(), _yres.asText()) == 0) {
 				_origin.copyFrom(_xorigin);
 				_xyOriginDiffCheck = false;
