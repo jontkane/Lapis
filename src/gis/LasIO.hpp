@@ -163,7 +163,7 @@ namespace lapis {
 		uint8_t flagByte;
 		uint8_t rawClassification;
 		uint8_t userData;
-		uint16_t rawScanAngle;
+		int16_t rawScanAngle;
 		uint16_t pointSourceID;
 		double gpsTime;
 
