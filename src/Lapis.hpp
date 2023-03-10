@@ -76,7 +76,10 @@ namespace lapis {
 
 		LapisController lc;
 		try {
-			lc.processFullArea();
+			if (!lc.processFullArea()) {
+				std::cout << "Run Failed\n";
+				return 1;
+			}
 		}
 		catch (std::exception e) {
 			std::cout << e.what() << "\n";
