@@ -129,7 +129,7 @@ namespace lapis {
 					&pmc::stratumCover, oul::Percent,
 					"The number of returns that fall in this stratum, as a percentage of "
 				"the number of returns in this stratum or lower. A proxy for the cover present in this stratum.");
-				_stratumMetrics.emplace_back(_getter, "StratumReturnProportion_", 
+				_stratumMetrics.emplace_back(_getter, "StratumPercent_", 
 					&pmc::stratumPercent, oul::Percent,
 					"The number of returns that fall in this stratum, as a percentage of the total number of returns.");
 			}
