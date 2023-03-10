@@ -38,17 +38,18 @@ namespace lapis {
 		std::vector<Raster<coord_t>> overlappingDems;
 
 		Alignment finestAlign = *(_getter->demAligns().begin());
+		Extent buffer = bufferExtent(e, std::max(finestAlign.xres(), finestAlign.yres()));
 		finestAlign = finestAlign.transformAlignment(e.crs());
 
 		int index = -1;
 		for (const Alignment& thisAlign : _getter->demAligns()) {
 			++index;
 			Alignment projAlign = thisAlign.transformAlignment(e.crs());
-			if (!projAlign.overlaps(e)) {
+			if (!projAlign.overlaps(buffer)) {
 				continue;
 			}
 
-			std::optional<Raster<coord_t>> dem = _getter->getDem(index, e);
+			std::optional<Raster<coord_t>> dem = _getter->getDem(index, buffer);
 			if (!dem.has_value()) {
 				continue;
 			}
@@ -60,7 +61,10 @@ namespace lapis {
 
 		Alignment outAlign = extendAlignment(finestAlign, e, SnapType::out);
 		outAlign = cropAlignment(outAlign, e, SnapType::out);
-		Raster<coord_t> outDem = Raster<coord_t>{ outAlign };
+
+		Alignment bufferedAlign = extendAlignment(outAlign, buffer, SnapType::out);
+
+		Raster<coord_t> outDem = Raster<coord_t>{ bufferedAlign };
 
 		for (Raster<coord_t>& dem : overlappingDems) {
 			if (dem.crs().getZUnits() != outDem.crs().getZUnits()) {
@@ -89,7 +93,7 @@ namespace lapis {
 
 		_normalizeByFunction(points, normalize);
 
-		return outDem;
+		return cropRaster(outDem,outAlign,SnapType::near);
 	}
 
 	template<class FILEGETTER>
