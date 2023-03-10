@@ -135,7 +135,7 @@ namespace lapis {
 				countAbove += _hist.countInBin(i);
 			}
 		}
-		r[cell].value() = countAbove / _canopyCount * 100.f;
+		r[cell].value() = countAbove / _count * 100.f;
 	}
 
 	void PointMetricCalculator::canopyReliefRatio(Raster<metric_t>& r, cell_t cell)
@@ -207,7 +207,7 @@ namespace lapis {
 		}
 		denominator /= _canopyCount; //this is now the square of the std dev
 		denominator *= denominator;
-		denominator *= _canopyCount - 1ll;
+		denominator *= _canopyCount;
 		r[cell].value() = numerator / denominator;
 	}
 
