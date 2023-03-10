@@ -142,5 +142,6 @@ else()
 endif()
 
 add_compile_definitions(LAPISTESTFILES="${LAPIS_DIR}/src/test/testfiles/")
+add_compile_definitions(LAPISTESTDATA="${LAPIS_DIR}/src/test/TestData/")
 add_compile_definitions(LAPIS_VERSION_MAJOR=0)
 add_compile_definitions(LAPIS_VERSION_MINOR=5)
