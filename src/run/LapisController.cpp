@@ -14,7 +14,7 @@ if (_needAbort) { \
 	RunParameters::singleton().cleanAfterRun(); \
 	LapisLogger::getLogger().setProgress("Aborted",0,false); \
 	_isRunning = false; \
-	return; \
+	return false; \
 }
 #define LAPIS_CHECK_ABORT \
 if (_needAbort) { \
@@ -29,7 +29,7 @@ namespace lapis {
 			_handlers()[i]->reset();
 		}
 	}
-	void LapisController::processFullArea()
+	bool LapisController::processFullArea()
 	{
 		_isRunning = true;
 		LapisLogger& log = LapisLogger::getLogger();
@@ -100,6 +100,8 @@ namespace lapis {
 
 		log.setProgress("Done!",0,false);
 		_isRunning = false;
+
+		return true;
 	}
 
 	bool LapisController::isRunning() const

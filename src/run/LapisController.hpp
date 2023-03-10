@@ -12,7 +12,7 @@ namespace lapis {
 
 		LapisController();
 
-		void processFullArea();
+		bool processFullArea();
 
 		bool isRunning() const;
 
