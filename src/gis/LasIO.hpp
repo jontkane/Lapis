@@ -11,6 +11,7 @@
 
 namespace lapis {
 
+
 	struct LasHeader {
 		//char FileSignature[4];
 		//uint16_t FileSourceID;
@@ -59,28 +60,28 @@ namespace lapis {
 		}
 
 		bool isWKT() const {
-			const std::uint16_t wktbit = 0b0000000000010000;
+			constexpr std::uint16_t wktbit = 0b0000000000010000;
 			return GlobalEncoding & wktbit;
 		}
 
 		uint8_t PointFormat() const {
 			//compressed points are indicated by adding 128 to the point format
-			const std::uint8_t removecompressedbit = 0b01111111;
+			constexpr std::uint8_t removecompressedbit = 0b01111111;
 			return ModifiedPointFormat & removecompressedbit;
 		}
 
 		bool isCompressed() const {
 			//compressed points are indicated by adding 128 to the point format
-			const std::uint8_t compressedbit = 0b10000000;
+			constexpr std::uint8_t compressedbit = 0b10000000;
 			return ModifiedPointFormat & compressedbit;
 		}
 
-		inline static const uint16_t point10size = 20;
-		inline static const uint16_t gpstimesize = 8;
-		inline static const uint16_t rgbsize = 6;
-		inline static const uint16_t waveformsize = 29;
-		inline static const uint16_t point14size = 30;
-		inline static const uint16_t nirsize = 2;
+		inline static constexpr uint16_t point10size = 20;
+		inline static constexpr uint16_t gpstimesize = 8;
+		inline static constexpr uint16_t rgbsize = 6;
+		inline static constexpr uint16_t waveformsize = 29;
+		inline static constexpr uint16_t point14size = 30;
+		inline static constexpr uint16_t nirsize = 2;
 
 		inline static const std::vector<uint16_t> defaultPointSizes = {
 			point10size, //type 0

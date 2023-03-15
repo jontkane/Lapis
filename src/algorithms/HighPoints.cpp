@@ -111,11 +111,12 @@ namespace lapis {
 				}
 				bool isHighPoint = true;
 
+				//this setup with priority is to ensure that areas with strictly equal height only get one candidate
 				struct rc { rowcol_t row, col; };
-				std::vector<rc> neighbors = { {row + 1,col},{row - 1,col},{row,col + 1},{row,col - 1},
-					{row + 1,col + 1},{row - 1,col - 1},{row + 1,col - 1},{row - 1,col + 1}
-				};
-				for (auto& thisRC : neighbors) {
+				std::vector<rc> higherPriorityNeighbors = { {row + 1,col},{row,col + 1},{row + 1,col + 1},{row - 1,col + 1} };
+				std::vector<rc> lowerPriorityNeighbors = { {row - 1,col},{row,col - 1},{row - 1,col - 1},{row + 1,col - 1} };
+
+				for (auto& thisRC : higherPriorityNeighbors) {
 					rowcol_t rowNudge = thisRC.row;
 					rowcol_t colNudge = thisRC.col;
 					if (rowNudge < 0 || colNudge < 0 || rowNudge >= csm.nrow() || colNudge >= csm.ncol()) {
@@ -127,6 +128,24 @@ namespace lapis {
 					}
 					if (compare.value() > center.value()) {
 						isHighPoint = false;
+						break;
+					}
+				}
+				if (isHighPoint) {
+					for (auto& thisRC : lowerPriorityNeighbors) {
+						rowcol_t rowNudge = thisRC.row;
+						rowcol_t colNudge = thisRC.col;
+						if (rowNudge < 0 || colNudge < 0 || rowNudge >= csm.nrow() || colNudge >= csm.ncol()) {
+							continue;
+						}
+						auto compare = csm.atRCUnsafe(rowNudge, colNudge);
+						if (!compare.has_value()) {
+							continue;
+						}
+						if (compare.value() >= center.value()) {
+							isHighPoint = false;
+							break;
+						}
 					}
 				}
 

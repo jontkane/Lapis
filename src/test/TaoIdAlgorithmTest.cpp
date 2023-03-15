@@ -59,4 +59,17 @@ namespace lapis {
 		EXPECT_TRUE(expectedCells.contains(pointtwo));
 		EXPECT_NE(pointone, pointtwo);
 	}
+
+	TEST(TaoAlgorithmTest, highPointsTieBreakTest) {
+		Raster<csm_t> r{ Alignment(Extent(0,3,0,3),3,3) };
+		for (cell_t cell : r.allCellsIterator()) {
+			r[cell].has_value() = true;
+			r[cell].value() = 10;
+		}
+
+		HighPoints algo(2, 0);
+		auto highPoints = algo.identifyTaos(r);
+
+		EXPECT_EQ(highPoints.size(), 1);
+	}
 }

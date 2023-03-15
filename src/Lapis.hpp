@@ -59,6 +59,7 @@ namespace lapis {
 #endif
 
 		RunParameters& rp = RunParameters::singleton();
+		rp.resetObject();
 		using pr = RunParameters::ParseResults;
 		pr parsed = rp.parseArgs(args);
 		rp.importBoostAndUpdateUnits();

@@ -183,7 +183,7 @@ namespace lapis {
 
 
 	bool operator==(const Extent& lhs, const Extent& rhs) {
-		return lhs.xmin() == rhs.xmin() && lhs.xmax() == rhs.xmax() && lhs.ymin() == rhs.ymin() && lhs.ymax() == rhs.ymax() && lhs.crs().isSame(rhs.crs());
+		return lhs.xmin() == rhs.xmin() && lhs.xmax() == rhs.xmax() && lhs.ymin() == rhs.ymin() && lhs.ymax() == rhs.ymax() && lhs.crs().isConsistentHoriz(rhs.crs());
 	}
 	bool operator!=(const Extent& lhs, const Extent& rhs) {
 		return !(lhs == rhs);

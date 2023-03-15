@@ -72,10 +72,7 @@ namespace lapis {
 			fineCellSize = std::min(fineCellSize, fineIntAlign()->xres());
 		}
 		coord_t tileRes = targetNRowCol * fineCellSize;
-		Alignment layoutAlign{ *csmAlign(),0,0,tileRes,tileRes};
-		if (doFineInt()) {
-			layoutAlign = extendAlignment(layoutAlign, *fineIntAlign(), SnapType::out);
-		}
+		Alignment layoutAlign{ *metricAlign(),0,0,tileRes,tileRes};
 		_layout = std::make_shared<Raster<bool>>(layoutAlign);
 		return true;
 	}

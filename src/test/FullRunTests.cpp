@@ -12,6 +12,9 @@ namespace lapis {
 #pragma warning(disable: 4305)
 #pragma warning(disable: 4267)
 
+		namespace fs = std::filesystem;
+		fs::remove_all(LAPISTESTDATA + std::string("PointMetricsTestOutput"));
+
 		std::string ini = LAPISTESTDATA + std::string("PointMetricsTest/params.ini");
 		ASSERT_TRUE(std::filesystem::exists(ini)) << "Please run GenerateTestData.R first";
 		std::vector<std::string> params = { "--ini-file=" + ini };
@@ -20,8 +23,6 @@ namespace lapis {
 		//The data in this test should result in every cell having unfilitered points whose Z values are the integers from 0 to 50
 		//There may be some slight deviation due to differences in how bilinear extraction is done in lapis vs the terra package in R
 		//because the canopy cutoff is set to 1.5, canopy-only metrics should have the values from 2 to 50 instead
-
-		namespace fs = std::filesystem;
 
 		std::unordered_map<std::string, bool> filesChecked;
 		for (auto& p : fs::recursive_directory_iterator(fs::path{ LAPISTESTDATA } / "PointMetricsTestOutput" / "PointMetrics")) {
@@ -36,6 +37,9 @@ namespace lapis {
 			for (cell_t cell : r.allCellsIterator()) {
 				EXPECT_TRUE(r[cell].has_value());
 				EXPECT_NEAR(r[cell].value(), expectedValue, 0.1) << file.string();
+				if (std::abs(r[cell].value() - expectedValue) > 0.1) {
+					break;
+				}
 			}
 			filesChecked[file.string()] = true;
 		};
@@ -51,6 +55,9 @@ namespace lapis {
 					minDiff = std::min(minDiff, std::abs(r[cell].value() - v));
 				}
 				EXPECT_LT(minDiff, 0.1) << file.string();
+				if (minDiff > 0.1) {
+					break;
+				}
 			}
 			filesChecked[file.string()] = true;
 		};
@@ -99,7 +106,7 @@ namespace lapis {
 		std::vector<metric_t> expectedPercentileFirstReturns = { 2.9,3.8,4.7,5.6,6.5,7.4,8.3,9.2,10.1,11.0,11.9,12.8,13.7,14.6,15.5,16.4,17.3,18.2,19.1,19.82 };
 
 		for (size_t i = 0; i < pnames.size(); ++i) {
-			testRaster(getPercentileName(firstReturns, pnames[i]), expectedPercentileFirstReturns[i]);
+testRaster(getPercentileName(firstReturns, pnames[i]), expectedPercentileFirstReturns[i]);
 		}
 
 		testRaster(firstReturns / "PointMetricsTest_CanopyCover_Percent.tif", 90.4);
@@ -126,5 +133,110 @@ namespace lapis {
 		}
 
 #pragma warning(pop)
+	}
+
+	TEST(FullRunTest, CsmAndTaoTest) {
+		namespace fs = std::filesystem;
+		fs::remove_all(LAPISTESTDATA + std::string("CSMTestOutput"));
+
+
+		auto doRunTestCsm = [](const std::string& name) {
+			std::string ini = LAPISTESTDATA + std::string("CSMTest/" + name + ".ini");
+			ASSERT_TRUE(std::filesystem::exists(ini)) << "Please run GenerateTestData.R first";
+			std::vector<std::string> params = { "--ini-file=" + ini };
+			ASSERT_EQ(lapisUnifiedMain(params), 0) << "Run Failed";
+
+			fs::path outfolder = LAPISTESTDATA + std::string("CSMTestOutput");
+
+			fs::path csmfile = outfolder / "CanopySurfaceModel" / (name + "_CanopySurfaceModel_Col1_Row1_Meters.tif");
+			ASSERT_TRUE(fs::exists(csmfile)) << csmfile.string();
+			Raster<csm_t> actual{ csmfile.string() };
+			Raster<csm_t> expected{ (fs::path(LAPISTESTDATA) / "CSMTest" / name / "csm.tif").string() };
+
+			ASSERT_TRUE(actual.isSameAlignment(expected));
+			std::string error = "Issue with CSM of " + name;
+			for (cell_t cell : actual.allCellsIterator()) {
+				//Putting asserts here because if the raster has one error it likely has hundreds and I don't want it to flood the output
+				ASSERT_EQ(actual[cell].has_value(), expected[cell].has_value()) << error;
+				if (actual[cell].has_value()) {
+					ASSERT_NEAR(actual[cell].value(), expected[cell].value(), 0.01) << error;
+				}
+			}
+
+		};
+
+		auto testTaos = [](const std::string& name) {
+			fs::path expectedTaos = LAPISTESTDATA;
+			expectedTaos /= "CSMTest";
+			expectedTaos /= name;
+			expectedTaos /= "taos.shp";
+			ASSERT_TRUE(fs::exists(expectedTaos));
+			std::set<std::pair<coord_t, coord_t>> expectedCoords;
+
+			GDALDatasetWrapper vect = vectorGDALWrapper(expectedTaos.string());
+			ASSERT_FALSE(vect.isNull());
+			OGRLayer* layer = vect->GetLayer(0);
+			OGRFeature* feature;
+			while ((feature = layer->GetNextFeature()) != nullptr) {
+				OGRPoint* geom = feature->GetGeometryRef()->toPoint();
+				expectedCoords.insert(std::make_pair(geom->getX(), geom->getY()));
+			}
+			if (feature) {
+				OGRFeature::DestroyFeature(feature);
+			}
+
+			fs::path actualTaos = LAPISTESTDATA;
+			actualTaos /= "CSMTestOutput";
+			actualTaos /= "TreeApproximateObjects";
+			actualTaos /= name + "_TAOs_Col1_Row1.shp";
+			ASSERT_TRUE(fs::exists(actualTaos));
+			std::vector<std::pair<coord_t, coord_t>> actualCoords;
+			std::vector<taoid_t> actualIds;
+
+			vect = vectorGDALWrapper(actualTaos.string());
+			ASSERT_FALSE(vect.isNull());
+			layer = vect->GetLayer(0);
+			while ((feature = layer->GetNextFeature()) != nullptr) {
+				OGRPoint* geom = feature->GetGeometryRef()->toPoint();
+				actualCoords.push_back(std::make_pair(geom->getX(), geom->getY()));
+				actualIds.push_back((taoid_t)feature->GetFieldAsInteger64(0));
+			}
+			if (feature) {
+				OGRFeature::DestroyFeature(feature);
+			}
+
+			EXPECT_NEAR((double)actualCoords.size(), (double)expectedCoords.size(), actualCoords.size() * 0.01);
+			size_t nMissed = 0;
+			for (size_t i = 0; i < actualCoords.size(); ++i) {
+				if (!expectedCoords.contains(actualCoords[i])) {
+					nMissed++;
+			    }
+			}
+			EXPECT_LE(nMissed, actualCoords.size() * 0.01);
+
+			fs::path actualSegsName = LAPISTESTDATA;
+			actualSegsName /= "CSMTestOutput";
+			actualSegsName /= "TreeApproximateObjects";
+			actualSegsName /= name + "_Segments_Col1_Row1.tif";
+			Raster<taoid_t> actualSegments{ actualSegsName.string() };
+
+			for (size_t i = 0; i < actualCoords.size(); ++i) {
+				auto actual = actualSegments.atXY(actualCoords[i].first, actualCoords[i].second);
+				EXPECT_TRUE(actual.has_value());
+				EXPECT_EQ(actual.value(), actualIds[i]);
+			}
+		};
+
+		doRunTestCsm("Footprint");
+		//lapis and lidR have completely different tie-breaking strategies for which pixel gets to be the TAO, which is especially prominent when using a footprint but no smoothing
+		//the results are, unfortunately, so different as to be essentially incomparable for testing
+		//testTaos("Footprint");
+
+		doRunTestCsm("Smooth");
+		testTaos("Smooth");
+
+		doRunTestCsm("NoSmoothNoFootprint");
+		testTaos("NoSmoothNoFootprint");
+		
 	}
 }

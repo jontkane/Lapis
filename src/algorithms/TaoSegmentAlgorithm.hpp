@@ -30,7 +30,7 @@ namespace lapis {
 	class GenerateIdByTile : public UniqueIdGenerator {
 	public:
 		GenerateIdByTile(cell_t nTiles, cell_t thisTile)
-			: _nTiles((taoid_t)nTiles), _previousId((taoid_t)(thisTile - nTiles))
+			: _nTiles((taoid_t)nTiles), _previousId((taoid_t)(thisTile - nTiles + 1))
 		{
 		}
 		taoid_t nextId()
