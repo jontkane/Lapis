@@ -260,8 +260,9 @@ namespace lapis {
 		}
 
 		//I was getting a possible compiler bug here, but forcing the cell variable to not be optimized away fixed it
-		for (volatile cell_t cell : _nLaz.cellsFromExtentIterator(e,SnapType::out)) {
+		for (cell_t cell : _nLaz.cellsFromExtentIterator(e,SnapType::out)) {
 			std::scoped_lock lock{ _getter->cellMutex(cell) };
+
 			_nLaz.atCellUnsafe(cell).value()--;
 			if (_nLaz.atCellUnsafe(cell).value() != 0) {
 				continue;

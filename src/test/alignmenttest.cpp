@@ -163,21 +163,24 @@ namespace lapis {
 		Extent e{ 2,18,2,19 };
 		std::vector<cell_t> cells = a.cellsFromExtent(e, SnapType::near);
 
-		std::vector<cell_t> exp = { 80,81,90,91 };
+		std::set<cell_t> exp = { 80,81,90,91 };
 
-		for (size_t j = 0; j < exp.size(); ++j) {
-			cell_t toMatch = exp[j];
-			bool foundMatch = false;
-			for (size_t i = 0; i < cells.size(); ++i) {
-				if (cells[i] == toMatch) {
-					foundMatch = true;
-					break;
-				}
-			}
-			if (!foundMatch) {
-				FAIL() << "Failed to find " + std::to_string(toMatch) << " in output";
-			}
+		std::set<cell_t> found;
+		for (cell_t cell : cells) {
+			EXPECT_TRUE(exp.contains(cell));
+			EXPECT_FALSE(found.contains(cell));
+			found.insert(cell);
 		}
+		EXPECT_EQ(found.size(), 4);
+
+		found.clear();
+		for (cell_t cell : a.cellsFromExtentIterator(e, SnapType::near)) {
+			EXPECT_TRUE(exp.contains(cell));
+			EXPECT_FALSE(found.contains(cell));
+			found.insert(cell);
+		}
+		EXPECT_EQ(found.size(), 4);
+
 	}
 
 	TEST(AlignmentTest, rowColExtent) {

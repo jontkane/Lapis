@@ -261,7 +261,8 @@ namespace lapis {
 		public:
 			class iterator {
 			public:
-				iterator() : isEnd(true) {}
+#pragma warning (suppress:26495)
+				iterator() : isEnd(true), cell(-1) {}
 				iterator(const CellExtentIterator& parent, cell_t cell) {
 					this->cell = cell;
 					mincol = parent.extent.mincol;
