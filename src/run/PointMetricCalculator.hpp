@@ -15,7 +15,25 @@ namespace lapis {
 
 		int countInBin(size_t bin) const;
 
-		void incrementBin(size_t bin);
+		inline void incrementBin(size_t bin)
+		{
+			if (!_data.size()) {
+				_data.resize(_nHists);
+			}
+
+			if (bin >= _nHists * binsPerHist) {
+				bin = _nHists * binsPerHist - 1;
+			}
+			auto& thisHist = _data[bin / binsPerHist];
+			size_t binInHist = bin % binsPerHist;
+			if (!thisHist) {
+				thisHist = std::make_unique<std::array<int, binsPerHist>>();
+				for (auto& v : *thisHist) {
+					v = 0;
+				}
+			}
+			(*thisHist)[binInHist]++;
+		}
 
 		size_t size();
 
@@ -39,7 +57,29 @@ namespace lapis {
 
 		//Adds an observed lidar return to this object
 		//If this is the first point added, it will cause the histogram vector to be allocated
-		void addPoint(const LasPoint& lp);
+		inline void addPoint(const LasPoint& lp) {
+			const coord_t& z = lp.z;
+			++_count;
+			if (z >= _canopy) {
+				_canopySum += z;
+				++_canopyCount;
+				int bin = (int)((z - _canopy) / _binsize);
+
+				_hist.incrementBin(bin);
+			}
+
+			//because we're using return here as a control flow, the stratum logic has to go last even if we add more features to this function
+			if (!_strataCounts.size()) {
+				_strataCounts = std::vector<int>(_strataBreaks.size() + 1, 0);
+			}
+			for (size_t i = 0; i < _strataBreaks.size(); ++i) {
+				if (lp.z < _strataBreaks[i]) {
+					_strataCounts[i]++;
+					return;
+				}
+			}
+			_strataCounts[_strataBreaks.size()]++;
+		}
 		//this function will deallocate the histogram vector. Call it once you're done with the data here.
 		void cleanUp();
 

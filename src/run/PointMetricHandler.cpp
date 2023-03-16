@@ -259,8 +259,7 @@ namespace lapis {
 			_assignPointsToCalculators<false, true>(points);
 		}
 
-		std::vector<cell_t> cells = _nLaz.cellsFromExtent(e, SnapType::out);
-		for (cell_t cell : cells) {
+		for (cell_t cell : _nLaz.cellsFromExtentIterator(e,SnapType::out)) {
 			std::scoped_lock lock{ _getter->cellMutex(cell) };
 			_nLaz.atCellUnsafe(cell).value()--;
 			if (_nLaz.atCellUnsafe(cell).value() != 0) {
