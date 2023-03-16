@@ -261,18 +261,12 @@ namespace lapis {
 		public:
 			class iterator {
 			public:
-#pragma warning (suppress:26495)
-				iterator() : isEnd(true), cell(-1) {}
-				iterator(const CellExtentIterator& parent, cell_t cell) {
-					this->cell = cell;
-					mincol = parent.extent.mincol;
-					minrow = parent.extent.minrow;
-					maxcol = parent.extent.maxcol;
-					maxrow = parent.extent.maxrow;
-					nrow = parent.parent->nrow();
-					ncol = parent.parent->ncol();
-					isEnd = false;
-
+				iterator() : isEnd(true) {}
+				iterator(const CellExtentIterator& parent, cell_t cell) :
+					cell(cell), mincol(parent.extent.mincol), minrow(parent.extent.minrow),
+					maxcol(parent.extent.maxcol), maxrow(parent.extent.maxrow), nrow(parent.parent->nrow()),
+					ncol(parent.parent->ncol()), isEnd(false)
+				{
 					row = (rowcol_t)(cell / nrow);
 					col = cell % ncol;
 				}
@@ -297,21 +291,24 @@ namespace lapis {
 				cell_t operator*() {
 					return cell;
 				}
-				bool operator==(const iterator& other) {
-					if (isEnd) {
-						return other.isEnd;
-					}
-					return cell == other.cell;
-				}
 				bool operator!=(const iterator& other) {
-					return !(*this == other);
+					if (other.isEnd) {
+						return !isEnd;
+					}
+					return cell != other.cell;
 				}
 			private:
-				cell_t cell;
-				rowcol_t row, col;
-				bool isEnd;
+				cell_t cell = -1;
+				rowcol_t row = 0;
+				rowcol_t col = 0;
+				bool isEnd = false;
 
-				rowcol_t mincol, maxcol, minrow, maxrow, nrow, ncol;
+				rowcol_t mincol = 0;
+				rowcol_t maxcol = 0;
+				rowcol_t minrow = 0;
+				rowcol_t maxrow = 0;
+				rowcol_t nrow = 0;
+				rowcol_t ncol = 0;
 			};
 
 			CellExtentIterator() : extent(), parent(nullptr), empty(true) {}
