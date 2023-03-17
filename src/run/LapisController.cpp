@@ -269,6 +269,9 @@ namespace lapis {
 
 		log.beginBenchmarkTimer("Read Points");
 		LidarPointVector points = lr.getPoints(lr.nPoints());
+		if (points.size() == 0) {
+			log.logMessage("No points passed filters in las file " + std::to_string(n) + ". Perhaps an issue with the file?");
+		}
 		log.endBenchmarkTimer("Read Points");
 		LAPIS_CHECK_ABORT;
 
@@ -280,6 +283,9 @@ namespace lapis {
 		log.beginBenchmarkTimer("Normalize Points");
 		//also normalizes the point in-place
 		Raster<coord_t> ground = rp.demAlgorithm()->normalizeToGround(points, projectedExtent);
+		if (points.size() == 0) {
+			log.logMessage("No points successfully normalized in las file " + std::to_string(n) + ". Perhaps an issue with the ground models or with the units?");
+		}
 		LAPIS_CHECK_ABORT;
 		log.endBenchmarkTimer("Normalize Points");
 
