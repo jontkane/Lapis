@@ -47,7 +47,7 @@ namespace lapis {
 		return ParamCategory::process;
 	}
 	void PointMetricParameter::renderGui() {
-		ImGui::Text("Metric Options");
+		_title.renderGui();
 
 		ImGui::BeginChild("stratumleft", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f - 2, ImGui::GetContentRegionAvail().y), false, 0);
 		_canopyCutoff.renderGui();

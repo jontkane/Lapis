@@ -52,6 +52,8 @@ namespace lapis {
 
 	private:
 
+		Title _title{ "Tree Identification Options" };
+
 		NumericTextBoxWithUnits _minht{ "","min-tao-ht",2 };
 		NumericTextBoxWithUnits _mindist{ "Minimum Distance Between Trees:","min-tao-dist",0 };
 

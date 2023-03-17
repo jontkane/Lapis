@@ -30,6 +30,7 @@ namespace lapis {
 		return ParamCategory::computer;
 	}
 	void ComputerParameter::renderGui() {
+		_title.renderGui();
 		_thread.renderGui();
 		_benchmark.renderGui();
 	}

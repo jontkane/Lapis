@@ -48,7 +48,7 @@ namespace lapis {
 		return ParamCategory::process;
 	}
 	void CsmParameter::renderGui() {
-		ImGui::Text("Canopy Surface Model Options");
+		_title.renderGui();
 
 		_cellsize.renderGui();
 

@@ -51,6 +51,7 @@ namespace lapis {
 		return ParamCategory::data;
 	}
 	void LasFileParameter::renderGui() {
+		_title.renderGui();
 		ImGui::BeginChild("##lasspecifiers", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y / 2.f), false, 0);
 		_specifiers.renderGui();
 		ImGui::EndChild();

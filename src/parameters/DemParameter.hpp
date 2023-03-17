@@ -54,6 +54,8 @@ namespace lapis {
 		Raster<coord_t> bufferElevation(const Raster<coord_t>& unbuffered, const Extent& desired);
 
 	private:
+		Title _title{ "Ground Model Method" };
+
 		FileSpecifierSet _specifiers{ "Dem","dem",
 		"Specify input raster elevation models in one of three ways:\n"
 			"\tAs a file name pointing to a raster file\n"
@@ -96,7 +98,7 @@ namespace lapis {
 			int operator()(const std::string& s) const;
 			std::string operator()(int i) const;
 		};
-		RadioSelect<DemAlgoDecider, DemAlgo::DemAlgo> _demAlgo{ "Ground Model Method:","dem-algo" };
+		RadioSelect<DemAlgoDecider, DemAlgo::DemAlgo> _demAlgo{ "","dem-algo" };
 
 		void _renderAdvancedOptions();
 

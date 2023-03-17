@@ -16,5 +16,6 @@
 #include"GuiCRSInput.hpp"
 #include"GuiClassCheckBoxes.hpp"
 #include"GuiRadioSelect.hpp"
+#include"GuiTitle.hpp"
 
 #endif

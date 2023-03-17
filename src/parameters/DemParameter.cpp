@@ -69,7 +69,7 @@ namespace lapis {
 		_demAlgo.addOption("Provide pre-made DEM rasters", DemAlgo::VENDORRASTER, DemAlgo::VENDORRASTER);
 		_demAlgo.addOption("This data represents height above ground, not elevation above sea level (uncommon)",
 			DemAlgo::DONTNORMALIZE, DemAlgo::DONTNORMALIZE);
-		_demAlgo.addHelpText("Most lidar data is provided as elevation above sea level, not height above ground.\n"
+		_title.addHelpText("Most lidar data is provided as elevation above sea level, not height above ground.\n"
 			"Normalizing to height above ground is an important step in processing lidar data.\n"
 			"Currently, the only normalization method supported is providing a DEM calculated in another program, usually done by the lidar vendor and provided to their customers.");
 	}
@@ -91,7 +91,7 @@ namespace lapis {
 		return ParamCategory::data;
 	}
 	void DemParameter::renderGui() {
-
+		_title.renderGui();
 		_demAlgo.renderGui();
 
 		switch (_demAlgo.currentSelection()) {

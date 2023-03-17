@@ -39,6 +39,7 @@ namespace lapis {
 		return ParamCategory::process;
 	}
 	void TopoParameter::renderGui() {
+		_title.renderGui();
 		ImGui::Text("Window size for large-scale topo metrics");
 		_topoWindows.renderGui();
 	}

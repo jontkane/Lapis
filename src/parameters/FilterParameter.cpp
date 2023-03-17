@@ -12,6 +12,9 @@ namespace lapis {
 	}
 
 	FilterParameter::FilterParameter() {
+		_title.addHelpText("It is very normal for las/laz files to contain some points which are unusable for one reason or another.\n\n"
+			"This section allows you to customize which points are excluded.");
+
 		for (size_t i = 0; i < 256; ++i) {
 			_class.setState(i, true);
 		}
@@ -49,6 +52,9 @@ namespace lapis {
 		return ParamCategory::process;
 	}
 	void FilterParameter::renderGui() {
+
+		_title.renderGui();
+
 		_filterWithheld.renderGui();
 		_minht.renderGui();
 		_maxht.renderGui();

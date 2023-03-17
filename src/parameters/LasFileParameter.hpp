@@ -42,6 +42,8 @@ namespace lapis {
 			"This option can be specified multiple times",
 			{"*.las","*.laz"},std::make_unique<nfdnfilteritem_t>(L"LAS Files", L"las,laz") };
 
+		Title _title{ "Las/Laz Files" };
+
 		std::vector<std::string> _lasFileNames;
 		std::vector<Extent> _lasExtents;
 		Extent _fullExtent;

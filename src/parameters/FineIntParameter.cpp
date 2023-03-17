@@ -39,6 +39,7 @@ namespace lapis {
 		return ParamCategory::process;
 	}
 	void FineIntParameter::renderGui() {
+		_title.renderGui();
 		ImGui::Text("Cellsize:");
 		_sameCellsize.renderGui();
 		ImGui::SameLine();

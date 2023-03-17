@@ -57,6 +57,8 @@ namespace lapis {
 			return;
 		}
 
+		_title.renderGui();
+
 		_idAlgo.renderGui();
 		_segAlgo.renderGui();
 

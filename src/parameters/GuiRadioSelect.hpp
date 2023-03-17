@@ -74,7 +74,9 @@ namespace lapis {
 	inline bool RadioSelect<DECIDER, VALUE>::renderGui()
 	{
 		bool changed = false;
-		ImGui::Text(_guiDesc.c_str());
+		if (_guiDesc.size()) {
+			ImGui::Text(_guiDesc.c_str());
+		}
 
 		if (!_singleLine) {
 			displayHelp();

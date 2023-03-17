@@ -32,6 +32,7 @@ namespace lapis {
 		const std::vector<std::string>& topoWindowNames();
 
 	private:
+		Title _title{ "Topography Options" };
 		MultiNumericTextBoxWithUnits _topoWindows;
 		std::vector<std::string> _topoWindowNames;
 		bool _runPrepared = false;

@@ -38,6 +38,8 @@ namespace lapis {
 
 	private:
 
+		Title _title{ "Filters" };
+
 		NumericTextBoxWithUnits _minht{ "Minimum Height:","minht",-8,
 		"The threshold for low outliers. Points with heights below this value will be excluded." };
 		NumericTextBoxWithUnits _maxht{ "Maximum Height:","maxht",100,

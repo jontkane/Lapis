@@ -41,6 +41,8 @@ namespace lapis {
 
 	private:
 
+		Title _title{ "Output Alignment" };
+
 		NumericTextBoxWithUnits _xorigin{ "X Origin:","xorigin",0 };
 		NumericTextBoxWithUnits _yorigin{ "Y Origin:","yorigin",0 };
 		NumericTextBoxWithUnits _origin{ "Origin:","origin",0 };

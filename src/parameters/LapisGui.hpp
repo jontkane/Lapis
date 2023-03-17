@@ -62,7 +62,7 @@ namespace lapis {
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 		//glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 		//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-		GLFWwindow* window = glfwCreateWindow(640, 600, "Lapis", nullptr, nullptr);
+		GLFWwindow* window = glfwCreateWindow(960, 900, "Lapis", nullptr, nullptr);
 		if (window == nullptr) {
 			throw std::runtime_error("GLFW error\n");
 		}
@@ -73,8 +73,15 @@ namespace lapis {
 		ImGuiIO& io = ImGui::GetIO(); (void)io;
 		io.ConfigInputTextCursorBlink = true;
 		ImGui::StyleColorsClassic();
+		
+		ImGuiStyle& style = ImGui::GetStyle();
+		style.Colors[ImGuiCol_TabActive] = ImVec4(0.6f, 0.4f, 1.0f, 1.0f);
+
+		GuiCmdElement::initFonts();
+
 		ImGui_ImplGlfw_InitForOpenGL(window, true);
 		ImGui_ImplOpenGL3_Init(glsl_version);
+
 
 		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
@@ -85,7 +92,11 @@ namespace lapis {
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
 
+			ImGui::PushFont(GuiCmdElement::getRegularFont());
+
 			_mainTabs();
+
+			ImGui::PopFont();
 
 			ImGui::Render();
 			int display_w, display_h;
@@ -231,12 +242,12 @@ namespace lapis {
 			outputIniFile.reset();
 		}
 
-		ImGui::SameLine();
-		if (ImGui::Button("Check Data for Issues")) {
-			_displayDataIssuesWindow = true;
-		};
+		//ImGui::SameLine();
+		//if (ImGui::Button("Check Data for Issues")) {
+		//	_displayDataIssuesWindow = true;
+		//};
 		_renderLogger();
-		_dataIssuesWindow();
+		//_dataIssuesWindow();
 	}
 
 	template<class RUNNERTYPE>
@@ -277,7 +288,7 @@ namespace lapis {
 		//then tabs for each of those to customize them
 		RunParameters& rp = RunParameters::singleton();
 
-		ImGui::BeginChild("products", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y * 0.5f), true, 0);
+		ImGui::BeginChild("products", ImVec2(ImGui::GetContentRegionAvail().x, 235), true, 0);
 		rp.renderGui<WhichProductsParameter>();
 		ImGui::EndChild();
 

@@ -15,6 +15,8 @@ namespace lapis {
 		_unit.addOption("Meters", UnitRadio::METERS, LinearUnitDefs::meter);
 		_unit.addOption("International Feet", UnitRadio::INTFEET, LinearUnitDefs::foot);
 		_unit.addOption("US Survey Feet", UnitRadio::USFEET, LinearUnitDefs::surveyFoot);
+
+		_title.addHelpText("The desired units of the output data, where applicable.\n\nIt doesn't need to match the input data. Conversion is handled automatically.");
 	}
 	void OutUnitParameter::addToCmd(BoostOptDesc& visible,
 		BoostOptDesc& hidden) {
@@ -28,6 +30,7 @@ namespace lapis {
 		return ParamCategory::process;
 	}
 	void OutUnitParameter::renderGui() {
+		_title.renderGui();
 		_unit.renderGui();
 	}
 	void OutUnitParameter::importFromBoost() {

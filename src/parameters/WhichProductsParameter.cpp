@@ -45,7 +45,7 @@ namespace lapis {
 		return ParamCategory::process;
 	}
 	void WhichProductsParameter::renderGui() {
-		ImGui::Text("Optional Product Options");
+		_title.renderGui();
 		_doPointMetrics.renderGui();
 		_doCsm.renderGui();
 		if (!_doCsm.currentState()) {

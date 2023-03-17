@@ -32,6 +32,7 @@ namespace lapis {
 		coord_t fineIntCutoff() const;
 
 	private:
+		Title _title{ "Fine-Scale Intensity Options" };
 		NumericTextBoxWithUnits _cellsize{ "","fine-int-cellsize",1 };
 		InvertedCheckBox _useCutoff{ "Use Returns Above a Certain Height","fine-int-no-cutoff" };
 		NumericTextBoxWithUnits _cutoff{ "","fine-int-cutoff",2 };

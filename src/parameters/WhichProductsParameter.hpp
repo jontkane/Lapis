@@ -36,6 +36,8 @@ namespace lapis {
 
 	private:
 
+		Title _title{ "Product Selection" };
+
 		InvertedCheckBox _doCsm{ "Canopy Surface Model","skip-csm" };
 		InvertedCheckBox _doPointMetrics{ "Point Metrics","skip-point-metrics" };
 		InvertedCheckBox _doTao{ "Tree ID","skip-tao" };

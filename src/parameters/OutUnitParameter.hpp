@@ -33,7 +33,8 @@ namespace lapis {
 		const Unit& unit() const;
 
 	private:
-		RadioSelect<UnitDecider, Unit> _unit{ "Output Units:","user-units","The units you want output to be in. All options will be interpretted as these units\n"
+		Title _title{ "Output Units" };
+		RadioSelect<UnitDecider, Unit> _unit{ "","user-units","The units you want output to be in. All options will be interpretted as these units\n"
 			"\tValues: m (for meters), f (for international feet), usft (for us survey feet)\n"
 			"\tDefault is meters" };
 

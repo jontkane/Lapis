@@ -38,6 +38,8 @@ namespace lapis {
 		bool doAdvancedPointMetrics() const;
 
 	private:
+		Title _title{ "Point Metric Options" };
+
 		NumericTextBoxWithUnits _canopyCutoff{ "Canopy Cutoff:","canopy",2,
 		"The height threshold for a point to be considered canopy." };
 		MultiNumericTextBoxWithUnits _strata{ "Stratum Breaks:","strata","0.5,1,2,4,8,16,32,48,64",

@@ -12,6 +12,8 @@ namespace lapis {
 
 	AlignmentParameter::AlignmentParameter()
 	{
+		_title.addHelpText("This section allows you to specify the details of the desired output rasters, including their cellsize and projections.\n\n"
+			"The Coordinate Reference System specified here doesn't need to match the input data; reprojection is handled automatically");
 		_xorigin.addHelpText("The origin is what sometimes causes rasters with the same cellsize and CRS to not line up.\n\n"
 			"Most of the time, when you specify this, it's to ensure a match with some other specific raster.\n\n"
 			"You can specify the coordinates of the lower-left corner of any cell in the desired output grid.\n\n");
@@ -61,7 +63,7 @@ namespace lapis {
 
 		_manualWindow();
 		_errorWindow();
-		ImGui::Text("Output Alignment");
+		_title.renderGui();
 		if (ImGui::Button("Specify From File")) {
 			NFD::OpenDialog(_nfdAlignFile);
 		}
@@ -85,15 +87,12 @@ namespace lapis {
 
 		ImGui::Text("Output CRS:");
 		_crs.renderDisplayString();
-		ImGui::Text("Cellsize: ");
-		ImGui::SameLine();
+
 		if (_xyResDiffCheck) {
-			ImGui::Text("Diff X/Y");
+			ImGui::Text("Cellsize: Different X/Y");
 		}
 		else {
-			ImGui::Text(_cellsize.asText());
-			ImGui::SameLine();
-			ImGui::Text(RunParameters::singleton().unitPlural().c_str());
+			_cellsize.renderGui();
 		}
 
 #ifndef NDEBUG
