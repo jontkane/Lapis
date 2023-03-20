@@ -314,10 +314,12 @@ namespace lapis {
 		try {
 			CropView cv{ &bufferedCsm,rp.layout()->extentFromCell(tile),SnapType::out };
 			if (!cv.hasAnyValue()) {
+				LapisLogger::getLogger().incrementTask("Tile Finished");
 				return;
 			}
 		}
 		catch (OutsideExtentException e) {
+			LapisLogger::getLogger().incrementTask("Tile Finished");
 			return;
 		}
 
