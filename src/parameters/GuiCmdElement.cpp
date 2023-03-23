@@ -725,7 +725,7 @@ namespace lapis {
         ImFontConfig config;
         config.OversampleH = 5;
         static ImFont* regularFont = ImGui::GetIO().Fonts->AddFontFromMemoryCompressedTTF(JostRegular_compressed_data,
-            JostRegular_compressed_size, 24, &config);
+            JostRegular_compressed_size, 20, &config);
         return regularFont;
     }
 
@@ -1466,7 +1466,7 @@ namespace lapis {
         config.OversampleH = 3;
         config.OversampleV = 3;
         static ImFont* boldFont = ImGui::GetIO().Fonts->AddFontFromMemoryCompressedTTF(JostSemiBold_compressed_data,
-            JostSemiBold_compressed_size, 48, &config);
+            JostSemiBold_compressed_size, 32, &config);
         return boldFont;
     }
 

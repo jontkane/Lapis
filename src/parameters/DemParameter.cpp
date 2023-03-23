@@ -34,7 +34,7 @@ namespace lapis {
 
 		if (_displayCrsWindow) {
 			ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar;
-			ImGui::SetNextWindowSize(ImVec2(400, 220));
+			ImGui::SetNextWindowSize(ImVec2(400, 250));
 			if (!ImGui::Begin("DEM CRS window", &_displayCrsWindow, flags)) {
 				ImGui::End();
 			}
@@ -206,6 +206,8 @@ namespace lapis {
 		if (!projE.overlaps(thisAlign)) {
 			return std::optional<Raster<coord_t>>();
 		}
+
+		projE.defineCRS(CoordRef("")); //if there's a crs override, then there may be a spurious CRS mismatch
 
 		std::optional<Raster<coord_t>> outopt{ std::in_place, _demFileAligns[n].file.string(), projE, SnapType::out};
 		Raster<coord_t>& out = outopt.value();

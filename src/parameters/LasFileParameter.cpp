@@ -179,7 +179,7 @@ namespace lapis {
 
 		if (_displayCrsWindow) {
 			ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar;
-			ImGui::SetNextWindowSize(ImVec2(400, 220));
+			ImGui::SetNextWindowSize(ImVec2(400, 250));
 			if (!ImGui::Begin("Laz CRS window", &_displayCrsWindow, flags)) {
 				ImGui::End();
 			}

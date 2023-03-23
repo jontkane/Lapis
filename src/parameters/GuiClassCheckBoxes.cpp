@@ -200,7 +200,7 @@ namespace lapis {
 		}
 		bool changed = false;
 		ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize;
-		ImGui::SetNextWindowSize(ImVec2(300, 400));
+		ImGui::SetNextWindowSize(ImVec2(450, 600));
 		if (!ImGui::Begin(("##classwindow" + _cmdName).c_str(), &_displayWindow, flags)) {
 			ImGui::End();
 			return false;
