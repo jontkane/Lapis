@@ -71,8 +71,7 @@ namespace lapis {
 		for (CSMMetricRaster& metric : _csmMetrics) {
 			writeRasterLogErrors(getFullFilename(csmMetricDir(), metric.name, metric.unit),metric.raster);
 		}
-		_csmMetrics.clear();
-		_csmMetrics.shrink_to_fit();
+		_csmMetrics = std::vector<CSMMetricRaster>();
 	}
 
 	void CsmHandler::describeInPdf(MetadataPdf& pdf)

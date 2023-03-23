@@ -16,8 +16,7 @@ namespace lapis {
 	{
 		_hist.cleanUp();
 
-		_strataCounts.clear();
-		_strataCounts.shrink_to_fit();
+		_strataCounts = std::vector<int>();
 
 		//zeroing these doesn't matter for normal runs but makes testing easier
 		_canopySum = 0;
@@ -296,8 +295,7 @@ namespace lapis {
 
 	void SparseHistogram::cleanUp()
 	{
-		_data.clear();
-		_data.shrink_to_fit();
+		_data = _storage();
 	}
 
 	void PointMetricCalculator::p05Canopy(Raster<metric_t>& r, cell_t cell)

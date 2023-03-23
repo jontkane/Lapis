@@ -104,8 +104,7 @@ namespace lapis {
 		return true;
 	}
 	void FilterParameter::cleanAfterRun() {
-		_filters.clear();
-		_filters.shrink_to_fit();
+		_filters = std::vector<std::shared_ptr<LasFilter>>();
 		_runPrepared = false;
 	}
 	const std::vector<std::shared_ptr<LasFilter>>& FilterParameter::filters()

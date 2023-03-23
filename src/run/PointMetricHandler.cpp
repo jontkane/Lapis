@@ -294,11 +294,9 @@ namespace lapis {
 			_writePointMetricRasters(firstReturnsMetricDir, ReturnType::FIRST);
 		}
 
-		_pointMetrics.clear();
-		_pointMetrics.shrink_to_fit();
+		_pointMetrics = std::vector<PointMetricRasters>();
 
-		_stratumMetrics.clear();
-		_stratumMetrics.shrink_to_fit();
+		_stratumMetrics = std::vector<StratumMetricRasters>();
 	}
 	void PointMetricHandler::describeInPdf(MetadataPdf& pdf)
 	{
