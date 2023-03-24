@@ -14,9 +14,9 @@ namespace lapis {
 		near, in, out, ll
 	};
 
+	class CellExtentIterator;
+
 	class Alignment : public Extent {
-	private:
-		class CellExtentIterator;
 
 	public:
 
@@ -27,7 +27,7 @@ namespace lapis {
 			RowColExtent() = default;
 		};
 
-		
+
 
 
 		//default construct. Extent is a single point at the origin; xres and yres are 1
@@ -186,16 +186,8 @@ namespace lapis {
 		//Returns a list of cells which fall inside the given extent, after aligning with the given snaptype
 		std::vector<cell_t> cellsFromExtent(const Extent& e, const SnapType snap) const;
 
-		CellExtentIterator cellsFromExtentIterator(const Extent& e, const SnapType snap) const {
-			Extent snapE = alignExtent(e, snap);
-			if (!snapE.overlaps(*this)) {
-				return CellExtentIterator();
-			}
-			return CellExtentIterator(rowColExtent(e, snap), *this);
-		}
-		CellExtentIterator allCellsIterator() const {
-			return CellExtentIterator(rowColExtent(*this, SnapType::near), *this);
-		}
+		CellExtentIterator cellsFromExtentIterator(const Extent& e, const SnapType snap) const;
+		CellExtentIterator allCellsIterator() const;
 
 		//Returns the extent of the cell with the given index
 		Extent extentFromCell(const cell_t cell) const {
@@ -256,79 +248,79 @@ namespace lapis {
 		static coord_t snapExtent(coord_t xy, coord_t res, coord_t origin, coord_t(*snapFunc)(coord_t)) {
 			return snapFunc((xy - origin) / res) * res + origin;
 		}
+	};
 
-		class CellExtentIterator {
+	class CellExtentIterator {
+	public:
+		class iterator {
 		public:
-			class iterator {
-			public:
-				iterator() : isEnd(true) {}
-				iterator(const CellExtentIterator& parent, cell_t cell) :
-					cell(cell), mincol(parent.extent.mincol), minrow(parent.extent.minrow),
-					maxcol(parent.extent.maxcol), maxrow(parent.extent.maxrow), nrow(parent.parent->nrow()),
-					ncol(parent.parent->ncol()), isEnd(false)
-				{
-					row = (rowcol_t)(cell / nrow);
-					col = cell % ncol;
-				}
-
-				iterator& operator++() {
-					if (col == maxcol) {
-						row++;
-						if (row > maxrow) {
-							isEnd = true;
-							return *this;
-						}
-						col = mincol;
-						cell = (cell_t)row * ncol + col;
-
-					}
-					else {
-						col++;
-						cell++;
-					}
-					return *this;
-				}
-				cell_t operator*() {
-					return cell;
-				}
-				bool operator!=(const iterator& other) {
-					if (other.isEnd) {
-						return !isEnd;
-					}
-					return cell != other.cell;
-				}
-			private:
-				cell_t cell = -1;
-				rowcol_t row = 0;
-				rowcol_t col = 0;
-				bool isEnd = false;
-
-				rowcol_t mincol = 0;
-				rowcol_t maxcol = 0;
-				rowcol_t minrow = 0;
-				rowcol_t maxrow = 0;
-				rowcol_t nrow = 0;
-				rowcol_t ncol = 0;
-			};
-
-			CellExtentIterator() : extent(), parent(nullptr), empty(true) {}
-			CellExtentIterator(RowColExtent e, const Alignment& a) : extent(e), parent(&a), empty(false) {}
-			iterator begin() {
-				if (empty) {
-					return end();
-				}
-				return iterator(*this, parent->cellFromRowCol(extent.minrow, extent.mincol));
-			}
-			iterator end() {
-				return iterator();
+			iterator() : isEnd(true) {}
+			iterator(const CellExtentIterator& parent, cell_t cell) :
+				cell(cell), mincol(parent.extent.mincol), minrow(parent.extent.minrow),
+				maxcol(parent.extent.maxcol), maxrow(parent.extent.maxrow), nrow(parent.parent.nrow()),
+				ncol(parent.parent.ncol()), isEnd(false)
+			{
+				row = (rowcol_t)(cell / nrow);
+				col = cell % ncol;
 			}
 
+			iterator& operator++() {
+				if (col == maxcol) {
+					row++;
+					if (row > maxrow) {
+						isEnd = true;
+						return *this;
+					}
+					col = mincol;
+					cell = (cell_t)row * ncol + col;
 
+				}
+				else {
+					col++;
+					cell++;
+				}
+				return *this;
+			}
+			cell_t operator*() {
+				return cell;
+			}
+			bool operator!=(const iterator& other) {
+				if (other.isEnd) {
+					return !isEnd;
+				}
+				return cell != other.cell;
+			}
 		private:
-			RowColExtent extent;
-			const Alignment* parent;
-			bool empty;
+			cell_t cell = -1;
+			rowcol_t row = 0;
+			rowcol_t col = 0;
+			bool isEnd = false;
+
+			rowcol_t mincol = 0;
+			rowcol_t maxcol = 0;
+			rowcol_t minrow = 0;
+			rowcol_t maxrow = 0;
+			rowcol_t nrow = 0;
+			rowcol_t ncol = 0;
 		};
+
+		CellExtentIterator() : extent(), parent(), empty(true) {}
+		CellExtentIterator(Alignment::RowColExtent e, Alignment a) : extent(e), parent(a), empty(false) {}
+		iterator begin() {
+			if (empty) {
+				return end();
+			}
+			return iterator(*this, parent.cellFromRowCol(extent.minrow, extent.mincol));
+		}
+		iterator end() {
+			return iterator();
+		}
+
+
+	private:
+		Alignment::RowColExtent extent;
+		Alignment parent;
+		bool empty;
 	};
 
 	inline std::ostream& operator<<(std::ostream& os, const Alignment& a) {

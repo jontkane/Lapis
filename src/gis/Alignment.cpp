@@ -296,4 +296,15 @@ namespace lapis {
 
 		return consistent;
 	}
+
+	CellExtentIterator Alignment::cellsFromExtentIterator(const Extent& e, const SnapType snap) const {
+		Extent snapE = alignExtent(e, snap);
+		if (!snapE.overlaps(*this)) {
+			return CellExtentIterator();
+		}
+		return CellExtentIterator(rowColExtent(e, snap), *this);
+	}
+	CellExtentIterator Alignment::allCellsIterator() const {
+		return CellExtentIterator(rowColExtent(*this, SnapType::near), *this);
+	}
 }
