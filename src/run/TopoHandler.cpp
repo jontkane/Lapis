@@ -88,6 +88,12 @@ namespace lapis {
 			auto& radiusNames = _getter->topoWindowNames();
 			for (size_t i = 0; i < radii.size(); ++i) {
 				Raster<metric_t> r = metric.fun(buffered, radii[i], unbuffered);
+				if (r.ncell() != elev.ncell()) {
+					r = cropRaster(r, elev, SnapType::near);
+				}
+				if (r.ncell() != elev.ncell()) {
+					r = extendRaster(r, elev, SnapType::near);
+				}
 				r.mask(elev);
 				std::string fullName = metric.name + "_" + radiusNames[i];
 				writeRasterLogErrors(getFullFilename(topoDir(), fullName, metric.unit), r);

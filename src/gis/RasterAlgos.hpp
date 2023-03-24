@@ -361,7 +361,7 @@ namespace lapis {
 			}
 		}
 
-		tpi = cropRaster(tpi, unbuffered, SnapType::out);
+		tpi = cropRaster(tpi, unbuffered, SnapType::near);
 		return tpi;
 	}
 

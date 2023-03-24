@@ -183,7 +183,16 @@ namespace lapis {
 
 
 	bool operator==(const Extent& lhs, const Extent& rhs) {
-		return lhs.xmin() == rhs.xmin() && lhs.xmax() == rhs.xmax() && lhs.ymin() == rhs.ymin() && lhs.ymax() == rhs.ymax() && lhs.crs().isConsistentHoriz(rhs.crs());
+		bool same = true;
+		auto near = [](coord_t x, coord_t y) {
+			return std::abs(x - y) < LAPIS_EPSILON;
+		};
+		same = same && near(lhs.xmin(), rhs.xmin());
+		same = same && near(lhs.xmax(), rhs.xmax());
+		same = same && near(lhs.ymin(), rhs.ymin());
+		same = same && near(lhs.ymax(), rhs.ymax());
+		same = same && lhs.crs().isConsistentHoriz(rhs.crs());
+		return same;
 	}
 	bool operator!=(const Extent& lhs, const Extent& rhs) {
 		return !(lhs == rhs);
