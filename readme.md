@@ -4,18 +4,40 @@ Lapis is an open-source program optimized for processing aerial lidar for forest
 
 # Current Status
 
-Lapis is currently in alpha. It should compile (if cmake cooperates), and has been verified to run on a handful of lidar acquisitions, but I'm sure there are plenty of corner cases that will still cause it to crash. Furthermore, it's far from feature-complete. The following broad features are planned but not yet implemented:
+Lapis is currently in alpha, version 0.6. It should compile (if cmake cooperates), and has been verified to run on a handful of lidar acquisitions, but I'm sure there are plenty of corner cases that will still cause it to crash. Furthermore, it's far from feature-complete. The following broad features are planned but not yet implemented:
 
 - Increased customization for the canopy surface model, ground model, and tree segmentation algorithms.
-- Metadata output documenting the output produced by a run.
-- Quality of life features to improve the ease of use
+- Improvements to the metadata file documenting each run.
+- Improvements to automatic unit detection.
+
+# Getting Lapis
+
+The latest release of Lapis is version 0.6. You can get the compiled binary here: https://drive.google.com/file/d/1UlkmK13ACx60dEvfmRcBZHRpjk2l_068/view?usp=share_link
+
+Before running Lapis, you will need to install the Visual C++ Runtime Library, available here: https://aka.ms/vs/17/release/vc_redist.x64.exe
+
+In future releases, that installation step will no longer be required.
 
 # Building Lapis
 
-Lapis is dependent on a number of packages. The ones that are more difficult to find automatically with cmake are embedded into this repository; the others will have to be acquired separately. Development of Lapis is occuring on windows using vcpkg as a package manager; contributions to make the build process more streamlined with other systems are welcome. To install Lapis' dependencies in vcpkg on windows, run:
+Lapis is developed on Windows, and is so far only tested on Windows using vcpkg as a dependency manager. Contributions to make it easier to build on other systems are welcome. Because I expect a number of users who aren't C++ developers to want to build Lapis from source, here are step by step instructions to compile Lapis on Windows. They assume familiarity with command line and with git, but no experience with C++. More compact instructions designed for people familiar with C++ are further down.
 
-vcpkg install --triplet=x64-windows boost gdal proj libgeotiff xtl gtest glfw3 libharu
-
-Lapis is dependent on having the files proj.db and proj.ini, from the PROJ package, in the same directory as the executable. copyprojandcmake.bat.example contains an example script for combining the process of running cmake with the correct parameters and getting those files where they need to be in windows batch format.
-
-No compiled binaries are provided at this point.
+ - First, install Visual Studio, available at https://visualstudio.microsoft.com/
+ - When the installer asks what you intend to use Visual Studio for, select the box saying C/C++ development
+ - Install git, and add it to the system path if desired
+ - Install vcpkg, available at https://vcpkg.io/en/getting-started.html, and follow the instructions
+ - Run the following command to install Lapis' dependencies. This may take several hours. vcpkg install --clean-after-build --triplet=x64-windows boost gdal proj libgeotiff xtl gtest glfw3 libharu
+ - Clone the Lapis repository with the --recurse-submodules flag. The command should be something like: git clone https://github.com/jontkane/Lapis.git --recurse-submodules
+ - If you didn't already have cmake installed, inside the place where you cloned vcpkg, there should be a file like vcpkg\downloads\tools\cmake-3.25.0-windows\cmake-3.25.0-windows-i386\bin\cmake.exe. This may be slightly different if a new version of cmake releases after these instructions are written. Add the folder containing cmake.exe to the system path.
+ - Lapis requires the files proj.ini and proj.db to be in the same directory as the executable. The file copyprojandcmake.bat will copy those files to where they need to be, and then run cmake with the correct parameters. Right click->edit that bat file, and edit the first two lines to indicate the folders you cloned Lapis and vcpkg into. Then save it and run the batch file.
+ - If there were no cmake errors, then there should now be a file inside the build folder in the Lapis directory called "Lapis.sln". Open it with visual studio. In the top-center of the screen, there should be a drop-down menu which currently says "debug". Change it to "RelWithDebInfo"
+ - Press F5 to build Lapis and then start it. Enjoy!
+ 
+ When you want to update Lapis, do a git pull, and then rerun the bat file from above.
+ 
+ The short version of the instructions, for those familiar with C++, are:
+ 
+ - Clone Lapis using --recurse-submodules
+ - Install Lapis' dependencies using vcpkg. The following command should work: vcpkg install --clean-after-build --triplet=x64-windows boost gdal proj libgeotiff xtl gtest glfw3 libharu
+ - Do a cmake call something like: cmake .. -DCMAKE_TOOLCHAIN_FILE=vcpkg\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
+ - Make sure proj.ini and proj.db (both will be in your vcpkg folder) end up in the same directory as the Lapis executable

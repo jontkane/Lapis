@@ -1,6 +1,6 @@
 SET vcpkg=C:\vcpkg
-SET triplet=x64-windows
 SET lapis=C:\lapis
+SET triplet=x64-windows
 
 RMDIR /S /Q %lapis%\build
 mkdir %lapis%\build
