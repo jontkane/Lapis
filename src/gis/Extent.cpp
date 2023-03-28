@@ -4,7 +4,7 @@
 
 namespace lapis {
 	Extent::Extent(const coord_t xmin, const coord_t xmax, const coord_t ymin, const coord_t ymax) : _xmin(xmin), _xmax(xmax), _ymin(ymin), _ymax(ymax) {
-		checkValidExtent();
+		//checkValidExtent();
 	}
 
 	//A full definition of the extent, including crs information

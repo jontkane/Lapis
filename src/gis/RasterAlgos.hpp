@@ -10,9 +10,9 @@ namespace lapis {
 	template<class T>
 	inline Raster<T> aggregateSum(const Raster<T>& r, const Alignment& a) {
 		Raster<T> out{ a };
-		for (cell_t bigCell : a.cellsFromExtentIterator(r,SnapType::out)) {
+		for (cell_t bigCell : a.cellsFromExtent(r,SnapType::out)) {
 			Extent e = a.extentFromCell(bigCell);
-			for (cell_t smallCell : r.cellsFromExtentIterator(e, SnapType::near)) {
+			for (cell_t smallCell : r.cellsFromExtent(e, SnapType::near)) {
 				if (r[smallCell].has_value()) {
 					out[bigCell].value() += r[smallCell].value();
 				}
@@ -31,9 +31,9 @@ namespace lapis {
 	template<class T>
 	inline Raster<T> aggregateCount(const Raster<T>& r, const Alignment& a) {
 		Raster<T> out{ a };
-		for (cell_t bigCell : a.cellsFromExtentIterator(r, SnapType::out)) {
+		for (cell_t bigCell : a.cellsFromExtent(r, SnapType::out)) {
 			Extent e = a.extentFromCell(bigCell);
-			for (cell_t smallCell : r.cellsFromExtentIterator(e, SnapType::near)) {
+			for (cell_t smallCell : r.cellsFromExtent(e, SnapType::near)) {
 				if (r[smallCell].has_value()) {
 					out[bigCell].value()++;
 				}
@@ -54,8 +54,13 @@ namespace lapis {
 	template<class OUTPUT, class INPUT>
 	inline Raster<OUTPUT> aggregate(const Raster<INPUT>& r, const Alignment& a, ViewFunc<OUTPUT, INPUT> f) {
 		Raster<OUTPUT> out{ a };
-		for (cell_t cell : a.cellsFromExtentIterator(r, SnapType::out)) {
+		for (cell_t cell : a.cellsFromExtent(r, SnapType::out)) {
 			Extent e = a.extentFromCell(cell);
+
+			if (!r.overlaps(e)) {
+				continue; //In theory this shouldn't happen, but it was happening in some weird circumstances related to floating point inaccuracies
+			}
+
 			Raster<INPUT>* po = const_cast<Raster<INPUT>*>(&r); //I promise I'm not actually going to modify it; forgive this const_cast
 			const CropView<INPUT> cv{ po, e, SnapType::near }; //see, I even made the view const
 

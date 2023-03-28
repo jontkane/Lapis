@@ -89,6 +89,9 @@ namespace lapis {
 		}
 		Extent alignE = alignExtent(e, snap);
 		alignE = cropExtent(alignE, *this);
+		if (alignE.xmin() == alignE.xmax() || alignE.ymin() == alignE.ymax()) {
+			return out;
+		}
 
 		//Bringing the extent in slightly so you don't have to deal with the edge of the extent aligning with the edges of this object's cells.
 		alignE = Extent(alignE.xmin() + 0.25 * _xres, alignE.xmax() - 0.25 * _xres,
@@ -300,6 +303,9 @@ namespace lapis {
 	CellExtentIterator Alignment::cellsFromExtentIterator(const Extent& e, const SnapType snap) const {
 		Extent snapE = alignExtent(e, snap);
 		if (!snapE.overlaps(*this)) {
+			return CellExtentIterator();
+		}
+		if (snapE.xmin() == snapE.xmax() || snapE.ymin() == snapE.ymax()) {
 			return CellExtentIterator();
 		}
 		return CellExtentIterator(rowColExtent(e, snap), *this);
