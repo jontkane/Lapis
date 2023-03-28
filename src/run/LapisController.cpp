@@ -308,6 +308,7 @@ namespace lapis {
 		Raster<csm_t> bufferedCsm = csmhandler->getBufferedCsm(tile);
 
 		if (!bufferedCsm.overlaps(*rp.layout())) { //indicates a filler value due to the buffered tile not having any data
+			LapisLogger::getLogger().incrementTask("Tile Finished");
 			return;
 		}
 		
