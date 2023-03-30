@@ -62,7 +62,7 @@ namespace lapis {
 
 	TEST(TaoAlgorithmTest, highPointsTieBreakTest) {
 		Raster<csm_t> r{ Alignment(Extent(0,3,0,3),3,3) };
-		for (cell_t cell : r.allCellsIterator()) {
+		for (cell_t cell : CellIterator(r)) {
 			r[cell].has_value() = true;
 			r[cell].value() = 10;
 		}

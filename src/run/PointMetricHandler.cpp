@@ -225,7 +225,7 @@ namespace lapis {
 
 		_nLaz = Raster<int>(*_getter->metricAlign());
 		for (const Extent& e : _getter->lasExtents()) {
-			for (cell_t cell : _nLaz.cellsFromExtent(e, SnapType::out)) {
+			for (cell_t cell : CellIterator(_nLaz, e, SnapType::out)) {
 				_nLaz[cell].has_value() = true;
 				_nLaz[cell].value()++;
 			}
@@ -259,7 +259,7 @@ namespace lapis {
 			_assignPointsToCalculators<false, true>(points);
 		}
 
-		for (cell_t cell : _nLaz.cellsFromExtent(e,SnapType::out)) {
+		for (cell_t cell : CellIterator(_nLaz,e,SnapType::out)) {
 			std::scoped_lock lock{ _getter->cellMutex(cell) };
 			_nLaz.atCellUnsafe(cell).value()--;
 			if (_nLaz.atCellUnsafe(cell).value() != 0) {

@@ -186,9 +186,6 @@ namespace lapis {
 		//Returns a list of cells which fall inside the given extent, after aligning with the given snaptype
 		std::vector<cell_t> cellsFromExtent(const Extent& e, const SnapType snap) const;
 
-		CellExtentIterator cellsFromExtentIterator(const Extent& e, const SnapType snap) const;
-		CellExtentIterator allCellsIterator() const;
-
 		//Returns the extent of the cell with the given index
 		Extent extentFromCell(const cell_t cell) const {
 			coord_t x = xFromCell(cell);
@@ -250,77 +247,62 @@ namespace lapis {
 		}
 	};
 
-	class CellExtentIterator {
+	class CellIterator {
 	public:
 		class iterator {
 		public:
-			iterator() : isEnd(true) {}
-			iterator(const CellExtentIterator& parent, cell_t cell) :
-				cell(cell), mincol(parent.extent.mincol), minrow(parent.extent.minrow),
-				maxcol(parent.extent.maxcol), maxrow(parent.extent.maxrow), nrow(parent.parent.nrow()),
-				ncol(parent.parent.ncol()), isEnd(false)
-			{
-				row = (rowcol_t)(cell / nrow);
-				col = cell % ncol;
-			}
-
-			iterator& operator++() {
-				if (col == maxcol) {
-					row++;
-					if (row > maxrow) {
-						isEnd = true;
-						return *this;
-					}
-					col = mincol;
-					cell = (cell_t)row * ncol + col;
-
-				}
-				else {
-					col++;
-					cell++;
-				}
-				return *this;
-			}
-			cell_t operator*() {
-				return cell;
+			iterator() : parent(nullptr), isEnd(true), row(-1), col(-1), rc() {}
+			iterator(const CellIterator& parent) : parent(&parent), isEnd(false) {
+				rc = parent._a.rowColExtent(parent._e, SnapType::near);
+				row = rc.minrow;
+				col = rc.mincol;
 			}
 			bool operator!=(const iterator& other) {
 				if (other.isEnd) {
 					return !isEnd;
 				}
-				return cell != other.cell;
+				if (isEnd) {
+					return !other.isEnd;
+				}
+				return row != other.row || col != other.col;
 			}
-		private:
-			cell_t cell = -1;
-			rowcol_t row = 0;
-			rowcol_t col = 0;
-			bool isEnd = false;
+			iterator& operator++() {
+				++col;
+				if (col > rc.maxcol) {
+					col = rc.mincol;
+					++row;
+				}
+				if (row > rc.maxrow) {
+					isEnd = true;
+				}
+				return *this;
+			}
+			cell_t operator*() {
+				return parent->_a.cellFromRowColUnsafe(row, col);
+			}
 
-			rowcol_t mincol = 0;
-			rowcol_t maxcol = 0;
-			rowcol_t minrow = 0;
-			rowcol_t maxrow = 0;
-			rowcol_t nrow = 0;
-			rowcol_t ncol = 0;
+		private:
+			Alignment::RowColExtent rc;
+			const CellIterator* parent;
+			rowcol_t row, col;
+			bool isEnd;
 		};
 
-		CellExtentIterator() : extent(), parent(), empty(true) {}
-		CellExtentIterator(Alignment::RowColExtent e, Alignment a) : extent(e), parent(a), empty(false) {}
+		CellIterator(Alignment a, Extent e, SnapType snap) : _a(a), _e(cropExtent(a.alignExtent(e, snap), a)) {}
+		CellIterator(Alignment a) : CellIterator(a, a, SnapType::near) {}
 		iterator begin() {
-			if (empty) {
+			if (_e.xmin() == _e.xmax() || _e.ymin() == _e.ymax()) {
 				return end();
 			}
-			return iterator(*this, parent.cellFromRowCol(extent.minrow, extent.mincol));
+			return iterator(*this);
 		}
 		iterator end() {
 			return iterator();
 		}
 
-
 	private:
-		Alignment::RowColExtent extent;
-		Alignment parent;
-		bool empty;
+		Alignment _a;
+		Extent _e;
 	};
 
 	inline std::ostream& operator<<(std::ostream& os, const Alignment& a) {
@@ -338,13 +320,5 @@ namespace lapis {
 	bool operator==(const Alignment& lhs, const Alignment& rhs);
 	bool operator!=(const Alignment& lhs, const Alignment& rhs);
 }
-
-
-/*
-xResInUnits()
-yResInUnits()
-?unsafe rc/xy/cell conversion
-mergeAlignment
-*/
 
 #endif

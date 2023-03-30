@@ -259,7 +259,7 @@ namespace lapis {
 				}
 				std::optional<Raster<coord_t>> demopt;
 
-				for (cell_t cell : out.cellsFromExtent(e, SnapType::out)) {
+				for (cell_t cell : CellIterator(out, e, SnapType::out)) {
 					if (out[cell].has_value()) {
 						continue;
 					}

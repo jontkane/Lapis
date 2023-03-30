@@ -34,7 +34,7 @@ namespace lapis {
 		auto testRaster = [&](const fs::path& file, metric_t expectedValue) {
 			ASSERT_TRUE(fs::exists(file));
 			Raster<metric_t> r{ file.string() };
-			for (cell_t cell : r.allCellsIterator()) {
+			for (cell_t cell : CellIterator(r)) {
 				EXPECT_TRUE(r[cell].has_value());
 				EXPECT_NEAR(r[cell].value(), expectedValue, 0.1) << file.string();
 				if (std::abs(r[cell].value() - expectedValue) > 0.1) {
@@ -48,7 +48,7 @@ namespace lapis {
 		auto testMultipleExpected = [&](const fs::path& file, std::vector<metric_t> expected) {
 			ASSERT_TRUE(fs::exists(file)) << file.string();
 			Raster<metric_t> r{ file.string() };
-			for (cell_t cell : r.allCellsIterator()) {
+			for (cell_t cell : CellIterator(r)) {
 				EXPECT_TRUE(r[cell].has_value());
 				metric_t minDiff = std::numeric_limits<metric_t>::max();
 				for (metric_t v : expected) {
@@ -155,7 +155,7 @@ testRaster(getPercentileName(firstReturns, pnames[i]), expectedPercentileFirstRe
 
 			ASSERT_TRUE(actual.isSameAlignment(expected));
 			std::string error = "Issue with CSM of " + name;
-			for (cell_t cell : actual.allCellsIterator()) {
+			for (cell_t cell : CellIterator(actual)) {
 				//Putting asserts here because if the raster has one error it likely has hundreds and I don't want it to flood the output
 				ASSERT_EQ(actual[cell].has_value(), expected[cell].has_value()) << error;
 				if (actual[cell].has_value()) {
