@@ -10,6 +10,11 @@ namespace lapis {
 		*this = TopoHandler(_getter);
 	}
 
+	bool TopoHandler::doThisProduct()
+	{
+		return _getter->doTopo();
+	}
+
 	std::string TopoHandler::name()
 	{
 		return "Topo";
@@ -22,10 +27,6 @@ namespace lapis {
 	void TopoHandler::prepareForRun()
 	{
 		tryRemove(topoDir());
-
-		if (!_getter->doTopo()) {
-			return;
-		}
 
 		_elevNumerator = Raster<coord_t>(*_getter->metricAlign());
 		_elevDenominator = Raster<coord_t>(*_getter->metricAlign());
@@ -46,14 +47,14 @@ namespace lapis {
 		_topoRadiusMetrics.emplace_back("TPI", topoPosIndex, oul::Default, 
 			ss.str());
 	}
-	void TopoHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
+	void TopoHandler::handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index)
+	{
+	}
+	void TopoHandler::finishLasFile(const Extent& e, size_t index)
 	{
 	}
 	void TopoHandler::handleDem(const Raster<coord_t>& dem, size_t index)
 	{
-		if (!_getter->doTopo()) {
-			return;
-		}
 
 		Raster<coord_t> coarseSum = aggregateSum<coord_t>(dem, *_getter->metricAlign());
 		_elevNumerator.overlay(coarseSum, [](coord_t a, coord_t b) {return a + b; });
@@ -66,11 +67,6 @@ namespace lapis {
 	}
 	void TopoHandler::cleanup()
 	{
-
-		if (!_getter->doTopo()) {
-			return;
-		}
-
 		Raster<coord_t> elev = _elevNumerator / _elevDenominator;
 		
 

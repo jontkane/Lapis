@@ -10,6 +10,11 @@ namespace lapis {
 		*this = TaoHandler(_getter);
 	}
 
+	bool TaoHandler::doThisProduct()
+	{
+		return _getter->doTaos();
+	}
+
 	std::string TaoHandler::name()
 	{
 		return "TAOs";
@@ -204,7 +209,10 @@ namespace lapis {
 		tryRemove(taoDir());
 		tryRemove(taoTempDir());
 	}
-	void TaoHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
+	void TaoHandler::handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index)
+	{
+	}
+	void TaoHandler::finishLasFile(const Extent& e, size_t index)
 	{
 	}
 	void TaoHandler::handleDem(const Raster<coord_t>& dem, size_t index)
@@ -213,9 +221,6 @@ namespace lapis {
 	void TaoHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
 	{
 		LapisLogger& log = LapisLogger::getLogger();
-		if (!_getter->doTaos()) {
-			return;
-		}
 		if (!bufferedCsm.hasAnyValue()) {
 			return;
 		}
@@ -250,10 +255,6 @@ namespace lapis {
 	}
 	void TaoHandler::cleanup()
 	{
-		if (!_getter->doTaos()) {
-			return;
-		}
-
 		cell_t sofar = 0;
 		std::vector<std::thread> threads;
 		for (int i = 0; i < _getter->nThread(); ++i) {
@@ -289,9 +290,6 @@ namespace lapis {
 	}
 	void TaoHandler::describeInPdf(MetadataPdf& pdf)
 	{
-		if (!_getter->doTaos()) {
-			return;
-		}
 		pdf.newPage();
 		pdf.writePageTitle("Tree-Approximate Objects");
 		pdf.writeTextBlockWithWrap("Tree-approximate objects (TAOs) represent Lapis' best guess at where individual trees are. The name TAO reflects "

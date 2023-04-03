@@ -71,9 +71,12 @@ namespace lapis {
 			addPoint(cell, (csm_t)cell);
 		}
 
-		Raster<csm_t> expected = spoof.csmAlgorithm()->createCsm(points, a);
+		auto csmMaker = spoof.csmAlgorithm()->getCsmMaker(a);
+		csmMaker->addPoints(points);
+		Raster<csm_t> expected = *csmMaker->currentCsm();
 
 		ch.handlePoints(points, lasExtent, 0);
+		ch.finishLasFile(lasExtent,0);
 
 		fs::path expectedPath = ch.getFullTempFilename(ch.csmTempDir(), "CanopySurfaceModel", OutputUnitLabel::Default, 0);
 

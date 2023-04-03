@@ -55,7 +55,10 @@ namespace lapis {
 		
 		Extent e{ 0,15,0,15,"2927"};
 
-		Raster<coord_t> dem = algo.normalizeToGround(lpv, e);
+		auto demApplier = algo.getApplier(e, e.crs());
+		Raster<coord_t> dem = *demApplier->getDem();
+
+		demApplier->normalizePointVector(lpv);
 
 		ASSERT_EQ(lpv.size(), 2);
 		EXPECT_NEAR(lpv[0].z, 10, 0.1);
@@ -81,7 +84,9 @@ namespace lapis {
 		lpv = freshPoints();
 		lpv.transform(CoordRef("2285"));
 		e = QuadExtent(e, CoordRef("2285")).outerExtent();
-		dem = algo.normalizeToGround(lpv, e);
+		demApplier = algo.getApplier(e, e.crs());
+		dem = *demApplier->getDem();
+		demApplier->normalizePointVector(lpv);
 
 		EXPECT_NEAR(dem.xres(), 1, 0.1);
 		EXPECT_NEAR(dem.yres(), 1, 0.1);
@@ -116,7 +121,10 @@ namespace lapis {
 
 		AlreadyNormalized algo;
 		algo.setMinMax(0, 100);
-		Raster<coord_t> dem = algo.normalizeToGround(lpv, Extent(0, 5, 0, 5));
+
+		auto applier = algo.getApplier(LasReader(Extent(0, 5, 0, 5)), CoordRef());
+		Raster<coord_t> dem = *applier->getDem();
+		applier->normalizePointVector(lpv);
 
 		EXPECT_TRUE(dem.xmin() <= 0);
 		EXPECT_TRUE(dem.xmax() >= 5);

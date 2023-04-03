@@ -52,7 +52,7 @@ namespace lapis {
 		std::filesystem::remove_all(testFolder + "/output"); //some other tests will write stuff here; they should clean up after themselves but just in case
 
 		auto expectVendorRaster = [&](size_t numberOfRasters) {
-			EXPECT_NE(dynamic_cast<VendorRaster<DemParameter>*>(rp().demAlgorithm()), nullptr);
+			EXPECT_NE(dynamic_cast<VendorRasterApplier<DemParameter>*>(rp().demAlgorithm(LasReader()).get()), nullptr);
 
 			size_t count = 0;
 			for (const Alignment& a : getRawParam<DemParameter>().demAligns()) {
@@ -71,7 +71,7 @@ namespace lapis {
 		expectVendorRaster(1);
 
 		prepareParamsAllowDems({ "--dem-algo=none" });
-		EXPECT_NE(dynamic_cast<AlreadyNormalized*>(rp().demAlgorithm()), nullptr);
+		EXPECT_NE(dynamic_cast<AlreadyNormalizedApplier*>(rp().demAlgorithm(LasReader()).get()), nullptr);
 	}
 
 	TEST_F(RunParametersTest, csmOptions) {

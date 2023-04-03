@@ -55,11 +55,10 @@ namespace lapis {
 
 		writeParams();
 		LAPIS_CHECK_ABORT_AND_DEALLOC;
-		
-		rp.demAlgorithm()->setMinMax(rp.minHt(), rp.maxHt());
 
 		for (auto& p : _handlers()) {
-			p->prepareForRun();
+			if (p->doThisProduct())
+				p->prepareForRun();
 		}
 		writeMetadata(); //this call has to happen in between preparing for the run and cleaning up
 
@@ -233,7 +232,8 @@ namespace lapis {
 		rp.describeParameters(pdf);
 
 		for (auto& handler : _handlers()) {
-			handler->describeInPdf(pdf);
+			if (handler->doThisProduct())
+				handler->describeInPdf(pdf);
 		}
 
 		namespace fs = std::filesystem;
@@ -265,37 +265,38 @@ namespace lapis {
 		catch (InvalidLasFileException e) {
 			log.logMessage(e.what());
 		}
-		LAPIS_CHECK_ABORT;
-
-		log.beginBenchmarkTimer("Read Points");
-		LidarPointVector points = lr.getPoints(lr.nPoints());
-		if (points.size() == 0) {
-			log.logMessage("No points passed filters in las file " + std::to_string(n) + ". Perhaps an issue with the file?");
-		}
-		log.endBenchmarkTimer("Read Points");
-		LAPIS_CHECK_ABORT;
-
-		log.beginBenchmarkTimer("Transform Points");
 		Extent projectedExtent = QuadExtent(lr, rp.metricAlign()->crs()).outerExtent();
-		points.transform(projectedExtent.crs());
-		log.endBenchmarkTimer("Transform Points");
-		
-		log.beginBenchmarkTimer("Normalize Points");
-		//also normalizes the point in-place
-		Raster<coord_t> ground = rp.demAlgorithm()->normalizeToGround(points, projectedExtent);
-		if (points.size() == 0) {
-			log.logMessage("No points successfully normalized in las file " + std::to_string(n) + ". Perhaps an issue with the ground models or with the units?");
+		LAPIS_CHECK_ABORT;
+
+		std::unique_ptr<DemAlgoApplier> pointGetter = rp.demAlgorithm(std::move(lr));
+
+		const size_t nPoints = 100ll * 1024ll * 1024ll / sizeof(LasPoint); //100 mb per thread
+
+		size_t totalPoints = 0;
+		while (pointGetter->pointsRemaining()) {
+			std::span<LasPoint> view = pointGetter->getPoints(nPoints);
+			totalPoints += view.size();
+			for (auto& handler : _handlers()) {
+				if (handler->doThisProduct())
+					handler->handlePoints(view, projectedExtent, n);
+			}
+		}
+
+		//crop ground here
+		if (totalPoints == 0) {
+			log.logMessage("No points passed filters in las file " + std::to_string(n) + ". Perhaps an issue with the ground models or with the units?");
 		}
 		LAPIS_CHECK_ABORT;
-		log.endBenchmarkTimer("Normalize Points");
 
-		for (size_t i = 0; i < _handlers().size(); ++i) {
-			log.beginBenchmarkTimer(_handlers()[i]->name());
-			_handlers()[i]->handlePoints(points, projectedExtent, n);
-			_handlers()[i]->handleDem(ground, n);
-			LAPIS_CHECK_ABORT;
-			log.endBenchmarkTimer(_handlers()[i]->name());
+		Raster<coord_t> croppedDem = cropRaster(*pointGetter->getDem(), projectedExtent, SnapType::near);
+
+		for (auto& handler : _handlers()) {
+			if (handler->doThisProduct()) {
+				handler->finishLasFile(projectedExtent, n);
+				handler->handleDem(croppedDem, n);
+			}
 		}
+
 		log.endBenchmarkTimer("Las File");
 		LapisLogger::getLogger().incrementTask("Las File Finished");
 	}
@@ -328,8 +329,9 @@ namespace lapis {
 		v.has_value() = true;
 		v.value() = true;
 
-		for (size_t i = 0; i < _handlers().size(); ++i) {
-			_handlers()[i]->handleCsmTile(bufferedCsm, tile);
+		for (auto& handler : _handlers()) {
+			if (handler->doThisProduct())
+				handler->handleCsmTile(bufferedCsm, tile);
 			LAPIS_CHECK_ABORT;
 		}
 
@@ -339,9 +341,10 @@ namespace lapis {
 	void LapisController::cleanUp()
 	{
 		writeLayout();
-		for (size_t i = 0; i < _handlers().size(); ++i) {
+		for (auto& handler : _handlers()) {
+			if (handler->doThisProduct())
+				handler->cleanup();
 			LAPIS_CHECK_ABORT;
-			_handlers()[i]->cleanup();
 		}
 	}
 

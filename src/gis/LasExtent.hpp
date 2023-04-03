@@ -24,7 +24,7 @@ namespace lapis {
 		}
 
 	protected:
-		std::uint64_t _nPoints;
+		std::uint64_t _nPoints = 0;
 	};
 
 }

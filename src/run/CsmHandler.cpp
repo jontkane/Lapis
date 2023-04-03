@@ -11,6 +11,11 @@ namespace lapis {
 		*this = CsmHandler(_getter);
 	}
 
+	bool CsmHandler::doThisProduct()
+	{
+		return _getter->doCsm();
+	}
+
 	std::string CsmHandler::name()
 	{
 		return "CSM";
@@ -32,24 +37,24 @@ namespace lapis {
 		}
 		_initMetrics();
 	}
-	void CsmHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
+	void CsmHandler::handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index)
 	{
-		if (!_getter->doCsm()) {
-			return;
+		if (!_csmGenerators.contains(index)) {
+			Alignment thisAlign = cropAlignment(*_getter->csmAlign(), e, SnapType::out);
+			_csmGenerators.emplace(index, _getter->csmAlgorithm()->getCsmMaker(thisAlign));
 		}
-
-		Raster<csm_t> csm = _getter->csmAlgorithm()->createCsm(points, cropAlignment(*_getter->csmAlign(), e, SnapType::out));
-
-		writeRasterLogErrors(getFullTempFilename(csmTempDir(), _csmBaseName, OutputUnitLabel::Default, index), csm);
+		_csmGenerators[index]->addPoints(points);
+	}
+	void CsmHandler::finishLasFile(const Extent& e, size_t index)
+	{
+		writeRasterLogErrors(getFullTempFilename(csmTempDir(), _csmBaseName, OutputUnitLabel::Default, index), *_csmGenerators[index]->currentCsm());
+		_csmGenerators.erase(index);
 	}
 	void CsmHandler::handleDem(const Raster<coord_t>& dem, size_t index)
 	{
 	}
 	void CsmHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
 	{
-		if (!_getter->doCsm()) {
-			return;
-		}
 		for (CSMMetricRaster& metric : _csmMetrics) {
 			Raster<metric_t> tileMetric = aggregate<metric_t, csm_t>(bufferedCsm, cropAlignment(*_getter->metricAlign(), bufferedCsm, SnapType::out), metric.fun);
 			metric.raster.overlayInside(tileMetric);
@@ -62,9 +67,6 @@ namespace lapis {
 	}
 	void CsmHandler::cleanup()
 	{
-		if (!_getter->doCsm()) {
-			return;
-		}
 		tryRemove(csmTempDir());
 		deleteTempDirIfEmpty();
 
@@ -76,9 +78,6 @@ namespace lapis {
 
 	void CsmHandler::describeInPdf(MetadataPdf& pdf)
 	{
-		if (!_getter->doCsm()) {
-			return;
-		}
 		pdf.newPage();
 		pdf.writePageTitle("Canopy Surface Model");
 		pdf.writeSubsectionTitle("Overall Description");

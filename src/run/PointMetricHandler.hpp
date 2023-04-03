@@ -11,11 +11,13 @@ namespace lapis {
 		PointMetricHandler(ParamGetter* p);
 
 		void prepareForRun() override;
-		void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) override;
+		void handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index) override;
+		void finishLasFile(const Extent& e, size_t index) override;
 		void handleDem(const Raster<coord_t>& dem, size_t index) override;
 		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
 		void cleanup() override;
 		void reset() override;
+		bool doThisProduct() override;
 		std::string name() override;
 		static size_t handlerRegisteredIndex;
 
@@ -71,7 +73,7 @@ namespace lapis {
 		ParamGetter* _getter;
 
 		template<bool ALL_RETURNS, bool FIRST_RETURNS>
-		void _assignPointsToCalculators(const LidarPointVector& points);
+		void _assignPointsToCalculators(const std::span<LasPoint>& points);
 		void _writePointMetricRasters(const std::filesystem::path& dir, ReturnType r);
 		void _processPMCCell(cell_t cell, PointMetricCalculator& pmc, ReturnType r);
 

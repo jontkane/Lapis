@@ -44,7 +44,7 @@ namespace lapis {
 		const std::vector<Extent>& lasExtents();
 		LasReader getLas(size_t i);
 
-		DemAlgorithm* demAlgorithm();
+		std::unique_ptr<DemAlgoApplier> demAlgorithm(LasReader&& l);
 
 		const Extent& fullExtent();
 		const CoordRef& userCrs();

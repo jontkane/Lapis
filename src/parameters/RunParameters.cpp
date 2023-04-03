@@ -178,9 +178,11 @@ namespace lapis {
 		}
 		return l;
 	}
-	DemAlgorithm* RunParameters::demAlgorithm() 
+	std::unique_ptr<DemAlgoApplier> RunParameters::demAlgorithm(LasReader&& l)
 	{
-		return getParam<DemParameter>().demAlgorithm();
+		auto x = getParam<DemParameter>().demAlgorithm();
+		x->setMinMax(minHt(), maxHt());
+		return x->getApplier(std::move(l), userCrs());
 	}
 	int RunParameters::nThread() 
 	{
@@ -247,7 +249,7 @@ namespace lapis {
 	{
 		getParam<FilterParameter>().describeInPdf(pdf);
 		getParam<AlignmentParameter>().describeInPdf(pdf);
-		demAlgorithm()->describeInPdf(pdf);
+		getParam<DemParameter>().demAlgorithm()->describeInPdf(pdf);
 	}
 
 	coord_t RunParameters::fineIntCanopyCutoff() {

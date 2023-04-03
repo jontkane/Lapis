@@ -24,11 +24,13 @@ namespace lapis {
 		virtual void prepareForRun() = 0;
 		//this function can assume that all points pass all filters, are normalized to the ground
 		//are in the same projection (including Z units) as the extent, and are contained in the extent
-		virtual void handlePoints(const LidarPointVector& points, const Extent& e, size_t index) = 0;
+		virtual void handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index) = 0;
+		virtual void finishLasFile(const Extent& e, size_t index) = 0;
 		virtual void handleDem(const Raster<coord_t>& dem, size_t index) = 0;
 		virtual void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) = 0;
 		virtual void cleanup() = 0;
 		virtual void reset() = 0;
+		virtual bool doThisProduct() = 0;
 		virtual std::string name() = 0;
 
 		virtual void describeInPdf(MetadataPdf& pdf) = 0;
