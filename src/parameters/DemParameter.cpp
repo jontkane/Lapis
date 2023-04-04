@@ -252,9 +252,16 @@ namespace lapis {
 
 
 		for (size_t i = 0; i < _demFileAligns.size(); ++i) {
+
+			std::optional<CoordTransform> tr;
+				
+			if (!_demFileAligns[i].align.crs().isConsistentHoriz(out.crs())) {
+				tr = CoordTransform(out.crs(), _demFileAligns[i].align.crs());
+			}
+
 			Extent e = QuadExtent(_demFileAligns[i].align,layout.crs()).outerExtent();
 			for (cell_t tile = 0; tile < layout.ncell(); ++tile) {
-				if (!e.overlaps(layout.extentFromCell(tile))) {
+				if (!e.overlapsUnsafe(layout.extentFromCell(tile))) {
 					continue;
 				}
 				std::optional<Raster<coord_t>> demopt;
@@ -269,10 +276,14 @@ namespace lapis {
 						if (!demopt.has_value()) {
 							break;
 						}
-						demopt.value() = demopt.value().transformRaster(out.crs(), ExtractMethod::bilinear);
 					}
 
-					auto v = demopt.value().extract(out.xFromCell(cell), out.yFromCell(cell), ExtractMethod::bilinear);
+					CoordXY xy{ out.xFromCellUnsafe(cell),out.yFromCellUnsafe(cell) };
+					if (tr) {
+						xy = tr.value().transformSingleXY(xy.x, xy.y);
+					}
+
+					auto v = demopt.value().extract(xy.x,xy.y, ExtractMethod::bilinear);
 					if (v.has_value()) {
 						out[cell].has_value() = true;
 						out[cell].value() = v.value();
