@@ -237,7 +237,8 @@ namespace lapis {
 		}
 
 		namespace fs = std::filesystem;
-		fs::path pdfFileName = rp.outFolder() / (rp.name() + "_Lapis_Metadata.pdf");
+		std::string name = rp.name().size() ? rp.name() + "_" : "";
+		fs::path pdfFileName = rp.outFolder() / (name + "Lapis_Metadata.pdf");
 		if (fs::exists(pdfFileName)) {
 			fs::remove(pdfFileName);
 		}
