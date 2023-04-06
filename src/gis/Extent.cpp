@@ -135,7 +135,7 @@ namespace lapis {
 		return xoverlap && yoverlap;
 	}
 
-	void Extent::setZUnits(Unit zUnits) {
+	void Extent::setZUnits(LinearUnit zUnits) {
 		_crs.setZUnits(zUnits);
 	}
 

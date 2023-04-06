@@ -55,19 +55,19 @@ namespace lapis {
 		class LasOpener {
 		public:
 
-			LasOpener(const CoordRef& crsOverride, const Unit& unitOverride);
+			LasOpener(const CoordRef& crsOverride, const LinearUnit& unitOverride);
 
 			LasFileExtent operator()(const std::filesystem::path& f) const;
 
 		private:
 			const CoordRef& _crsOverride;
-			const Unit& _unitOverride;
+			const LinearUnit& _unitOverride;
 		};
 		friend bool operator<(const LasFileParameter::LasFileExtent& a, const LasFileParameter::LasFileExtent& b);
 
 		bool _runPrepared = false;
 
-		RadioSelect<UnitDecider, Unit> _unit{ "Vertical units in laz files:","las-units" };
+		RadioSelect<UnitDecider, LinearUnit> _unit{ "Vertical units in laz files:","las-units" };
 		CRSInput _crs{ "Laz CRS:","las-crs","Infer from files" };
 		bool _displayCrsWindow = false;
 

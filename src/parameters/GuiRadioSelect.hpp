@@ -183,7 +183,7 @@ namespace lapis {
 		}
 	};
 
-	using UnitRadioSelect = RadioSelect<UnitDecider, Unit>;
+	using UnitRadioSelect = RadioSelect<UnitDecider, LinearUnit>;
 }
 
 #endif

@@ -44,17 +44,17 @@ namespace lapis {
 			, "2927+5703"
 			, "4269"
 		};
-		std::vector<Unit> expected = {
-			LinearUnitDefs::unkLinear
-			, Unit{"US survey foot",0.30480060960122,unitType::linear, unitStatus::statedInCRS}
-			, Unit{"metre",1.,unitType::linear,unitStatus::statedInCRS }
-			, Unit{"US survey foot",0.30480060960122,unitType::linear, unitStatus::statedInCRS}
-			, Unit{"degree", 0.0174532925199433, unitType::angular, unitStatus::statedInCRS}
+		std::vector<LinearUnit> expected = {
+			linearUnitPresets::unknownLinear
+			, LinearUnit{"US survey foot",0.30480060960122,unitType::linear, unitStatus::statedInCRS}
+			, LinearUnit{"metre",1.,unitType::linear,unitStatus::statedInCRS }
+			, LinearUnit{"US survey foot",0.30480060960122,unitType::linear, unitStatus::statedInCRS}
+			, LinearUnit{"degree", 0.0174532925199433, unitType::angular, unitStatus::statedInCRS}
 		};
 
 		for (int i = 0; i < source.size(); ++i) {
 			CoordRef crs{ source[i] };
-			Unit xy = crs.getXYUnits();
+			LinearUnit xy = crs.getXYUnits();
 			EXPECT_EQ(xy.name, expected[i].name);
 			EXPECT_NEAR(xy.convFactor, expected[i].convFactor, 0.0000001);
 			EXPECT_EQ(xy.status, expected[i].status);
@@ -65,23 +65,23 @@ namespace lapis {
 	TEST(CoordRefTest, zUnits) {
 		std::vector<CoordRef> source = {
 			""
-			, CoordRef("",LinearUnitDefs::foot)
+			, CoordRef("",linearUnitPresets::internationalFoot)
 			, "2927"
 			, "2927+5703"
-			, CoordRef("2927",LinearUnitDefs::meter)
+			, CoordRef("2927",linearUnitPresets::meter)
 			, "4269"
 		};
-		std::vector<Unit> expected = {
-			LinearUnitDefs::unkLinear
-			, LinearUnitDefs::foot
-			, Unit{"US survey foot",0.30480060960122,unitType::linear, unitStatus::inferredFromCRS}
-			, Unit{ "metre",1.,unitType::linear,unitStatus::statedInCRS }
-			, LinearUnitDefs::meter
-			, LinearUnitDefs::unkLinear
+		std::vector<LinearUnit> expected = {
+			linearUnitPresets::unknownLinear
+			, linearUnitPresets::internationalFoot
+			, LinearUnit{"US survey foot",0.30480060960122,unitType::linear, unitStatus::inferredFromCRS}
+			, LinearUnit{ "metre",1.,unitType::linear,unitStatus::statedInCRS }
+			, linearUnitPresets::meter
+			, linearUnitPresets::unknownLinear
 		};
 
 		for (int i = 0; i < source.size(); ++i) {
-			const Unit& z = source[i].getZUnits();
+			const LinearUnit& z = source[i].getZUnits();
 			EXPECT_EQ(z.name, expected[i].name);
 			EXPECT_NEAR(z.convFactor, expected[i].convFactor, 0.0000001);
 			EXPECT_EQ(z.status, expected[i].status);
@@ -120,8 +120,8 @@ namespace lapis {
 			, "2927+5703"
 			, "4269"
 			, "6340+5702"
-			, CoordRef("6340",LinearUnitDefs::meter)
-			, CoordRef("6340+5703",LinearUnitDefs::foot)
+			, CoordRef("6340",linearUnitPresets::meter)
+			, CoordRef("6340+5703",linearUnitPresets::internationalFoot)
 		};
 		std::vector<bool> expected = {
 			true

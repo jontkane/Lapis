@@ -62,7 +62,7 @@ namespace lapis {
 		/*eventually, some sort of version of contains that accounts for projections will go here*/
 
 		//functions for modifying the crs
-		void setZUnits(Unit zUnits);
+		void setZUnits(LinearUnit zUnits);
 		void defineCRS(const CoordRef& crs);
 		void defineCRS(CoordRef&& crs);
 

@@ -19,15 +19,15 @@ namespace lapis {
 	RunParameters::RunParameters()
 	{
 	}
-	void RunParameters::setPrevUnits(const Unit& u)
+	void RunParameters::setPrevUnits(const LinearUnit& u)
 	{
 		_prevUnits = u;
 	}
-	const Unit& RunParameters::outUnits() 
+	const LinearUnit& RunParameters::outUnits() 
 	{
 		return getParam<OutUnitParameter>().unit();
 	}
-	const Unit& RunParameters::prevUnits() 
+	const LinearUnit& RunParameters::prevUnits() 
 	{
 		return _prevUnits;
 	}
@@ -85,7 +85,7 @@ namespace lapis {
 	}
 	void RunParameters::resetObject() {
 
-		_prevUnits = LinearUnitDefs::meter;
+		_prevUnits = linearUnitPresets::meter;
 		_cellMuts.reset();
 		for (size_t i = 0; i < _params.size(); ++i) {
 			_params[i]->reset();
@@ -190,7 +190,7 @@ namespace lapis {
 	}
 	coord_t RunParameters::binSize()
 	{
-		return convertUnits(0.01, LinearUnitDefs::meter, outUnits());
+		return convertUnits(0.01, linearUnitPresets::meter, outUnits());
 	}
 	size_t RunParameters::tileFileSize() 
 	{
@@ -533,7 +533,7 @@ namespace lapis {
 			lasExtents[i] = QuadExtent(lasExtents[i], outCrs).outerExtent();
 			fullExtent = extendExtent(fullExtent, lasExtents[i]);
 		}
-		coord_t cellsize = convertUnits(30, LinearUnitDefs::meter, outCrs.getXYUnits());
+		coord_t cellsize = convertUnits(30, linearUnitPresets::meter, outCrs.getXYUnits());
 		Alignment fullAlign = Alignment(fullExtent, 0, 0, cellsize, cellsize);
 		Raster<bool> lasCovers{ fullAlign };
 		Raster<bool> demCovers{ fullAlign };

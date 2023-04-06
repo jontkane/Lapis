@@ -97,7 +97,7 @@ namespace lapis {
 		EXPECT_TRUE(rp().doCsmMetrics());
 
 		prepareParamsNoSlowStuff({"--user-units=ft"});
-		checkCsm(convertUnits(defaultRes, LinearUnitDefs::meter, LinearUnitDefs::foot));
+		checkCsm(convertUnits(defaultRes, linearUnitPresets::meter, linearUnitPresets::internationalFoot));
 
 		prepareParamsNoSlowStuff({"--csm-cellsize=0.5"});
 		checkCsm(0.5);
@@ -174,8 +174,8 @@ namespace lapis {
 		EXPECT_TRUE(classSet.contains(12));
 		EXPECT_TRUE(classSet.contains(17));
 
-		EXPECT_NEAR(convertUnits(defaultMin, LinearUnitDefs::meter, LinearUnitDefs::foot),rp().minHt(), 0.0001);
-		EXPECT_NEAR(convertUnits(defaultMax, LinearUnitDefs::meter, LinearUnitDefs::foot), rp().maxHt(), 0.0001);
+		EXPECT_NEAR(convertUnits(defaultMin, linearUnitPresets::meter, linearUnitPresets::internationalFoot),rp().minHt(), 0.0001);
+		EXPECT_NEAR(convertUnits(defaultMax, linearUnitPresets::meter, linearUnitPresets::internationalFoot), rp().maxHt(), 0.0001);
 
 		prepareParamsNoSlowStuff({ "--minht=200","--maxht=5000" });
 		EXPECT_EQ(200, rp().minHt());
@@ -200,7 +200,7 @@ namespace lapis {
 			"--las=" + testFileFolder + "/testlaz14.laz", "--las-crs=2286","--las-units=m", "--debug-no-output" });
 		const auto& extentstwo = rp().lasExtents();
 		EXPECT_EQ(extentstwo.size(), 2);
-		crs = CoordRef("2286", LinearUnitDefs::meter);
+		crs = CoordRef("2286", linearUnitPresets::meter);
 		for (size_t i = 0; i < extentstwo.size(); ++i) {
 			EXPECT_TRUE(extentstwo[i].crs().isConsistentHoriz(crs));
 			EXPECT_TRUE(extentstwo[i].crs().isConsistentZUnits(crs));
@@ -219,10 +219,10 @@ namespace lapis {
 			return std::min(origin, std::abs(res - origin));
 		};
 
-		EXPECT_NEAR(convertUnits(defaultCellSize, LinearUnitDefs::meter, crs.getXYUnits()), metricAlign.xres(),0.01);
-		EXPECT_NEAR(convertUnits(defaultCellSize, LinearUnitDefs::meter, crs.getXYUnits()), metricAlign.yres(), 0.01);
-		EXPECT_NEAR(convertUnits(defaultOrigin, LinearUnitDefs::meter, crs.getXYUnits()), roundOriginToZero(metricAlign.xOrigin(),metricAlign.xres()), 0.01);
-		EXPECT_NEAR(convertUnits(defaultOrigin, LinearUnitDefs::meter, crs.getXYUnits()), roundOriginToZero(metricAlign.yOrigin(),metricAlign.yres()), 0.01);
+		EXPECT_NEAR(convertUnits(defaultCellSize, linearUnitPresets::meter, crs.getXYUnits()), metricAlign.xres(),0.01);
+		EXPECT_NEAR(convertUnits(defaultCellSize, linearUnitPresets::meter, crs.getXYUnits()), metricAlign.yres(), 0.01);
+		EXPECT_NEAR(convertUnits(defaultOrigin, linearUnitPresets::meter, crs.getXYUnits()), roundOriginToZero(metricAlign.xOrigin(),metricAlign.xres()), 0.01);
+		EXPECT_NEAR(convertUnits(defaultOrigin, linearUnitPresets::meter, crs.getXYUnits()), roundOriginToZero(metricAlign.yOrigin(),metricAlign.yres()), 0.01);
 
 		Alignment fileAlign{ testFileFolder + "/testRaster.tif" };
 		prepareParams({ "--las=" + testFileFolder + "/testlaz10.laz",
@@ -239,15 +239,15 @@ namespace lapis {
 			"--out-crs=2286", "--user-units=m","--cellsize=20","--xorigin=10","--yorigin=5", "--debug-no-output" });
 		metricAlign = *rp().metricAlign();
 		EXPECT_TRUE(metricAlign.crs().isConsistentHoriz(CoordRef("2286")));
-		EXPECT_NEAR(convertUnits(20, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
-		EXPECT_NEAR(convertUnits(20, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yres(), 0.0001);
-		EXPECT_NEAR(convertUnits(10, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xOrigin(), 0.0001);
-		EXPECT_NEAR(convertUnits(5, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yOrigin(), 0.0001);
+		EXPECT_NEAR(convertUnits(20, linearUnitPresets::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
+		EXPECT_NEAR(convertUnits(20, linearUnitPresets::meter, metricAlign.crs().getXYUnits()), metricAlign.yres(), 0.0001);
+		EXPECT_NEAR(convertUnits(10, linearUnitPresets::meter, metricAlign.crs().getXYUnits()), metricAlign.xOrigin(), 0.0001);
+		EXPECT_NEAR(convertUnits(5, linearUnitPresets::meter, metricAlign.crs().getXYUnits()), metricAlign.yOrigin(), 0.0001);
 
 		prepareParams({ "--las=" + testFileFolder + "/testlaz10.laz", "--out-crs=2286", "--user-units=m","--yres=9","--xres=7", "--debug-no-output" });
 		metricAlign = *rp().metricAlign();
-		EXPECT_NEAR(convertUnits(7, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
-		EXPECT_NEAR(convertUnits(9, LinearUnitDefs::meter, metricAlign.crs().getXYUnits()), metricAlign.yres(), 0.0001);
+		EXPECT_NEAR(convertUnits(7, linearUnitPresets::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
+		EXPECT_NEAR(convertUnits(9, linearUnitPresets::meter, metricAlign.crs().getXYUnits()), metricAlign.yres(), 0.0001);
 	}
 
 	TEST_F(RunParametersTest, computerOptions) {

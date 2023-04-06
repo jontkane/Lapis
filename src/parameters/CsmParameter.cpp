@@ -77,13 +77,13 @@ namespace lapis {
 		RunParameters& rp = RunParameters::singleton();
 		LapisLogger& log = LapisLogger::getLogger();
 		const Alignment& metricAlign = *rp.metricAlign();
-		const Unit& u = rp.outUnits();
+		const LinearUnit& u = rp.outUnits();
 
 
 		if (!rp.doCsm()) {
 			//there's a few random places in the code that use the csm alignment even if the csm isn't being calculated
 			//if the csm is turned off, so we don't have its parameters, just default to 1 meter cellsize
-			coord_t cellsize = convertUnits(1, u, metricAlign.crs().getXYUnits());
+			coord_t cellsize = linearUnitPresets::meter.convertOneFromThis(1, metricAlign.crs().getXYLinearUnits());
 			_csmAlign = std::make_shared<Alignment>(metricAlign, metricAlign.xOrigin(), metricAlign.yOrigin(), cellsize, cellsize);
 			_runPrepared = true;
 			return true;
@@ -120,7 +120,7 @@ namespace lapis {
 
 		_csmAlgorithm = std::make_unique<MaxPoint>(_footprintDiameter.getValueLogErrors());
 
-		coord_t lookDist = convertUnits(5, LinearUnitDefs::meter, _csmAlign->crs().getXYUnits());
+		coord_t lookDist = convertUnits(5, linearUnitPresets::meter, _csmAlign->crs().getXYUnits());
 		if (_smooth.currentSelection() > 1 && _fill.currentState()) {
 			_csmPostProcessor = std::make_unique<SmoothAndFill>(_smooth.currentSelection(), 6, lookDist);
 		}

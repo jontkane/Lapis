@@ -61,10 +61,10 @@ namespace lapis {
 			"Lapis cannot currently create its own ground model.\n\n"
 			"If your rasters are in ESRI grid format, select the folder itself.");
 
-		_unit.addOption("Same as Horizontal Units", UnitRadio::UNKNOWN, LinearUnitDefs::unkLinear);
-		_unit.addOption("Meters", UnitRadio::METERS, LinearUnitDefs::meter);
-		_unit.addOption("International Feet", UnitRadio::INTFEET, LinearUnitDefs::foot);
-		_unit.addOption("US Survey Feet", UnitRadio::USFEET, LinearUnitDefs::surveyFoot);
+		_unit.addOption("Same as Horizontal Units", UnitRadio::UNKNOWN, linearUnitPresets::unknownLinear);
+		_unit.addOption("Meters", UnitRadio::METERS, linearUnitPresets::meter);
+		_unit.addOption("International Feet", UnitRadio::INTFEET, linearUnitPresets::internationalFoot);
+		_unit.addOption("US Survey Feet", UnitRadio::USFEET, linearUnitPresets::usSurveyFoot);
 
 		_demAlgo.addOption("Provide pre-made DEM rasters", DemAlgo::VENDORRASTER, DemAlgo::VENDORRASTER);
 		_demAlgo.addOption("This data represents height above ground, not elevation above sea level (uncommon)",
@@ -212,13 +212,11 @@ namespace lapis {
 		std::optional<Raster<coord_t>> outopt{ std::in_place, _demFileAligns[n].file.string(), projE, SnapType::out};
 		Raster<coord_t>& out = outopt.value();
 		const CoordRef& crsOverride = _crs.cachedCrs();
-		const Unit& unitOverride = _unit.currentSelection();
+		const LinearUnit& unitOverride = _unit.currentSelection();
 		if (!crsOverride.isEmpty()) {
 			out.defineCRS(crsOverride);
 		}
-		if (!unitOverride.isUnknown()) {
-			out.setZUnits(unitOverride);
-		}
+		out.setZUnits(unitOverride);
 		return outopt;
 	}
 	Raster<coord_t> DemParameter::bufferElevation(const Raster<coord_t>& unbuffered, const Extent& desired)
@@ -293,7 +291,7 @@ namespace lapis {
 		}
 		return out;
 	}
-	DemParameter::DemOpener::DemOpener(const CoordRef& crsOverride, const Unit& unitOverride)
+	DemParameter::DemOpener::DemOpener(const CoordRef& crsOverride, const LinearUnit& unitOverride)
 		:_crsOverride(crsOverride), _unitOverride(unitOverride)
 	{
 	}
@@ -308,9 +306,7 @@ namespace lapis {
 		if (!_crsOverride.isEmpty()) {
 			a.defineCRS(_crsOverride);
 		}
-		if (!_unitOverride.isUnknown()) {
-			a.setZUnits(_unitOverride);
-		}
+		a.setZUnits(_unitOverride);
 		return { f,a };
 	}
 	int DemParameter::DemAlgoDecider::operator()(const std::string& s) const

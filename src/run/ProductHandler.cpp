@@ -41,13 +41,13 @@ namespace lapis {
 		std::string unitString;
 		using oul = OutputUnitLabel;
 		if (u == oul::Default) {
-			Unit outUnit = _sharedGetter->outUnits();
+			LinearUnit outUnit = _sharedGetter->outUnits();
 			std::regex meterregex{ ".*met.*",std::regex::icase };
 			std::regex footregex{ ".*f(o|e)(o|e)t.*",std::regex::icase };
-			if (std::regex_match(outUnit.name, meterregex)) {
+			if (std::regex_match(outUnit.name(), meterregex)) {
 				unitString = "_Meters";
 			}
-			else if (std::regex_match(outUnit.name, footregex)) {
+			else if (std::regex_match(outUnit.name(), footregex)) {
 				unitString = "_Feet";
 			}
 		}

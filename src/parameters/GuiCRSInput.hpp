@@ -22,7 +22,7 @@ namespace lapis {
 		void renderDisplayString() const;
 		void reset();
 		void setCrs(const CoordRef& crs);
-		void setZUnits(const Unit& zUnits);
+		void setZUnits(const LinearUnit& zUnits);
 
 	private:
 		static constexpr size_t LAPIS_CRS_BUFFER_SIZE = 10000;

@@ -35,9 +35,9 @@ namespace lapis {
 		template<class PARAMETER>
 		const PARAMETER& getParam() const;
 
-		const Unit& outUnits();
-		void setPrevUnits(const Unit& u);
-		const Unit& prevUnits();
+		const LinearUnit& outUnits();
+		void setPrevUnits(const LinearUnit& u);
+		const LinearUnit& prevUnits();
 		const std::string& unitSingular();
 		const std::string& unitPlural();
 
@@ -124,7 +124,7 @@ namespace lapis {
 		RunParameters(RunParameters&&) = delete;
 		std::vector<std::unique_ptr<Parameter>> _params;
 
-		Unit _prevUnits;
+		LinearUnit _prevUnits;
 
 		size_t _cellMutCount = 10000;
 		std::unique_ptr<std::vector<std::mutex>> _cellMuts;

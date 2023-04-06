@@ -15,7 +15,7 @@ namespace lapis {
 
 		virtual ~SharedParameterGetter() = default;
 
-		virtual const Unit& outUnits() = 0;
+		virtual const LinearUnit& outUnits() = 0;
 		virtual const std::string& unitSingular() = 0;
 		virtual const std::string& unitPlural() = 0;
 		virtual const std::shared_ptr<Alignment> metricAlign() = 0;

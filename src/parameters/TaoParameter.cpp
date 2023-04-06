@@ -122,8 +122,8 @@ namespace lapis {
 		}
 
 		RunParameters& rp = RunParameters::singleton();
-		Unit outXYUnits = rp.userCrs().getXYUnits();
-		Unit userXYUnits = rp.outUnits();
+		LinearUnit outXYUnits = rp.userCrs().getXYUnits();
+		LinearUnit userXYUnits = rp.outUnits();
 
 		switch (_idAlgo.currentSelection()) {
 		case IdAlgo::HIGHPOINT:
