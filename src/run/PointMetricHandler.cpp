@@ -37,9 +37,7 @@ namespace lapis {
 
 		for (PointMetricRasters& v : _pointMetrics) {
 			MetricFunc& f = v.fun;
-			if (_getter->doAllReturnMetrics()) {
-				(pmc.*f)(v.rasters.get(r), cell);
-			}
+			(pmc.*f)(v.rasters.get(r), cell);
 		}
 		for (StratumMetricRasters& v : _stratumMetrics) {
 			StratumFunc& f = v.fun;
