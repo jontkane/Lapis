@@ -135,7 +135,7 @@ namespace lapis {
 
 	bool CoordRef::isProjected() const {
 		if (isEmpty()) {
-			throw EmptyCRSException("");
+			return true;
 		}
 		PJ_TYPE t = proj_get_type(_p.ptr());
 		if (t == PJ_TYPE_PROJECTED_CRS) {

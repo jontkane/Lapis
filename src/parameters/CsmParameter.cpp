@@ -107,7 +107,7 @@ namespace lapis {
 			log.logMessage("Pulse diameter is too large for your CSM resolution. Increase CSM cellsize or reduce pulse diameter.");
 		}
 
-		coord_t cellsize = convertUnits(_cellsize.getValueLogErrors(), u, metricAlign.crs().getXYUnits());
+		coord_t cellsize = u.convertOneFromThis(_cellsize.getValueLogErrors(), metricAlign.crs().getXYLinearUnits());
 		Alignment csmAlign{ metricAlign, metricAlign.xOrigin(), metricAlign.yOrigin(), cellsize, cellsize };
 		coord_t footprintRadius = _footprintDiameter.getValueLogErrors() / 2.;
 		csmAlign = extendAlignment(csmAlign,
@@ -120,7 +120,7 @@ namespace lapis {
 
 		_csmAlgorithm = std::make_unique<MaxPoint>(_footprintDiameter.getValueLogErrors());
 
-		coord_t lookDist = convertUnits(5, linearUnitPresets::meter, _csmAlign->crs().getXYUnits());
+		coord_t lookDist = linearUnitPresets::meter.convertOneFromThis(5, _csmAlign->crs().getXYLinearUnits());
 		if (_smooth.currentSelection() > 1 && _fill.currentState()) {
 			_csmPostProcessor = std::make_unique<SmoothAndFill>(_smooth.currentSelection(), 6, lookDist);
 		}

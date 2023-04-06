@@ -80,7 +80,7 @@ namespace lapis {
 			<< "This algorithm works well with tree species, such as conifers, that have a well-defined top. ";
 		if (_minDist > 0) {
 			ss << "TAOs were required to be at least " <<
-				pdf.numberWithUnits(convertUnits(_minDist, getter->metricAlign()->crs().getXYUnits(), getter->outUnits()),
+				pdf.numberWithUnits(getter->outUnits().convertOneToThis(_minDist,getter->metricAlign()->crs().getXYLinearUnits()),
 					getter->unitSingular(), getter->unitPlural())
 				<< " apart. If two candidates were closer than that, only the taller one was retained. "
 				<< " This can correct for situations where a single tree has multiple TAO candidates.";

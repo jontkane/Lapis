@@ -108,9 +108,8 @@ namespace lapis {
 		std::stringstream cellAndUnits;
 		cellAndUnits << "The cellsize of the CSM is " <<
 			pdf.numberWithUnits(
-				convertUnits(_getter->csmAlign()->xres(),
-					_getter->csmAlign()->crs().getXYUnits(),
-					_getter->outUnits()),
+				_getter->outUnits().convertOneToThis(_getter->csmAlign()->xres(),
+					_getter->csmAlign()->crs().getXYLinearUnits()),
 				_getter->unitSingular(), _getter->unitPlural()) << ". ";
 		cellAndUnits << "The values of the rasters are in " << pdf.strToLower(_getter->unitPlural()) << ".";
 

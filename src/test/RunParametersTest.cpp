@@ -97,7 +97,7 @@ namespace lapis {
 		EXPECT_TRUE(rp().doCsmMetrics());
 
 		prepareParamsNoSlowStuff({"--user-units=ft"});
-		checkCsm(convertUnits(defaultRes, linearUnitPresets::meter, linearUnitPresets::internationalFoot));
+		checkCsm(linearUnitPresets::meter.convertOneFromThis(defaultRes,linearUnitPresets::internationalFoot));
 
 		prepareParamsNoSlowStuff({"--csm-cellsize=0.5"});
 		checkCsm(0.5);
@@ -174,8 +174,9 @@ namespace lapis {
 		EXPECT_TRUE(classSet.contains(12));
 		EXPECT_TRUE(classSet.contains(17));
 
-		EXPECT_NEAR(convertUnits(defaultMin, linearUnitPresets::meter, linearUnitPresets::internationalFoot),rp().minHt(), 0.0001);
-		EXPECT_NEAR(convertUnits(defaultMax, linearUnitPresets::meter, linearUnitPresets::internationalFoot), rp().maxHt(), 0.0001);
+		LinearUnitConverter converter{ linearUnitPresets::meter,linearUnitPresets::internationalFoot };
+		EXPECT_NEAR(converter(defaultMin),rp().minHt(), 0.0001);
+		EXPECT_NEAR(converter(defaultMax), rp().maxHt(), 0.0001);
 
 		prepareParamsNoSlowStuff({ "--minht=200","--maxht=5000" });
 		EXPECT_EQ(200, rp().minHt());
@@ -219,10 +220,16 @@ namespace lapis {
 			return std::min(origin, std::abs(res - origin));
 		};
 
-		EXPECT_NEAR(convertUnits(defaultCellSize, linearUnitPresets::meter, crs.getXYUnits()), metricAlign.xres(),0.01);
-		EXPECT_NEAR(convertUnits(defaultCellSize, linearUnitPresets::meter, crs.getXYUnits()), metricAlign.yres(), 0.01);
-		EXPECT_NEAR(convertUnits(defaultOrigin, linearUnitPresets::meter, crs.getXYUnits()), roundOriginToZero(metricAlign.xOrigin(),metricAlign.xres()), 0.01);
-		EXPECT_NEAR(convertUnits(defaultOrigin, linearUnitPresets::meter, crs.getXYUnits()), roundOriginToZero(metricAlign.yOrigin(),metricAlign.yres()), 0.01);
+		LinearUnit expectedUnits = crs.getXYLinearUnits().value();
+
+		auto convertUnits = [&](coord_t v) {
+			return linearUnitPresets::meter.convertOneFromThis(v, expectedUnits);
+		};
+
+		EXPECT_NEAR(convertUnits(defaultCellSize), metricAlign.xres(),0.01);
+		EXPECT_NEAR(convertUnits(defaultCellSize), metricAlign.yres(), 0.01);
+		EXPECT_NEAR(convertUnits(defaultOrigin), roundOriginToZero(metricAlign.xOrigin(),metricAlign.xres()), 0.01);
+		EXPECT_NEAR(convertUnits(defaultOrigin), roundOriginToZero(metricAlign.yOrigin(),metricAlign.yres()), 0.01);
 
 		Alignment fileAlign{ testFileFolder + "/testRaster.tif" };
 		prepareParams({ "--las=" + testFileFolder + "/testlaz10.laz",
@@ -238,16 +245,18 @@ namespace lapis {
 		prepareParams({ "--las=" + testFileFolder + "/testlaz10.laz",
 			"--out-crs=2286", "--user-units=m","--cellsize=20","--xorigin=10","--yorigin=5", "--debug-no-output" });
 		metricAlign = *rp().metricAlign();
+		expectedUnits = metricAlign.crs().getXYLinearUnits().value();
 		EXPECT_TRUE(metricAlign.crs().isConsistentHoriz(CoordRef("2286")));
-		EXPECT_NEAR(convertUnits(20, linearUnitPresets::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
-		EXPECT_NEAR(convertUnits(20, linearUnitPresets::meter, metricAlign.crs().getXYUnits()), metricAlign.yres(), 0.0001);
-		EXPECT_NEAR(convertUnits(10, linearUnitPresets::meter, metricAlign.crs().getXYUnits()), metricAlign.xOrigin(), 0.0001);
-		EXPECT_NEAR(convertUnits(5, linearUnitPresets::meter, metricAlign.crs().getXYUnits()), metricAlign.yOrigin(), 0.0001);
+		EXPECT_NEAR(convertUnits(20), metricAlign.xres(), 0.0001);
+		EXPECT_NEAR(convertUnits(20), metricAlign.yres(), 0.0001);
+		EXPECT_NEAR(convertUnits(10), metricAlign.xOrigin(), 0.0001);
+		EXPECT_NEAR(convertUnits(5), metricAlign.yOrigin(), 0.0001);
 
 		prepareParams({ "--las=" + testFileFolder + "/testlaz10.laz", "--out-crs=2286", "--user-units=m","--yres=9","--xres=7", "--debug-no-output" });
 		metricAlign = *rp().metricAlign();
-		EXPECT_NEAR(convertUnits(7, linearUnitPresets::meter, metricAlign.crs().getXYUnits()), metricAlign.xres(), 0.0001);
-		EXPECT_NEAR(convertUnits(9, linearUnitPresets::meter, metricAlign.crs().getXYUnits()), metricAlign.yres(), 0.0001);
+		expectedUnits = metricAlign.crs().getXYLinearUnits().value();
+		EXPECT_NEAR(convertUnits(7), metricAlign.xres(), 0.0001);
+		EXPECT_NEAR(convertUnits(9), metricAlign.yres(), 0.0001);
 	}
 
 	TEST_F(RunParametersTest, computerOptions) {

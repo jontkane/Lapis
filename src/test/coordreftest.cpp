@@ -44,21 +44,21 @@ namespace lapis {
 			, "2927+5703"
 			, "4269"
 		};
-		std::vector<LinearUnit> expected = {
-			linearUnitPresets::unknownLinear
-			, LinearUnit{"US survey foot",0.30480060960122,unitType::linear, unitStatus::statedInCRS}
-			, LinearUnit{"metre",1.,unitType::linear,unitStatus::statedInCRS }
-			, LinearUnit{"US survey foot",0.30480060960122,unitType::linear, unitStatus::statedInCRS}
-			, LinearUnit{"degree", 0.0174532925199433, unitType::angular, unitStatus::statedInCRS}
+		std::vector<std::optional<LinearUnit>> expected = {
+			linearUnitPresets::unknownLinear,
+			linearUnitPresets::usSurveyFoot,
+			linearUnitPresets::meter,
+			linearUnitPresets::usSurveyFoot,
+			std::optional<LinearUnit>()
 		};
 
 		for (int i = 0; i < source.size(); ++i) {
 			CoordRef crs{ source[i] };
-			LinearUnit xy = crs.getXYUnits();
-			EXPECT_EQ(xy.name, expected[i].name);
-			EXPECT_NEAR(xy.convFactor, expected[i].convFactor, 0.0000001);
-			EXPECT_EQ(xy.status, expected[i].status);
-			EXPECT_EQ(xy.type, expected[i].type);
+			std::optional<LinearUnit> xy = crs.getXYLinearUnits();
+			EXPECT_EQ(expected[i].has_value(), xy.has_value());
+			if (expected[i].has_value() && xy.has_value()) {
+				EXPECT_TRUE(expected[i].value() == xy.value());
+			}
 		}
 	}
 
@@ -74,18 +74,15 @@ namespace lapis {
 		std::vector<LinearUnit> expected = {
 			linearUnitPresets::unknownLinear
 			, linearUnitPresets::internationalFoot
-			, LinearUnit{"US survey foot",0.30480060960122,unitType::linear, unitStatus::inferredFromCRS}
-			, LinearUnit{ "metre",1.,unitType::linear,unitStatus::statedInCRS }
+			, linearUnitPresets::usSurveyFoot
+			, linearUnitPresets::meter
 			, linearUnitPresets::meter
 			, linearUnitPresets::unknownLinear
 		};
 
 		for (int i = 0; i < source.size(); ++i) {
 			const LinearUnit& z = source[i].getZUnits();
-			EXPECT_EQ(z.name, expected[i].name);
-			EXPECT_NEAR(z.convFactor, expected[i].convFactor, 0.0000001);
-			EXPECT_EQ(z.status, expected[i].status);
-			EXPECT_EQ(z.type, expected[i].type);
+			EXPECT_TRUE(z == expected[i]);
 		}
 	}
 

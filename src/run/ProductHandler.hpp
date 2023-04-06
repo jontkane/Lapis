@@ -84,7 +84,7 @@ namespace lapis {
 		Extent thistile = layout->extentFromCell(tile);
 
 		//The buffering ensures CSM metrics don't suffer from edge effects
-		coord_t bufferDist = convertUnits(minBufferMeters, linearUnitPresets::meter, layout->crs().getXYUnits());
+		coord_t bufferDist = linearUnitPresets::meter.convertOneFromThis(minBufferMeters, layout->crs().getXYLinearUnits());
 		if (bufferDist > 0) {
 			bufferDist = std::max(std::max(metricAlign->xres(), metricAlign->yres()), bufferDist);
 		}

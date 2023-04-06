@@ -9,7 +9,7 @@
 namespace lapis {
 	class CoordTransform {
 	public:
-		CoordTransform() : _tr(nullptr), _convFactor(1.), _needZConv(false), _needXYConv(false) {}
+		CoordTransform() : _tr(nullptr), _conv(), _needZConv(false), _needXYConv(false) {}
 		CoordTransform(const CoordRef& src, const CoordRef& dst);
 
 		PJ* getPtr();
@@ -30,7 +30,7 @@ namespace lapis {
 
 	private:
 		ProjPJWrapper _tr;
-		coord_t _convFactor;
+		LinearUnitConverter _conv;
 		bool _needZConv;
 		bool _needXYConv;
 	};
@@ -51,13 +51,12 @@ namespace lapis {
 
 	template<class T>
 	inline void CoordTransform::transformXYZ(std::vector<T>& points, size_t startIdx) {
+		if (!points.size()) {
+			return;
+		}
 		//the caching here kind of sucks; potentially a place to optimize if necessary
 		transformXY(points, startIdx);
-		if (_needZConv) {
-			for (size_t i = startIdx; i < points.size(); ++i) {
-				points[i].z *= _convFactor;
-			}
-		}
+		_conv.convertManyInPlace(&points[startIdx].z, points.size() - startIdx, sizeof(T));
 	}
 }
 

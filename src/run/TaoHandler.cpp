@@ -37,8 +37,8 @@ namespace lapis {
 			ofs.write((const char*)&x, sizeof(x));
 		};
 
-		const coord_t cellArea = convertUnits(bufferedSegments.xres(), bufferedSegments.crs().getXYUnits(), bufferedSegments.crs().getZUnits())
-			* convertUnits(bufferedSegments.yres(), bufferedSegments.crs().getXYUnits(), bufferedSegments.crs().getZUnits());
+		LinearUnitConverter converter{ bufferedSegments.crs().getXYLinearUnits(), bufferedSegments.crs().getZUnits() };
+		const coord_t cellArea = converter(bufferedSegments.xres()) * converter(bufferedSegments.yres());
 
 		std::unordered_map<taoid_t, coord_t> areas;
 		for (cell_t cell = 0; cell < bufferedSegments.ncell(); ++cell) {

@@ -122,12 +122,13 @@ namespace lapis {
 		}
 
 		RunParameters& rp = RunParameters::singleton();
-		LinearUnit outXYUnits = rp.userCrs().getXYUnits();
+		//any scenario where this wouldn't have a value should be caught earlier in the code
+		LinearUnit outXYUnits = rp.userCrs().getXYLinearUnits().value();
 		LinearUnit userXYUnits = rp.outUnits();
 
 		switch (_idAlgo.currentSelection()) {
 		case IdAlgo::HIGHPOINT:
-			_idAlgorithm = std::make_unique<HighPoints>(minTaoHt(), convertUnits(minTaoDist(), userXYUnits, outXYUnits));
+			_idAlgorithm = std::make_unique<HighPoints>(minTaoHt(), userXYUnits.convertOneFromThis(minTaoDist(), outXYUnits));
 			break;
 		default:
 			log.logMessage("Invalid TAO ID algorithm");

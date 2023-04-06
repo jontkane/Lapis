@@ -157,11 +157,12 @@ namespace lapis {
 		_dem = std::make_shared<Raster<coord_t>>(bufferedAlign);
 
 		for (Raster<coord_t>& dem : overlappingDems) {
+			if (dem.ncell() == 0) {
+				continue;
+			}
 			if (!dem.crs().isConsistentZUnits(_dem->crs())) {
-				coord_t convFactor = convertUnits(1, dem.crs().getZUnits(), _dem->crs().getZUnits());
-				for (cell_t cell = 0; cell < dem.ncell(); ++cell) {
-					dem[cell].value() *= convFactor;
-				}
+				LinearUnitConverter converter{ dem.crs().getZUnits(),_dem->crs().getZUnits() };
+				converter.convertManyInPlace(&dem[0].value(), dem.ncell(), sizeof(coord_t));
 			}
 			Raster<coord_t> resampled;
 			if (!_dem->isSameAlignment(dem)) {

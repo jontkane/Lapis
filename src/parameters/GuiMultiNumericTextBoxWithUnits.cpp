@@ -81,7 +81,7 @@ namespace lapis {
 	void MultiNumericTextBoxWithUnits::updateUnits()
 	{
 		RunParameters& rp = RunParameters::singleton();
-		if (rp.prevUnits().convFactor != rp.outUnits().convFactor) {
+		if (!rp.prevUnits().isConsistent(rp.outUnits())) {
 			for (auto& buffer : _buffers) {
 				buffer.updateUnits();
 			}

@@ -190,7 +190,7 @@ namespace lapis {
 	}
 	coord_t RunParameters::binSize()
 	{
-		return convertUnits(0.01, linearUnitPresets::meter, outUnits());
+		return linearUnitPresets::meter.convertOneFromThis(0.01, outUnits());
 	}
 	size_t RunParameters::tileFileSize() 
 	{
@@ -223,7 +223,7 @@ namespace lapis {
 			return unbufferedElev;
 		}
 		coord_t maxTopoWindow = topoWindows()[topoWindows().size() - 1];
-		maxTopoWindow = convertUnits(maxTopoWindow, outUnits(), unbufferedElev.crs().getXYUnits());
+		maxTopoWindow = outUnits().convertOneFromThis(maxTopoWindow, unbufferedElev.crs().getXYLinearUnits());
 		Extent desiredExtent = bufferExtent(unbufferedElev, maxTopoWindow);
 
 		return getParam<DemParameter>().bufferElevation(unbufferedElev, desiredExtent);

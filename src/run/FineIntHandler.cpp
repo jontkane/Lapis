@@ -169,9 +169,9 @@ namespace lapis {
 			productDesc << " above the ground were ignored. This is usually to exclude the ground from the values, but if this is set high enough, it may ";
 			productDesc << "exclude shrubs or some trees as well. ";
 		}
-		std::string cellsize = pdf.numberWithUnits(convertUnits(_getter->fineIntAlign()->xres(),
-			_getter->fineIntAlign()->crs().getXYUnits(),
-			_getter->outUnits()),
+		std::string cellsize = pdf.numberWithUnits(
+			_getter->outUnits().convertOneToThis(_getter->fineIntAlign()->xres(),
+				_getter->fineIntAlign()->crs().getXYLinearUnits()),
 			_getter->unitSingular(),
 			_getter->unitPlural());
 		productDesc << "The cellsize of the intensity rasters is " << cellsize << ".";

@@ -9,7 +9,7 @@ namespace lapis {
 
 	namespace DemAlgo {
 		enum DemAlgo {
-			ERROR,
+			DEMALGO_ERROR,
 			DONTNORMALIZE,
 			VENDORRASTER
 		};

@@ -23,6 +23,13 @@ namespace lapis {
 		return value * fullConv;
 
 	}
+	coord_t LinearUnit::convertOneFromThis(coord_t value, const std::optional<LinearUnit>& destUnits) const
+	{
+		if (!destUnits.has_value()) {
+			return value;
+		}
+		return convertOneFromThis(value, destUnits.value());
+	}
 	coord_t LinearUnit::convertOneToThis(coord_t value, const LinearUnit& sourceUnits) const
 	{
 		coord_t fullConv = sourceUnits._convFactor / _convFactor;
@@ -31,6 +38,13 @@ namespace lapis {
 		}
 
 		return value * fullConv;
+	}
+	coord_t LinearUnit::convertOneToThis(coord_t value, const std::optional<LinearUnit>& sourceUnits) const
+	{
+		if (!sourceUnits.has_value()) {
+			return value;
+		}
+		return convertOneToThis(value,sourceUnits.value());
 	}
 	bool LinearUnit::isConsistent(const LinearUnit& other) const
 	{
@@ -46,6 +60,10 @@ namespace lapis {
 	{
 		return _isUnknown;
 	}
+	bool LinearUnit::operator==(const LinearUnit& other) const
+	{
+		return (_isUnknown == other._isUnknown) && (std::abs(_convFactor - other._convFactor) < LAPIS_EPSILON);
+	}
 	LinearUnitConverter::LinearUnitConverter() : _conv(1.)
 	{
 	}
@@ -58,6 +76,18 @@ namespace lapis {
 			_conv = source._convFactor / dest._convFactor;
 		}
 	}
+	LinearUnitConverter::LinearUnitConverter(const std::optional<LinearUnit>& source, const std::optional<LinearUnit>& dest)
+	{
+		if (!source.has_value() || !dest.has_value()) {
+			_conv = 1.;
+		}
+		else if (source.value().isUnknown() || dest.value().isUnknown()) {
+			_conv = 1.;
+		}
+		else {
+			_conv = source.value()._convFactor / dest.value()._convFactor;
+		}
+	}
 	coord_t LinearUnitConverter::convertOne(coord_t value) const
 	{
 		return value * _conv;
@@ -68,9 +98,14 @@ namespace lapis {
 	}
 	void LinearUnitConverter::convertManyInPlace(coord_t* po, size_t count, size_t span) const
 	{
+		union {
+			char* forArithmetic;
+			coord_t* forWork;
+		} pointer;
+		pointer.forWork = po;
 		while (count) {
-			*po = convertOne(*po);
-			po += span;
+			*pointer.forWork = convertOne(*pointer.forWork);
+			pointer.forArithmetic += span;
 			--count;
 		}
 	}
