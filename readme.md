@@ -18,6 +18,10 @@ Before running Lapis, you will need to install the Visual C++ Runtime Library, a
 
 In future releases, that installation step will no longer be required.
 
+# Known issues
+
+- In the release version of Lapis 0.6, selecting "First Returns" in the Point Metrics tab will result in empty rasters being written. As a temporary workaround, select "Both" if you want first return point metrics.
+
 # Building Lapis
 
 Lapis is developed on Windows, and is so far only tested on Windows using vcpkg as a dependency manager. Contributions to make it easier to build on other systems are welcome. Because I expect a number of users who aren't C++ developers to want to build Lapis from source, here are step by step instructions to compile Lapis on Windows. They assume familiarity with command line and with git, but no experience with C++. More compact instructions designed for people familiar with C++ are further down.

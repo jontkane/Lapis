@@ -2,15 +2,7 @@
 #ifndef LP_LAPIS_H
 #define LP_LAPIS_H
 
-#ifdef _WIN32
-#define _WIN32_WINNT 0x0501
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include<windows.h>
-#include<shellapi.h>
-#endif
-
-
+#include"utils/LapisWindows.hpp"
 #include"run/LapisController.hpp"
 #include"parameters/LapisGui.hpp"
 #include"parameters/RunParameters.hpp"
@@ -64,7 +56,7 @@ namespace lapis {
 		pr parsed = rp.parseArgs(args);
 		rp.importBoostAndUpdateUnits();
 		if (parsed == pr::invalidOpts) {
-			std::cout << "Error parsing command line\n";
+			lapisCout << "Error parsing command line\n";
 			return 1;
 		}
 		else if (parsed == pr::helpPrinted) {
@@ -78,17 +70,18 @@ namespace lapis {
 		LapisController lc;
 		try {
 			if (!lc.processFullArea()) {
-				std::cout << "Run Failed\n";
+				lapisCout << "Run Failed\n";
 				return 1;
 			}
 		}
 		catch (std::exception e) {
-			std::cout << e.what() << "\n";
-			std::cout << "Run Aborted\n";
+			lapisCerr << e.what() << "\n";
+			lapisCout << "Run Aborted\n";
 			return 1;
 		}
 		catch (...) {
-			std::cout << "Unknown Error\nRun Aborted\n";
+			lapisCerr << "Unknown Error\n";
+			lapisCout << "Run Aborted\n";
 			return 1;
 		}
 
@@ -105,6 +98,25 @@ namespace lapis {
 	}
 
 #ifdef _WIN32
+	void pressEnter() {
+		INPUT ip;
+		// Set up a generic keyboard event.
+		ip.type = INPUT_KEYBOARD;
+		ip.ki.wScan = 0; // hardware scan code for key
+		ip.ki.time = 0;
+		ip.ki.dwExtraInfo = 0;
+
+		// Send the "Enter" key
+		ip.ki.wVk = 0x0D; // virtual-key code for the "Enter" key
+		ip.ki.dwFlags = 0; // 0 for key press
+		SendInput(1, &ip, sizeof(INPUT));
+
+		// Release the "Enter" key
+		ip.ki.dwFlags = KEYEVENTF_KEYUP; // KEYEVENTF_KEYUP for key release
+		SendInput(1, &ip, sizeof(INPUT));
+	}
+
+
 	int APIENTRY lapisWinMain(
 		_In_ HINSTANCE hInstance,
 		_In_opt_ HINSTANCE hPrevInstance,
@@ -115,21 +127,24 @@ namespace lapis {
 		GetModuleFileNameA(nullptr, exePath, 255);
 		setProjDataDirectory(exePath);
 
-		bool attachResult = AttachConsole(ATTACH_PARENT_PROCESS);
-		if (!attachResult) { //there is no parent console. Just open the GUI
+		if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
 			LapisGui<LapisController>::singleton().renderFullGui();
 			return 0;
 		}
+
+		//command line
+
 		std::array<char, 30> oldTitle = std::array<char, 30>();
 		GetConsoleTitle(oldTitle.data(), (DWORD)oldTitle.size());
 		SetConsoleTitle("Lapis");
 
-		FILE* newPtr = nullptr;
-		freopen_s(&newPtr, "CON", "w", stdout);
+		lapisCout = LapisWindowsWriter(&std::cout, GetStdHandle(STD_OUTPUT_HANDLE));
+		lapisCerr = LapisWindowsWriter(&std::cerr, GetStdHandle(STD_ERROR_HANDLE));
 
 		std::vector<std::string> args = boost::program_options::split_winmain(lpCmdLine);
 		int result = lapisUnifiedMain(args);
 		SetConsoleTitle(oldTitle.data());
+		pressEnter();
 		FreeConsole();
 		return result;
 	}

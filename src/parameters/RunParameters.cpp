@@ -2,6 +2,7 @@
 #include"RunParameters.hpp"
 #include"AllParameters.hpp"
 #include"LapisGui.hpp"
+#include"..\utils\LapisWindows.hpp"
 
 namespace lapis {
 
@@ -359,10 +360,11 @@ namespace lapis {
 
 
 			if (vmFull.count("help") || !args.size()) {
-				std::cout << "\n" <<
+				lapisCout << "\n" <<
 					cmdOnlyOpts <<
 					visibleOpts <<
 					"\n";
+
 				return ParseResults::helpPrinted;
 			}
 			if (vmFull.count("gui")) {
