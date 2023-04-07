@@ -18,6 +18,18 @@ Before running Lapis, you will need to install the Visual C++ Runtime Library, a
 
 In future releases, that installation step will no longer be required.
 
+# Known Issues
+
+ - If you select "first returns" in the point metrics tab, most of the rasrters will be entirely nodata. As a temporary workaround, please select "both" if you want first return metrics.
+ - Lapis will crash suddenly if your machine runs out of memory. This is more likely to happen if you have less than 30 GB of memory, if your laz files are very large (>2 GB), or if your input data isn't tiled (such as if each file is a flightline).
+ - Certain projections, when specified in las versions 1.0 through 1.3, will cause oddities in the projection information in the output, and possibly interfere with Lapis' automatic unit detection. If you need to process a dataset with old laz files, consider specifying the projection and units of the data manually.
+
+# Updates and Bug Reports
+
+If you want to be notified when a new version of Lapis is released, please contact the developer at jontkane@uw.edu. In future versions, there may be automatic update checking.
+
+If you encounter a bug, please report it either on github or at that email address.
+
 # Building Lapis
 
 Lapis is developed on Windows, and is so far only tested on Windows using vcpkg as a dependency manager. Contributions to make it easier to build on other systems are welcome. Because I expect a number of users who aren't C++ developers to want to build Lapis from source, here are step by step instructions to compile Lapis on Windows. They assume familiarity with command line and with git, but no experience with C++. More compact instructions designed for people familiar with C++ are further down.
