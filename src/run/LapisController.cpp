@@ -283,7 +283,6 @@ namespace lapis {
 			}
 		}
 
-		//crop ground here
 		if (totalPoints == 0) {
 			log.logMessage("No points passed filters in las file " + std::to_string(n) + ". Perhaps an issue with the ground models or with the units?");
 		}
@@ -297,6 +296,8 @@ namespace lapis {
 				handler->handleDem(croppedDem, n);
 			}
 		}
+
+		LAPIS_CHECK_ABORT;
 
 		log.endBenchmarkTimer("Las File");
 		LapisLogger::getLogger().incrementTask("Las File Finished");

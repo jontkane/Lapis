@@ -14,7 +14,7 @@ namespace lapis {
 		_thread.addHelpText("This controls how many independent threads to run the Lapis process on.\n\n"
 			"On most computers, this should be set to 2 or 3 below the number of logical cores on the machine.\n\n"
 			"If Lapis is causing your computer to slow down, considering lowering this.");
-		_benchmark.addHelpText("Display output on how long individual steps take. Intended as a development feature, and will not be present in public releases.");
+		_benchmark.addHelpText("Display output on how long individual steps take. Intended as a development feature, and will be changed to be more user-friendly in future releases.");
 	}
 	void ComputerParameter::addToCmd(BoostOptDesc& visible,
 		BoostOptDesc& hidden) {

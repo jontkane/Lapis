@@ -218,6 +218,10 @@ namespace lapis {
 			return false;
 		}
 
+		CoordRef withZUnits = _crs.cachedCrs();
+		withZUnits.setZUnits(rp.outUnits());
+		_crs.setCrs(withZUnits);
+
 		Extent e = rp.fullExtent();
 
 		coord_t xres, yres, xorigin, yorigin;
