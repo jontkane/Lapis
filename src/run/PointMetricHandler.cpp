@@ -5,6 +5,7 @@
 #include"..\parameters\RunParameters.hpp"
 
 namespace lapis {
+
 	size_t PointMetricHandler::handlerRegisteredIndex = LapisController::registerHandler(new PointMetricHandler(&RunParameters::singleton()));
 	void PointMetricHandler::reset()
 	{
@@ -38,19 +39,21 @@ namespace lapis {
 			}
 		}
 	}
+
 	void PointMetricHandler::_processPMCCell(cell_t cell, PointMetricCalculator& pmc, ReturnType r) {
 
+		using namespace std::chrono;
 		for (PointMetricRasters& v : _pointMetrics) {
 			MetricFunc& f = v.fun;
 			(pmc.*f)(v.rasters.get(r), cell);
 		}
+		std::vector<long long> stratumTimes;
 		for (StratumMetricRasters& v : _stratumMetrics) {
 			StratumFunc& f = v.fun;
 			for (size_t i = 0; i < v.rasters.size(); ++i) {
 				(pmc.*f)(v.rasters[i].get(r), cell, i);
 			}
 		}
-
 		pmc.cleanUp();
 	}
 	void PointMetricHandler::_initMetrics()

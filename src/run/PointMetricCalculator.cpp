@@ -102,11 +102,13 @@ namespace lapis {
 		metric_t mean = (metric_t)(_canopySum / (metric_t)_canopyCount);
 		int binWithMean = (int)((mean - _canopy) / _binsize);
 		metric_t countAbove = 0;
+
 		//assumes all points are at the center of their bins
-		for (int i = 0; i < _hist.size(); ++i) {
-			if ((_canopy + _binsize * i + (_binsize / 2)) > mean) {
-				countAbove += _hist.countInBin(i);
-			}
+		if (_canopy + _binsize * binWithMean + (_binsize / 2) > mean) {
+			countAbove += _hist.countInBin(binWithMean);
+		}
+		for (int i = binWithMean+1; i < _hist.size(); ++i) {
+			countAbove += _hist.countInBin(i);
 		}
 		r[cell].value() = countAbove / _count * 100.f;
 	}
@@ -288,14 +290,10 @@ namespace lapis {
 		return 0;
 	}
 
-	size_t SparseHistogram::size()
-	{
-		return binsPerHist * _nHists;
-	}
-
 	void SparseHistogram::cleanUp()
 	{
 		_data = _storage();
+		_sizeWithData = 0;
 	}
 
 	void PointMetricCalculator::p05Canopy(Raster<metric_t>& r, cell_t cell)
