@@ -5,6 +5,40 @@
 
 namespace lapis {
 
+	//just a variant on overlayInside with thread safety. Mostly copy/pasted code
+	void overlayInsideThreadSafe(Raster<metric_t>& base, const Raster<metric_t>& over, CsmParameterGetter* getter) {
+		Alignment::RowColExtent rcExt = base.rowColExtent(over, SnapType::near); //snap type doesn't matter with consistent alignments, but 'near' will correct for floating point issues
+
+		auto distFromEdge = [](const Alignment& a, rowcol_t row, rowcol_t col) {
+			rowcol_t dist = std::min(col, row);
+			dist = std::min(dist, a.ncol() - 1 - col);
+			dist = std::min(dist, a.nrow() - 1 - row);
+			return dist;
+		};
+
+		for (rowcol_t row = rcExt.minrow; row <= rcExt.maxrow; ++row) {
+			for (rowcol_t col = rcExt.mincol; col <= rcExt.maxcol; ++col) {
+				const auto otherValue = over.atRCUnsafe(row - rcExt.minrow, col - rcExt.mincol);
+				auto thisValue = base.atRCUnsafe(row, col);
+				if (!otherValue.has_value()) {
+					continue;
+				}
+				if (!thisValue.has_value()) {
+					std::scoped_lock lock{ getter->cellMutex(row) };
+					thisValue.has_value() = true;
+					thisValue.value() = otherValue.value();
+					continue;
+				}
+
+				rowcol_t thisDistFromEdge = distFromEdge(base, row, col);
+				rowcol_t otherDistFromEdge = distFromEdge(over, row - rcExt.minrow, col - rcExt.mincol);
+
+				std::scoped_lock lock{ getter->cellMutex(row) };
+				thisValue.value() = thisDistFromEdge <= otherDistFromEdge ? otherValue.value() : thisValue.value();
+			}
+		}
+	}
+
 	size_t CsmHandler::handlerRegisteredIndex = LapisController::registerHandler(new CsmHandler(&RunParameters::singleton()));
 	void CsmHandler::reset()
 	{
@@ -58,9 +92,8 @@ namespace lapis {
 		for (CSMMetricRaster& metric : _csmMetrics) {
 			Raster<metric_t> tileMetric = aggregate<metric_t, csm_t>(bufferedCsm, cropAlignment(*_getter->metricAlign(), bufferedCsm, SnapType::out), metric.fun);
 			static std::mutex mut;
-			//mutex-locking this whole section is a bit wasteful but the observed speed impact is low and doing it right would be annoying
-			std::scoped_lock lock{ mut };
-			metric.raster.overlayInside(tileMetric);
+
+			overlayInsideThreadSafe(metric.raster, tileMetric, _getter);
 		}
 
 		Extent cropExt = _getter->layout()->extentFromCell(tile); //unbuffered extent
