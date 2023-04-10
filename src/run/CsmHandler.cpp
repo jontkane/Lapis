@@ -57,11 +57,15 @@ namespace lapis {
 	{
 		for (CSMMetricRaster& metric : _csmMetrics) {
 			Raster<metric_t> tileMetric = aggregate<metric_t, csm_t>(bufferedCsm, cropAlignment(*_getter->metricAlign(), bufferedCsm, SnapType::out), metric.fun);
+			static std::mutex mut;
+			//mutex-locking this whole section is a bit wasteful but the observed speed impact is low and doing it right would be annoying
+			std::scoped_lock lock{ mut };
 			metric.raster.overlayInside(tileMetric);
 		}
 
 		Extent cropExt = _getter->layout()->extentFromCell(tile); //unbuffered extent
-		Raster<csm_t> unbuffered = cropRaster(bufferedCsm, cropExt, SnapType::out);
+
+		Raster<csm_t> unbuffered = cropRaster(bufferedCsm, cropExt, SnapType::near);
 
 		writeRasterLogErrors(getFullTileFilename(csmDir(), _csmBaseName, OutputUnitLabel::Default, tile), unbuffered);
 	}
@@ -155,7 +159,10 @@ namespace lapis {
 
 		Extent thistile = layout->extentFromCell(tile);
 
-		Raster<csm_t> bufferedCsm = getEmptyRasterFromTile<csm_t>(tile, *csmAlign, 30);
+		coord_t bufferAmount = std::max(_getter->metricAlign()->xres(), _getter->metricAlign()->yres()) * 1.5;
+		bufferAmount = linearUnitPresets::meter.convertOneToThis(bufferAmount, _getter->metricAlign()->crs().getXYLinearUnits().value());
+
+		Raster<csm_t> bufferedCsm = getEmptyRasterFromTile<csm_t>(tile, *csmAlign, bufferAmount);
 
 		Extent extentWithData;
 		bool extentInit = false;

@@ -220,10 +220,6 @@ namespace lapis {
 
 		tryRemove(pointMetricDir());
 
-		if (!_getter->doPointMetrics()) {
-			return;
-		}
-
 		using pmc = PointMetricCalculator;
 		using oul = OutputUnitLabel;
 
