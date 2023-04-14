@@ -61,7 +61,7 @@ namespace lapis {
 			"Lapis cannot currently create its own ground model.\n\n"
 			"If your rasters are in ESRI grid format, select the folder itself.");
 
-		_unit.addOption("Same as Horizontal Units", UnitRadio::UNKNOWN, linearUnitPresets::unknownLinear);
+		_unit.addOption("Same as Las Files", UnitRadio::UNKNOWN, linearUnitPresets::unknownLinear);
 		_unit.addOption("Meters", UnitRadio::METERS, linearUnitPresets::meter);
 		_unit.addOption("International Feet", UnitRadio::INTFEET, linearUnitPresets::internationalFoot);
 		_unit.addOption("US Survey Feet", UnitRadio::USFEET, linearUnitPresets::usSurveyFoot);
