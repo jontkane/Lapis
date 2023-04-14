@@ -5,8 +5,9 @@
 
 namespace lapis {
 
-	//just a variant on overlayInside with thread safety. Mostly copy/pasted code
-	void overlayInsideThreadSafe(Raster<metric_t>& base, const Raster<metric_t>& over, CsmParameterGetter* getter) {
+	//A variant of overlay that will not take values from the outer edge of the overlaid raster unless it would overwrite a nodata value
+	//Intended for use when mosaicing together rasters that have edge effects, but also have a buffer
+	void overlayExcludingEdgeThreadSafe(Raster<metric_t>& base, const Raster<metric_t>& over, CsmParameterGetter* getter) {
 		Alignment::RowColExtent rcExt = base.rowColExtent(over, SnapType::near); //snap type doesn't matter with consistent alignments, but 'near' will correct for floating point issues
 
 		auto distFromEdge = [](const Alignment& a, rowcol_t row, rowcol_t col) {
@@ -18,23 +19,27 @@ namespace lapis {
 
 		for (rowcol_t row = rcExt.minrow; row <= rcExt.maxrow; ++row) {
 			for (rowcol_t col = rcExt.mincol; col <= rcExt.maxcol; ++col) {
-				const auto otherValue = over.atRCUnsafe(row - rcExt.minrow, col - rcExt.mincol);
-				auto thisValue = base.atRCUnsafe(row, col);
+
+				cell_t baseCell = base.cellFromRowColUnsafe(row, col);
+				cell_t overCell = over.cellFromRowColUnsafe(row - rcExt.minrow, col - rcExt.mincol);
+
+				const auto otherValue = over[overCell];
+				auto thisValue = base[baseCell];
 				if (!otherValue.has_value()) {
 					continue;
 				}
+				std::scoped_lock lock{ getter->cellMutex(baseCell) };
 				if (!thisValue.has_value()) {
-					std::scoped_lock lock{ getter->cellMutex(row) };
 					thisValue.has_value() = true;
 					thisValue.value() = otherValue.value();
 					continue;
 				}
 
-				rowcol_t thisDistFromEdge = distFromEdge(base, row, col);
-				rowcol_t otherDistFromEdge = distFromEdge(over, row - rcExt.minrow, col - rcExt.mincol);
+				if (row == rcExt.minrow || row == rcExt.maxrow || col == rcExt.mincol || col == rcExt.maxcol) {
+					continue;
+				}
 
-				std::scoped_lock lock{ getter->cellMutex(row) };
-				thisValue.value() = thisDistFromEdge <= otherDistFromEdge ? otherValue.value() : thisValue.value();
+				thisValue.value() = otherValue.value();
 			}
 		}
 	}
@@ -93,7 +98,7 @@ namespace lapis {
 			Raster<metric_t> tileMetric = aggregate<metric_t, csm_t>(bufferedCsm, cropAlignment(*_getter->metricAlign(), bufferedCsm, SnapType::out), metric.fun);
 			static std::mutex mut;
 
-			overlayInsideThreadSafe(metric.raster, tileMetric, _getter);
+			overlayExcludingEdgeThreadSafe(metric.raster, tileMetric, _getter);
 		}
 
 		Extent cropExt = _getter->layout()->extentFromCell(tile); //unbuffered extent
