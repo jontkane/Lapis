@@ -12,9 +12,9 @@ namespace lapis {
 
 	OutUnitParameter::OutUnitParameter()
 	{
-		_unit.addOption("Meters", UnitRadio::METERS, LinearUnitDefs::meter);
-		_unit.addOption("International Feet", UnitRadio::INTFEET, LinearUnitDefs::foot);
-		_unit.addOption("US Survey Feet", UnitRadio::USFEET, LinearUnitDefs::surveyFoot);
+		_unit.addOption("Meters", UnitRadio::METERS, linearUnitPresets::meter);
+		_unit.addOption("International Feet", UnitRadio::INTFEET, linearUnitPresets::internationalFoot);
+		_unit.addOption("US Survey Feet", UnitRadio::USFEET, linearUnitPresets::usSurveyFoot);
 
 		_title.addHelpText("The desired units of the output data, where applicable.\n\nIt doesn't need to match the input data. Conversion is handled automatically.");
 	}
@@ -50,7 +50,7 @@ namespace lapis {
 	{
 		return _singularNames.at(unit());
 	}
-	const Unit& OutUnitParameter::unit() const
+	const LinearUnit& OutUnitParameter::unit() const
 	{
 		return _unit.currentSelection();
 	}

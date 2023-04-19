@@ -99,11 +99,14 @@ namespace lapis {
 	}
 
 	//returns true if this extent has an overlap with non-zero area with the other extent
-
 	bool Extent::overlaps(const Extent& e) const {
 		if (!_crs.isConsistentHoriz(e.crs())) {
 			throw CRSMismatchException();
 		}
+		return overlapsUnsafe(e);
+	}
+
+	bool Extent::overlapsUnsafe(const Extent& e) const {
 		//the 'left' extent is the one with the lower xmin
 		coord_t rightxmin = std::max(_xmin, e._xmin);
 		coord_t leftxmax = _xmin <= e._xmin ? _xmax : e._xmax;
@@ -132,7 +135,7 @@ namespace lapis {
 		return xoverlap && yoverlap;
 	}
 
-	void Extent::setZUnits(Unit zUnits) {
+	void Extent::setZUnits(LinearUnit zUnits) {
 		_crs.setZUnits(zUnits);
 	}
 

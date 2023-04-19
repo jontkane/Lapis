@@ -30,10 +30,10 @@ namespace lapis {
 			"If the 'recursive' box is checked, it will also include any las/laz files in subfolders.");
 
 		_unit.addOption("Infer from files",
-			UnitRadio::UNKNOWN, LinearUnitDefs::unkLinear);
-		_unit.addOption("Meters", UnitRadio::METERS, LinearUnitDefs::meter);
-		_unit.addOption("International Feet", UnitRadio::INTFEET, LinearUnitDefs::foot);
-		_unit.addOption("US Survey Feet", UnitRadio::USFEET, LinearUnitDefs::surveyFoot);
+			UnitRadio::UNKNOWN, linearUnitPresets::unknownLinear);
+		_unit.addOption("Meters", UnitRadio::METERS, linearUnitPresets::meter);
+		_unit.addOption("International Feet", UnitRadio::INTFEET, linearUnitPresets::internationalFoot);
+		_unit.addOption("US Survey Feet", UnitRadio::USFEET, linearUnitPresets::usSurveyFoot);
 	}
 	void LasFileParameter::addToCmd(BoostOptDesc& visible,
 		BoostOptDesc& hidden) {
@@ -147,7 +147,7 @@ namespace lapis {
 		LasReader out{ _lasFileNames[n] };
 		
 		const CoordRef& crsOverride = _crs.cachedCrs();
-		const Unit& unitOverride = _unit.currentSelection();
+		const LinearUnit& unitOverride = _unit.currentSelection();
 		if (!crsOverride.isEmpty()) {
 			out.defineCRS(crsOverride);
 		}
@@ -194,7 +194,7 @@ namespace lapis {
 		}
 	}
 
-	LasFileParameter::LasOpener::LasOpener(const CoordRef& crsOverride, const Unit& unitOverride)
+	LasFileParameter::LasOpener::LasOpener(const CoordRef& crsOverride, const LinearUnit& unitOverride)
 		: _crsOverride(crsOverride), _unitOverride(unitOverride)
 	{
 	}

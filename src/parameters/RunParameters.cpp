@@ -2,6 +2,7 @@
 #include"RunParameters.hpp"
 #include"AllParameters.hpp"
 #include"LapisGui.hpp"
+#include"..\utils\LapisWindows.hpp"
 
 namespace lapis {
 
@@ -19,15 +20,15 @@ namespace lapis {
 	RunParameters::RunParameters()
 	{
 	}
-	void RunParameters::setPrevUnits(const Unit& u)
+	void RunParameters::setPrevUnits(const LinearUnit& u)
 	{
 		_prevUnits = u;
 	}
-	const Unit& RunParameters::outUnits() 
+	const LinearUnit& RunParameters::outUnits() 
 	{
 		return getParam<OutUnitParameter>().unit();
 	}
-	const Unit& RunParameters::prevUnits() 
+	const LinearUnit& RunParameters::prevUnits() 
 	{
 		return _prevUnits;
 	}
@@ -85,7 +86,7 @@ namespace lapis {
 	}
 	void RunParameters::resetObject() {
 
-		_prevUnits = LinearUnitDefs::meter;
+		_prevUnits = linearUnitPresets::meter;
 		_cellMuts.reset();
 		for (size_t i = 0; i < _params.size(); ++i) {
 			_params[i]->reset();
@@ -178,9 +179,11 @@ namespace lapis {
 		}
 		return l;
 	}
-	DemAlgorithm* RunParameters::demAlgorithm() 
+	std::unique_ptr<DemAlgoApplier> RunParameters::demAlgorithm(LasReader&& l)
 	{
-		return getParam<DemParameter>().demAlgorithm();
+		auto x = getParam<DemParameter>().demAlgorithm();
+		x->setMinMax(minHt(), maxHt());
+		return x->getApplier(std::move(l), userCrs());
 	}
 	int RunParameters::nThread() 
 	{
@@ -188,7 +191,7 @@ namespace lapis {
 	}
 	coord_t RunParameters::binSize()
 	{
-		return convertUnits(0.01, LinearUnitDefs::meter, outUnits());
+		return linearUnitPresets::meter.convertOneFromThis(0.01, outUnits());
 	}
 	size_t RunParameters::tileFileSize() 
 	{
@@ -221,7 +224,7 @@ namespace lapis {
 			return unbufferedElev;
 		}
 		coord_t maxTopoWindow = topoWindows()[topoWindows().size() - 1];
-		maxTopoWindow = convertUnits(maxTopoWindow, outUnits(), unbufferedElev.crs().getXYUnits());
+		maxTopoWindow = outUnits().convertOneFromThis(maxTopoWindow, unbufferedElev.crs().getXYLinearUnits());
 		Extent desiredExtent = bufferExtent(unbufferedElev, maxTopoWindow);
 
 		return getParam<DemParameter>().bufferElevation(unbufferedElev, desiredExtent);
@@ -247,7 +250,7 @@ namespace lapis {
 	{
 		getParam<FilterParameter>().describeInPdf(pdf);
 		getParam<AlignmentParameter>().describeInPdf(pdf);
-		demAlgorithm()->describeInPdf(pdf);
+		getParam<DemParameter>().demAlgorithm()->describeInPdf(pdf);
 	}
 
 	coord_t RunParameters::fineIntCanopyCutoff() {
@@ -357,10 +360,11 @@ namespace lapis {
 
 
 			if (vmFull.count("help") || !args.size()) {
-				std::cout << "\n" <<
+				lapisCout << "\n" <<
 					cmdOnlyOpts <<
 					visibleOpts <<
 					"\n";
+
 				return ParseResults::helpPrinted;
 			}
 			if (vmFull.count("gui")) {
@@ -531,7 +535,7 @@ namespace lapis {
 			lasExtents[i] = QuadExtent(lasExtents[i], outCrs).outerExtent();
 			fullExtent = extendExtent(fullExtent, lasExtents[i]);
 		}
-		coord_t cellsize = convertUnits(30, LinearUnitDefs::meter, outCrs.getXYUnits());
+		coord_t cellsize = convertUnits(30, linearUnitPresets::meter, outCrs.getXYUnits());
 		Alignment fullAlign = Alignment(fullExtent, 0, 0, cellsize, cellsize);
 		Raster<bool> lasCovers{ fullAlign };
 		Raster<bool> demCovers{ fullAlign };

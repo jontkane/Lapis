@@ -5,10 +5,16 @@
 #include"..\parameters\RunParameters.hpp"
 
 namespace lapis {
+
 	size_t PointMetricHandler::handlerRegisteredIndex = LapisController::registerHandler(new PointMetricHandler(&RunParameters::singleton()));
 	void PointMetricHandler::reset()
 	{
 		*this = PointMetricHandler(_getter);
+	}
+
+	bool PointMetricHandler::doThisProduct()
+	{
+		return _getter->doPointMetrics();
 	}
 
 	std::string PointMetricHandler::name()
@@ -17,7 +23,7 @@ namespace lapis {
 	}
 
 	template<bool ALL_RETURNS, bool FIRST_RETURNS>
-	void PointMetricHandler::_assignPointsToCalculators(const LidarPointVector& points)
+	void PointMetricHandler::_assignPointsToCalculators(const std::span<LasPoint>& points)
 	{
 		for (const LasPoint& p : points) {
 			cell_t cell = _getter->metricAlign()->cellFromXYUnsafe(p.x, p.y);
@@ -33,19 +39,21 @@ namespace lapis {
 			}
 		}
 	}
+
 	void PointMetricHandler::_processPMCCell(cell_t cell, PointMetricCalculator& pmc, ReturnType r) {
 
+		using namespace std::chrono;
 		for (PointMetricRasters& v : _pointMetrics) {
 			MetricFunc& f = v.fun;
 			(pmc.*f)(v.rasters.get(r), cell);
 		}
+		std::vector<long long> stratumTimes;
 		for (StratumMetricRasters& v : _stratumMetrics) {
 			StratumFunc& f = v.fun;
 			for (size_t i = 0; i < v.rasters.size(); ++i) {
 				(pmc.*f)(v.rasters[i].get(r), cell, i);
 			}
 		}
-
 		pmc.cleanUp();
 	}
 	void PointMetricHandler::_initMetrics()
@@ -212,10 +220,6 @@ namespace lapis {
 
 		tryRemove(pointMetricDir());
 
-		if (!_getter->doPointMetrics()) {
-			return;
-		}
-
 		using pmc = PointMetricCalculator;
 		using oul = OutputUnitLabel;
 
@@ -223,7 +227,7 @@ namespace lapis {
 
 		_nLaz = Raster<int>(*_getter->metricAlign());
 		for (const Extent& e : _getter->lasExtents()) {
-			for (cell_t cell : _nLaz.cellsFromExtent(e, SnapType::out)) {
+			for (cell_t cell : CellIterator(_nLaz, e, SnapType::out)) {
 				_nLaz[cell].has_value() = true;
 				_nLaz[cell].value()++;
 			}
@@ -238,12 +242,8 @@ namespace lapis {
 
 		_initMetrics();
 	}
-	void PointMetricHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
+	void PointMetricHandler::handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index)
 	{
-		if (!_getter->doPointMetrics()) {
-			return;
-		}
-
 		//This structure is kind of ugly and inelegant, but it ensures that all returns and first returns can share a call to cellFromXY
 		//without needing to pollute the loop with a bunch of if checks
 		//Right now, with only two booleans, the combinatorics are bearable; if it increases, then it probably won't be
@@ -256,8 +256,10 @@ namespace lapis {
 		else if (_getter->doFirstReturnMetrics()) {
 			_assignPointsToCalculators<false, true>(points);
 		}
-
-		for (cell_t cell : _nLaz.cellsFromExtent(e,SnapType::out)) {
+	}
+	void PointMetricHandler::finishLasFile(const Extent& e, size_t index)
+	{
+		for (cell_t cell : CellIterator(_nLaz, e, SnapType::out)) {
 			std::scoped_lock lock{ _getter->cellMutex(cell) };
 			_nLaz.atCellUnsafe(cell).value()--;
 			if (_nLaz.atCellUnsafe(cell).value() != 0) {
@@ -268,7 +270,6 @@ namespace lapis {
 			if (_getter->doFirstReturnMetrics())
 				_processPMCCell(cell, _firstReturnPMC->atCellUnsafe(cell).value(), ReturnType::FIRST);
 		}
-
 	}
 	void PointMetricHandler::handleDem(const Raster<coord_t>& dem, size_t index)
 	{
@@ -276,10 +277,6 @@ namespace lapis {
 	void PointMetricHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) {}
 	void PointMetricHandler::cleanup() {
 		namespace fs = std::filesystem;
-
-		if (!_getter->doPointMetrics()) {
-			return;
-		}
 
 		if (_getter->doAllReturnMetrics()) {
 			fs::path allReturnsMetricDir = _getter->doFirstReturnMetrics() ? pointMetricDir() / "AllReturns" : pointMetricDir();
@@ -296,9 +293,6 @@ namespace lapis {
 	}
 	void PointMetricHandler::describeInPdf(MetadataPdf& pdf)
 	{
-		if (!_getter->doPointMetrics()) {
-			return;
-		}
 		pdf.newPage();
 		pdf.writePageTitle("Point Metrics");
 		std::stringstream overall;

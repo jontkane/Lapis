@@ -71,9 +71,12 @@ namespace lapis {
 			addPoint(cell, (csm_t)cell);
 		}
 
-		Raster<csm_t> expected = spoof.csmAlgorithm()->createCsm(points, a);
+		auto csmMaker = spoof.csmAlgorithm()->getCsmMaker(a);
+		csmMaker->addPoints(points);
+		Raster<csm_t> expected = *csmMaker->currentCsm();
 
 		ch.handlePoints(points, lasExtent, 0);
+		ch.finishLasFile(lasExtent,0);
 
 		fs::path expectedPath = ch.getFullTempFilename(ch.csmTempDir(), "CanopySurfaceModel", OutputUnitLabel::Default, 0);
 
@@ -101,6 +104,7 @@ namespace lapis {
 	TEST(CsmHandlerTest, handletiletest) {
 		CsmParameterSpoofer spoof;
 		setReasonableCsmDefaults(spoof);
+		spoof.setMetricAlign(Alignment(Extent(0, 4, 0, 4), 2, 2));
 		spoof.setCsmPostProcessor(new DoNothingCsm());
 
 		CsmHandlerProtectedAccess ch(&spoof);
@@ -132,10 +136,10 @@ namespace lapis {
 
 
 		Raster<csm_t> buffered = ch.getBufferedCsm(0);
-		ASSERT_TRUE(buffered.xmin() <= fullCsm.xmin());
-		ASSERT_TRUE(buffered.xmax() >= fullCsm.xmax());
-		ASSERT_TRUE(buffered.ymin() <= fullCsm.ymin());
-		ASSERT_TRUE(buffered.ymax() >= fullCsm.ymax());
+		ASSERT_LE(buffered.xmin(), fullCsm.xmin() + LAPIS_EPSILON);
+		ASSERT_GE(buffered.xmax(), fullCsm.xmax() - LAPIS_EPSILON);
+		ASSERT_LE(buffered.ymin(), fullCsm.ymin() + LAPIS_EPSILON);
+		ASSERT_GE(buffered.ymax(), fullCsm.ymax() - LAPIS_EPSILON);
 		for (cell_t cell = 0; cell < fullCsm.ncell(); ++cell) {
 			coord_t x = fullCsm.xFromCell(cell);
 			coord_t y = fullCsm.yFromCell(cell);

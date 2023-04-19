@@ -59,11 +59,11 @@ namespace lapis {
 	void NumericTextBoxWithUnits::updateUnits()
 	{
 		RunParameters& rp = RunParameters::singleton();
-		const Unit& src = rp.prevUnits();
-		const Unit& dst = rp.outUnits();
+		const LinearUnit& src = rp.prevUnits();
+		const LinearUnit& dst = rp.outUnits();
 		try {
 			double v = std::stod(_buffer.data());
-			v = convertUnits(v, src, dst);
+			v = src.convertOneFromThis(v, dst);
 			std::string s = truncDtoS(v);
 			strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size());
 		}

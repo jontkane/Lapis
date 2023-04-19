@@ -33,9 +33,14 @@ namespace lapis {
 				}
 			}
 			(*thisHist)[binInHist]++;
+
+			_sizeWithData = std::max(_sizeWithData, bin+1);
 		}
 
-		size_t size();
+		size_t size()
+		{
+			return _sizeWithData;
+		}
 
 		void cleanUp();
 
@@ -44,6 +49,7 @@ namespace lapis {
 		using _storage = std::vector<std::unique_ptr<std::array<int, binsPerHist>>>;
 		_storage _data;
 		inline static size_t _nHists;
+		size_t _sizeWithData = 0;
 	};
 
 	class PointMetricCalculator {

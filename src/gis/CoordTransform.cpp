@@ -4,7 +4,7 @@
 
 namespace lapis{
 CoordTransform::CoordTransform(const CoordRef& src, const CoordRef& dst) {
-	_convFactor = src.getZUnits().convFactor / dst.getZUnits().convFactor;
+	_conv = LinearUnitConverter(src.getZUnits(), dst.getZUnits());
 	_needZConv = !src.isConsistentZUnits(dst);
 	_needXYConv = !src.isConsistentHoriz(dst);
 	if (_needXYConv) {

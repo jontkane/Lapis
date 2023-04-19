@@ -147,6 +147,7 @@ namespace lapis {
 		points.push_back(LasPoint{ 0.5,1.5,3,0,0 });
 		points.push_back(LasPoint{ 1.5,1.5,3,0,0 });
 		pmh.handlePoints(points, extentone, 0);
+		pmh.finishLasFile(extentone, 0);
 
 		std::vector<bool> expectedNLazHasValue = {
 			false,false,false,

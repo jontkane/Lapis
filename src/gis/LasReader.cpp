@@ -2,9 +2,17 @@
 #include"LasReader.hpp"
 
 namespace lapis {
-	LasReader::LasReader(const std::string& file) : _filters(), CurrentLasPoint(file),
-	_dtms() {}
+	LasReader::LasReader(const std::string& file) : _filters(), CurrentLasPoint(file) {}
 
+
+	LasReader::LasReader(const Extent& e)
+	{
+		_xmin = e.xmin();
+		_xmax = e.xmax();
+		_ymin = e.ymin();
+		_ymax = e.ymax();
+		_crs = e.crs();
+	}
 
 	void LasReader::addFilter(const std::shared_ptr<LasFilter>& filter) {
 		if (filter) {

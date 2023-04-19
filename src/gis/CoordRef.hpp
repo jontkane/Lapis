@@ -16,9 +16,9 @@ namespace lapis {
 
 		//s should be able to be any string proj can read (which is generally very permissive), a raster file, a vector file, or a .prj file
 		CoordRef(const std::string& s);
-		CoordRef(const std::string& s, Unit zUnits);
+		CoordRef(const std::string& s, LinearUnit zUnits);
 		CoordRef(const char* s);
-		CoordRef(const char* s, Unit zUnits);
+		CoordRef(const char* s, LinearUnit zUnits);
 		CoordRef(const ProjPJWrapper& pj);
 
 		//Constructor from a lasheader, to avoid double-reading from the file
@@ -50,16 +50,17 @@ namespace lapis {
 		//returns true if the horizontal units are linear and not angular
 		bool isProjected() const;
 
-		//returns the XY units of the CRS. May be angular
-		Unit getXYUnits() const;
+		//returns the XY units of the CRS.
+		//A return without a value indicates that the CRS is angular, not linear
+		std::optional<LinearUnit> getXYLinearUnits() const;
 
 
 		//returns the Z units of the CRS
 		//If there's no vertical datum, it returns a Unit object which is unknown, but has the same convfactor as the horizontal units
-		const Unit& getZUnits() const;
+		const LinearUnit& getZUnits() const;
 
 		//This function will set the zUnits of the crs
-		void setZUnits(const Unit& zUnits);
+		void setZUnits(const LinearUnit& zUnits);
 
 		//returns true if the vertical datum (and units) are defined
 		bool hasVertDatum() const;
@@ -80,14 +81,14 @@ namespace lapis {
 
 	private:
 		ProjPJWrapper _p;
-		Unit _zUnits;
+		LinearUnit _zUnits;
 
 		void _crsFromString(const std::string& s);
 		void _crsFromLasIO(const LasIO& las);
 		void _crsFromPrj(const std::string& s);
 		void _crsFromRaster(const std::string& s);
 		void _crsFromVector(const std::string& s);
-		Unit _inferZUnits();
+		LinearUnit _inferZUnits();
 	};
 
 	class CoordRefComparator {

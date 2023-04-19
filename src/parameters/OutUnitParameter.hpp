@@ -30,31 +30,31 @@ namespace lapis {
 
 		const std::string& unitPluralName() const;
 		const std::string& unitSingularName() const;
-		const Unit& unit() const;
+		const LinearUnit& unit() const;
 
 	private:
 		Title _title{ "Output Units" };
-		RadioSelect<UnitDecider, Unit> _unit{ "","user-units","The units you want output to be in. All options will be interpretted as these units\n"
+		RadioSelect<UnitDecider, LinearUnit> _unit{ "","user-units","The units you want output to be in. All options will be interpretted as these units\n"
 			"\tValues: m (for meters), f (for international feet), usft (for us survey feet)\n"
 			"\tDefault is meters" };
 
 		class UnitHasher {
 		public:
-			size_t operator()(const Unit& u) const {
-				return std::hash<std::string>()(u.name + std::to_string(u.convFactor));
+			size_t operator()(const LinearUnit& u) const {
+				return std::hash<std::string>()(u.name());
 			}
 		};
-		std::unordered_map<Unit, std::string, UnitHasher> _singularNames = {
-			{LinearUnitDefs::meter,"Meter"},
-			{LinearUnitDefs::foot,"Foot"},
-			{LinearUnitDefs::surveyFoot,"Foot"},
-			{LinearUnitDefs::unkLinear,"Unit"}
+		std::unordered_map<LinearUnit, std::string, UnitHasher> _singularNames = {
+			{linearUnitPresets::meter,"Meter"},
+			{linearUnitPresets::internationalFoot,"Foot"},
+			{linearUnitPresets::usSurveyFoot,"Foot"},
+			{linearUnitPresets::unknownLinear,"Unit"}
 		};
-		std::unordered_map<Unit, std::string, UnitHasher> _pluralNames = {
-			{LinearUnitDefs::meter,"Meters"},
-			{LinearUnitDefs::foot,"Feet"},
-			{LinearUnitDefs::surveyFoot,"Feet"},
-			{LinearUnitDefs::unkLinear,"Units"}
+		std::unordered_map<LinearUnit, std::string, UnitHasher> _pluralNames = {
+			{linearUnitPresets::meter,"Meters"},
+			{linearUnitPresets::internationalFoot,"Feet"},
+			{linearUnitPresets::usSurveyFoot,"Feet"},
+			{linearUnitPresets::unknownLinear,"Units"}
 		};
 	};
 }

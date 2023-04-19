@@ -112,24 +112,30 @@ namespace lapis {
 			try {
 				Alignment a{ _alignFileBoostString };
 
-				const Unit& src = a.crs().getXYUnits();
-				const Unit& dst = RunParameters::singleton().outUnits();
+				std::optional<LinearUnit> srcOpt = a.crs().getXYLinearUnits();
 
-				_xres.setValue(convertUnits(a.xres(), src, dst));
-				_yres.setValue(convertUnits(a.yres(), src, dst));
+				if (!srcOpt) {
+					LapisLogger::getLogger().logMessage("At this time, output coordinate reference systems must be projected.");
+					LapisLogger::getLogger().logMessage("Lat/lon output may be supported in future releases.");
+					return;
+				}
+				LinearUnitConverter converter{ srcOpt.value(), RunParameters::singleton().outUnits() };
+
+				_xres.setValue(converter(a.xres()));
+				_yres.setValue(converter(a.yres()));
 				if (a.xres() == a.yres()) {
 					_xyResDiffCheck = false;
-					_cellsize.setValue(convertUnits(a.xres(), src, dst));
+					_cellsize.setValue(converter(a.xres()));
 				}
 				else {
 					_xyResDiffCheck = true;
 				}
 
-				_xorigin.setValue(convertUnits(a.xOrigin(), src, dst));
-				_yorigin.setValue(convertUnits(a.yOrigin(), src, dst));
+				_xorigin.setValue(converter(a.xOrigin()));
+				_yorigin.setValue(converter(a.yOrigin()));
 				if (a.xOrigin() == a.yOrigin()) {
 					_xyOriginDiffCheck = true;
-					_origin.setValue(convertUnits(a.xOrigin(), src, dst));
+					_origin.setValue(converter(a.xOrigin()));
 				}
 				else {
 					_xyOriginDiffCheck = false;
@@ -207,6 +213,15 @@ namespace lapis {
 		RunParameters& rp = RunParameters::singleton();
 		LapisLogger& log = LapisLogger::getLogger();
 
+		if (!_crs.cachedCrs().isProjected()) {
+			log.logMessage("Currently, output must be in a projected CRS. Lat/Lon will be supported in future releases.");
+			return false;
+		}
+
+		CoordRef withZUnits = _crs.cachedCrs();
+		withZUnits.setZUnits(rp.outUnits());
+		_crs.setCrs(withZUnits);
+
 		Extent e = rp.fullExtent();
 
 		coord_t xres, yres, xorigin, yorigin;
@@ -232,12 +247,13 @@ namespace lapis {
 			return false;
 		}
 
-		const Unit& src = rp.outUnits();
-		Unit dst = e.crs().getXYUnits();
-		xres = convertUnits(xres, src, dst);
-		yres = convertUnits(yres, src, dst);
-		xorigin = convertUnits(xorigin, src, dst);
-		yorigin = convertUnits(yorigin, src, dst);
+		//the branch where this doesn't have a value is handled above
+		LinearUnitConverter converter{ rp.outUnits(), e.crs().getXYLinearUnits().value() };
+
+		xres = converter(xres);
+		yres = converter(yres);
+		xorigin = converter(xorigin);
+		yorigin = converter(yorigin);
 
 		if (xres <= 0 || yres <= 0) {
 			log.logMessage("Cellsize must be positive");
@@ -274,11 +290,14 @@ namespace lapis {
 		pdf.newPage();
 		pdf.writePageTitle("Output Data Characteristics");
 	
+		std::optional<LinearUnit> alignUnits = _align->crs().getXYLinearUnits();
+		LinearUnitConverter converter = alignUnits.has_value() ? LinearUnitConverter(alignUnits.value(), rp.outUnits()) : LinearUnitConverter();
+
 		std::string xresDisplay = pdf.numberWithUnits(
-			convertUnits(_align->xres(), _align->crs().getXYUnits(), rp.outUnits()),
+			converter(_align->xres()),
 			rp.unitSingular(),rp.unitPlural());
 		std::string yresDisplay = pdf.numberWithUnits(
-			convertUnits(_align->yres(), _align->crs().getXYUnits(), rp.outUnits()),
+			converter(_align->yres()),
 			rp.unitSingular(),rp.unitPlural());
 		std::string cellsizeDesc;
 		if (_align->xres() == _align->yres()) {

@@ -45,7 +45,9 @@ namespace lapis {
 		addPoint(9, -1);
 		addPoint(1, 4);
 
-		Raster<csm_t> actual = algo.createCsm(points, expected);
+		auto csmMaker = algo.getCsmMaker(expected);
+		csmMaker->addPoints(points);
+		Raster<csm_t> actual = *csmMaker->currentCsm();
 
 		ASSERT_TRUE(actual.xmin() <= expected.xmin());
 		ASSERT_TRUE(actual.xmax() >= expected.xmax());

@@ -26,6 +26,7 @@ namespace lapis {
 		points.push_back({ 1.5,1.5,3,2,0 });
 
 		fih.handlePoints(points, *spoof.fineIntAlign(), 0);
+		fih.finishLasFile(*spoof.fineIntAlign(), 0);
 
 		std::filesystem::path numName = fih.getFullTempFilename(fih.fineIntTempDir(), "numerator", OutputUnitLabel::Unitless, 0);
 		std::filesystem::path denomName = fih.getFullTempFilename(fih.fineIntTempDir(), "denominator", OutputUnitLabel::Unitless, 0);
@@ -78,12 +79,14 @@ namespace lapis {
 		points.push_back({ 1.5,1.5,3,3,0 });
 
 		fih.handlePoints(points, *spoof.fineIntAlign(), 0);
+		fih.finishLasFile(*spoof.fineIntAlign(), 0);
 		
 		points.clear();
 		points.push_back({ 1.5,1.5,3,5,0 });
 		points.push_back({ 1.5,1.5,1,1,0 });
 
 		fih.handlePoints(points, *spoof.fineIntAlign(), 1);
+		fih.finishLasFile(*spoof.fineIntAlign(), 1);
 
 		Raster<intensity_t> expected{ cropAlignment(*spoof.fineIntAlign(),spoof.layout()->extentFromCell(testTile), SnapType::near) };
 		expected.atXY(0.5, 0.5).has_value() = true;

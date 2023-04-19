@@ -11,8 +11,8 @@ namespace lapis {
 
 	class SharedParameterSpoofer : public virtual SharedParameterGetter {
 	public:
-		void setOutUnits(const Unit& u);
-		const Unit& outUnits() override;
+		void setOutUnits(const LinearUnit& u);
+		const LinearUnit& outUnits() override;
 
 		void setMetricAlign(const Alignment& a);
 		const std::shared_ptr<Alignment> metricAlign() override;
@@ -41,7 +41,7 @@ namespace lapis {
 		const std::string& unitPlural() override;
 
 	private:
-		Unit _outUnits;
+		LinearUnit _outUnits;
 		std::shared_ptr<Alignment> _metricAlign;
 		std::shared_ptr<Raster<bool>> _layout;
 		std::filesystem::path _outFolder;
@@ -51,7 +51,7 @@ namespace lapis {
 	};
 
 	inline void setReasonableSharedDefaults(SharedParameterSpoofer& spoof) {
-		spoof.setOutUnits(LinearUnitDefs::meter);
+		spoof.setOutUnits(linearUnitPresets::meter);
 		spoof.setName("TEST");
 		spoof.setOutFolder(std::string(LAPISTESTFILES) + "/output/");
 		spoof.setMetricAlign(Alignment(Extent(0, 3, 0, 3), 3, 3));

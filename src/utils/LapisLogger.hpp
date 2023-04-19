@@ -7,6 +7,8 @@
 #include<vector>
 #include<mutex>
 #include<chrono>
+#include<iostream>
+#include<fstream>
 
 namespace lapis {
 

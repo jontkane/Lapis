@@ -2,11 +2,11 @@
 #include"ParameterSpoofer.hpp"
 
 namespace lapis {
-	void SharedParameterSpoofer::setOutUnits(const Unit& u)
+	void SharedParameterSpoofer::setOutUnits(const LinearUnit& u)
 	{
 		_outUnits = u;
 	}
-	const Unit& SharedParameterSpoofer::outUnits()
+	const LinearUnit& SharedParameterSpoofer::outUnits()
 	{
 		return _outUnits;
 	}
@@ -136,7 +136,7 @@ namespace lapis {
 	}
 	coord_t PointMetricParameterSpoofer::binSize()
 	{
-		return convertUnits(0.01, LinearUnitDefs::meter, outUnits());
+		return linearUnitPresets::meter.convertOneFromThis(0.01, outUnits());
 	}
 	void PointMetricParameterSpoofer::setStrata(const std::vector<coord_t>& breaks, const std::vector<std::string>& names)
 	{

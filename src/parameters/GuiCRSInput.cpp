@@ -111,7 +111,7 @@ namespace lapis {
 			_displayString = "Error reading CRS";
 		}
 	}
-	void CRSInput::setZUnits(const Unit& zUnits)
+	void CRSInput::setZUnits(const LinearUnit& zUnits)
 	{
 		_cachedCrs.setZUnits(zUnits);
 	}

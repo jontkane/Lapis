@@ -173,14 +173,25 @@ namespace lapis {
 		}
 		EXPECT_EQ(found.size(), 4);
 
-		found.clear();
-		for (cell_t cell : a.cellsFromExtentIterator(e, SnapType::near)) {
+	}
+
+	TEST(AlignmentTest, cellIterator) {
+		Alignment a{ Extent(0,100,0,100),10,10 };
+		Extent e{ 2,18,2,19 };
+		std::set<cell_t> exp = { 80,81,90,91 };
+		std::set<cell_t> found;
+		for (cell_t cell : CellIterator(a, e, SnapType::near)) {
 			EXPECT_TRUE(exp.contains(cell));
 			EXPECT_FALSE(found.contains(cell));
 			found.insert(cell);
 		}
 		EXPECT_EQ(found.size(), 4);
 
+		found.clear();
+		for (cell_t cell : CellIterator(a)) {
+			found.insert(cell);
+		}
+		EXPECT_EQ(found.size(), a.ncell());
 	}
 
 	TEST(AlignmentTest, rowColExtent) {

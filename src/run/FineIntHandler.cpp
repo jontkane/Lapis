@@ -10,6 +10,11 @@ namespace lapis {
 		*this = FineIntHandler(_getter);
 	}
 
+	bool FineIntHandler::doThisProduct()
+	{
+		return _getter->doFineInt();
+	}
+
 	std::string FineIntHandler::name()
 	{
 		return "Fine Int";
@@ -26,14 +31,15 @@ namespace lapis {
 
 		_fineIntBaseName = _getter->fineIntCanopyCutoff() > std::numeric_limits<coord_t>::lowest() ? "MeanCanopyIntensity" : "MeanIntensity";
 	}
-	void FineIntHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
+	void FineIntHandler::handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index)
 	{
-		if (!_getter->doFineInt()) {
-			return;
+		if (!_tiles.contains(index)) {
+			Alignment thisAlign = cropAlignment(*_getter->fineIntAlign(), e, SnapType::out);
+			_tiles.emplace(index, NumDenom(thisAlign));
 		}
 
-		Raster<intensity_t> numerator{ cropAlignment(*_getter->fineIntAlign(),e, SnapType::out) };
-		Raster<intensity_t> denominator{ (Alignment)numerator };
+		Raster<intensity_t>& numerator = _tiles.at(index).num;
+		Raster<intensity_t>& denominator = _tiles.at(index).denom;
 
 		coord_t cutoff = _getter->fineIntCanopyCutoff();
 		for (const LasPoint& p : points) {
@@ -44,9 +50,14 @@ namespace lapis {
 			numerator[cell].value() += p.intensity;
 			denominator[cell].value()++;
 		}
+	}
+	void FineIntHandler::finishLasFile(const Extent& e, size_t index)
+	{
+		Raster<intensity_t>& numerator = _tiles.at(index).num;
+		Raster<intensity_t>& denominator = _tiles.at(index).denom;
 
 		//there are many more points than cells, so rearranging work to be O(cells) instead of O(points) is generally worth it, even if it's a bit awkward
-		for (cell_t cell = 0; cell < denominator.ncell(); ++cell) {
+		for (cell_t cell : CellIterator(denominator)) {
 			if (denominator[cell].value() > 0) {
 				denominator[cell].has_value() = true;
 				numerator[cell].has_value() = true;
@@ -55,16 +66,14 @@ namespace lapis {
 
 		writeRasterLogErrors(getFullTempFilename(fineIntTempDir(), _numeratorBasename, OutputUnitLabel::Unitless, index), numerator);
 		writeRasterLogErrors(getFullTempFilename(fineIntTempDir(), _denominatorBasename, OutputUnitLabel::Unitless, index), denominator);
+
+		_tiles.erase(index);
 	}
 	void FineIntHandler::handleDem(const Raster<coord_t>& dem, size_t index)
 	{
 	}
 	void FineIntHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
 	{
-
-		if (!_getter->doFineInt()) {
-			return;
-		}
 
 		Raster<intensity_t> numerator = getEmptyRasterFromTile<intensity_t>(tile, *_getter->fineIntAlign(), 0.);
 		Raster<intensity_t> denominator{ (Alignment)numerator };
@@ -135,9 +144,6 @@ namespace lapis {
 	}
 	void FineIntHandler::describeInPdf(MetadataPdf& pdf)
 	{
-		if (!_getter->doFineInt()) {
-			return;
-		}
 		pdf.newPage();
 		pdf.writePageTitle("Intensity");
 		pdf.writeTextBlockWithWrap("Intensity is a measure of how bright a lidar return is. It is unitless, and the scale varies from sensor to sensor, "
@@ -163,9 +169,9 @@ namespace lapis {
 			productDesc << " above the ground were ignored. This is usually to exclude the ground from the values, but if this is set high enough, it may ";
 			productDesc << "exclude shrubs or some trees as well. ";
 		}
-		std::string cellsize = pdf.numberWithUnits(convertUnits(_getter->fineIntAlign()->xres(),
-			_getter->fineIntAlign()->crs().getXYUnits(),
-			_getter->outUnits()),
+		std::string cellsize = pdf.numberWithUnits(
+			_getter->outUnits().convertOneToThis(_getter->fineIntAlign()->xres(),
+				_getter->fineIntAlign()->crs().getXYLinearUnits()),
 			_getter->unitSingular(),
 			_getter->unitPlural());
 		productDesc << "The cellsize of the intensity rasters is " << cellsize << ".";

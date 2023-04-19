@@ -74,7 +74,7 @@ namespace lapis {
 
 		virtual ~CoordVector3D() = default;
 
-		void setZ(coord_t z, size_t idx, const Unit& zUnits) {
+		void setZ(coord_t z, size_t idx, const LinearUnit& zUnits) {
 			this->_points[idx].z = convertUnits(z, zUnits, this->crs.getZUnits()); //why was VS giving me a red squiggly without the this->?
 		}
 

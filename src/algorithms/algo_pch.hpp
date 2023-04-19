@@ -4,6 +4,7 @@
 
 #include<vector>
 #include<queue>
+#include<ranges>
 
 #include"..\gis\Raster.hpp"
 #include"..\gis\LasReader.hpp"

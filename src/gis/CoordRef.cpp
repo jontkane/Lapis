@@ -15,7 +15,7 @@ namespace lapis {
 		_zUnits = _inferZUnits();
 	}
 
-	CoordRef::CoordRef(const std::string& s, Unit zUnits) {
+	CoordRef::CoordRef(const std::string& s, LinearUnit zUnits) {
 		_crsFromString(s);
 		setZUnits(zUnits);
 	}
@@ -24,7 +24,7 @@ namespace lapis {
 	{
 	}
 
-	CoordRef::CoordRef(const char* s, Unit zUnits) : CoordRef(std::string(s), zUnits)
+	CoordRef::CoordRef(const char* s, LinearUnit zUnits) : CoordRef(std::string(s), zUnits)
 	{
 	}
 
@@ -126,14 +126,7 @@ namespace lapis {
 	}
 
 	bool CoordRef::isConsistentZUnits(const CoordRef& other) const {
-		Unit otherUnits = other.getZUnits();
-		if (_zUnits.isUnknown() || otherUnits.isUnknown()) {
-			return true;
-		}
-		if (std::abs(_zUnits.convFactor - otherUnits.convFactor) < LAPIS_EPSILON) {
-			return true;
-		}
-		return false;
+		return _zUnits.isConsistent(other.getZUnits());
 	}
 
 	bool CoordRef::isConsistent(const CoordRef& other) const {
@@ -142,7 +135,7 @@ namespace lapis {
 
 	bool CoordRef::isProjected() const {
 		if (isEmpty()) {
-			throw EmptyCRSException("");
+			return true;
 		}
 		PJ_TYPE t = proj_get_type(_p.ptr());
 		if (t == PJ_TYPE_PROJECTED_CRS) {
@@ -160,16 +153,17 @@ namespace lapis {
 		return false;
 	}
 
-	Unit CoordRef::getXYUnits() const {
+	std::optional<LinearUnit> CoordRef::getXYLinearUnits() const {
 		if (isEmpty()) {
-			return LinearUnitDefs::unkLinear;
+			return linearUnitPresets::unknownLinear;
+		}
+		if (!isProjected()) {
+			return std::optional<LinearUnit>();
 		}
 
 		ProjPJWrapper horiz = _p;
 
 		PJ_TYPE t = proj_get_type(_p.ptr());
-
-		unitType type = isProjected() ? unitType::linear : unitType::angular;
 
 		if (t == PJ_TYPE_COMPOUND_CRS) {
 			horiz = ProjPJWrapper(proj_crs_get_sub_crs(ProjContextByThread::get(), _p.ptr(), 0));
@@ -183,30 +177,20 @@ namespace lapis {
 			&convFactor, &unitName,
 			nullptr, nullptr);
 		if (unitName == nullptr) {
-			return LinearUnitDefs::unkLinear;
+			return linearUnitPresets::unknownLinear;
 		}
-		return Unit(std::string(unitName), convFactor, type, unitStatus::statedInCRS);
+		return LinearUnit(std::string(unitName), convFactor);
 	}
 
 
 	//returns the Z units of the CRS
 	//If there's no vertical datum, it returns a Unit object which is unknown, but has the same convfactor as the horizontal units
-	const Unit& CoordRef::getZUnits() const {
+	const LinearUnit& CoordRef::getZUnits() const {
 		return _zUnits;
 	}
 
-	void CoordRef::setZUnits(const Unit& zUnits) {
-		if (zUnits.type != unitType::linear) {
-			throw ImproperUnitsException("");
-		}
-		if (!zUnits.isUnknown()) {
-			_zUnits = zUnits;
-			_zUnits.status = unitStatus::setByUser;
-		}
-		else {
-			_zUnits = _inferZUnits();
-		}
-
+	void CoordRef::setZUnits(const LinearUnit& zUnits) {
+		_zUnits = zUnits;
 	}
 
 	bool CoordRef::hasVertDatum() const {
@@ -259,11 +243,11 @@ namespace lapis {
 		else if (std::regex_match(epsg, vertunknown)) {
 			auto horiz = ProjPJWrapper(proj_crs_get_sub_crs(ProjContextByThread::get(), _p.ptr(), 0));
 			CoordRef out = CoordRef(CoordRef(horiz).getEPSG());
-			Unit vertUnits = getZUnits();
+			LinearUnit vertUnits = getZUnits();
 			out.setZUnits(vertUnits);
 			return out;
 		} else {
-			Unit vertUnits = getZUnits();
+			LinearUnit vertUnits = getZUnits();
 			CoordRef out = CoordRef(epsg);
 			out.setZUnits(vertUnits);
 			return out;
@@ -411,18 +395,14 @@ namespace lapis {
 		}
 	}
 
-	Unit CoordRef::_inferZUnits() {
+	LinearUnit CoordRef::_inferZUnits() {
 		if (isEmpty()) {
-			return LinearUnitDefs::unkLinear;
+			return linearUnitPresets::unknownLinear;
 		}
 		PJ_TYPE t = proj_get_type(_p.ptr());
 		if (t != PJ_TYPE_COMPOUND_CRS) {
-			if (!isProjected()) {
-				return LinearUnitDefs::unkLinear;
-			}
-			Unit u = getXYUnits();
-			u.status = unitStatus::inferredFromCRS;
-			return u;
+			std::optional<LinearUnit> u = getXYLinearUnits();
+			return u.value_or(linearUnitPresets::unknownLinear);
 		}
 		ProjPJWrapper vert = ProjPJWrapper(proj_crs_get_sub_crs(ProjContextByThread::get(), _p.ptr(), 1));
 		ProjPJWrapper cs = ProjPJWrapper(proj_crs_get_coordinate_system(ProjContextByThread::get(), vert.ptr()));
@@ -432,7 +412,7 @@ namespace lapis {
 			nullptr, nullptr, nullptr,
 			&convFactor, &unitName,
 			nullptr, nullptr);
-		return Unit(std::string(unitName), convFactor, unitType::linear, unitStatus::statedInCRS);
+		return LinearUnit(std::string(unitName), convFactor);
 	}
 
 	bool CoordRefComparator::operator()(const CoordRef& a, const CoordRef& b) const
@@ -442,7 +422,7 @@ namespace lapis {
 
 	size_t CoordRefHasher::operator()(const CoordRef& a) const
 	{
-		return std::hash<std::string>()(a.getCompleteWKT() + a.getZUnits().name);
+		return std::hash<std::string>()(a.getCompleteWKT() + a.getZUnits().name());
 	}
 
 }

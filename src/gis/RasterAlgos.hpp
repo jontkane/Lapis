@@ -10,16 +10,16 @@ namespace lapis {
 	template<class T>
 	inline Raster<T> aggregateSum(const Raster<T>& r, const Alignment& a) {
 		Raster<T> out{ a };
-		for (cell_t bigCell : a.cellsFromExtent(r,SnapType::out)) {
+		for (cell_t bigCell : CellIterator(a, r,SnapType::out)) {
 			Extent e = a.extentFromCell(bigCell);
-			for (cell_t smallCell : r.cellsFromExtent(e, SnapType::near)) {
+			for (cell_t smallCell : CellIterator(r, e, SnapType::near)) {
 				if (r[smallCell].has_value()) {
 					out[bigCell].value() += r[smallCell].value();
 				}
 			}
 		}
 
-		for (cell_t cell : a.allCellsIterator()) {
+		for (cell_t cell : CellIterator(a)) {
 			if (out[cell].value() != 0) {
 				out[cell].has_value() = true;
 			}
@@ -31,16 +31,16 @@ namespace lapis {
 	template<class T>
 	inline Raster<T> aggregateCount(const Raster<T>& r, const Alignment& a) {
 		Raster<T> out{ a };
-		for (cell_t bigCell : a.cellsFromExtent(r, SnapType::out)) {
+		for (cell_t bigCell : CellIterator(a, r, SnapType::out)) {
 			Extent e = a.extentFromCell(bigCell);
-			for (cell_t smallCell : r.cellsFromExtent(e, SnapType::near)) {
+			for (cell_t smallCell : CellIterator(r, e, SnapType::near)) {
 				if (r[smallCell].has_value()) {
 					out[bigCell].value()++;
 				}
 			}
 		}
 
-		for (cell_t cell : a.allCellsIterator()) {
+		for (cell_t cell : CellIterator(a)) {
 			if (out[cell].value() != 0) {
 				out[cell].has_value() = true;
 			}
@@ -54,7 +54,7 @@ namespace lapis {
 	template<class OUTPUT, class INPUT>
 	inline Raster<OUTPUT> aggregate(const Raster<INPUT>& r, const Alignment& a, ViewFunc<OUTPUT, INPUT> f) {
 		Raster<OUTPUT> out{ a };
-		for (cell_t cell : a.cellsFromExtent(r, SnapType::out)) {
+		for (cell_t cell : CellIterator(a, r, SnapType::out)) {
 			Extent e = a.extentFromCell(cell);
 
 			if (!r.overlaps(e)) {

@@ -5,10 +5,54 @@
 
 namespace lapis {
 
+	//A variant of overlay that will not take values from the outer edge of the overlaid raster unless it would overwrite a nodata value
+	//Intended for use when mosaicing together rasters that have edge effects, but also have a buffer
+	void overlayExcludingEdgeThreadSafe(Raster<metric_t>& base, const Raster<metric_t>& over, CsmParameterGetter* getter) {
+		Alignment::RowColExtent rcExt = base.rowColExtent(over, SnapType::near); //snap type doesn't matter with consistent alignments, but 'near' will correct for floating point issues
+
+		auto distFromEdge = [](const Alignment& a, rowcol_t row, rowcol_t col) {
+			rowcol_t dist = std::min(col, row);
+			dist = std::min(dist, a.ncol() - 1 - col);
+			dist = std::min(dist, a.nrow() - 1 - row);
+			return dist;
+		};
+
+		for (rowcol_t row = rcExt.minrow; row <= rcExt.maxrow; ++row) {
+			for (rowcol_t col = rcExt.mincol; col <= rcExt.maxcol; ++col) {
+
+				cell_t baseCell = base.cellFromRowColUnsafe(row, col);
+				cell_t overCell = over.cellFromRowColUnsafe(row - rcExt.minrow, col - rcExt.mincol);
+
+				const auto otherValue = over[overCell];
+				auto thisValue = base[baseCell];
+				if (!otherValue.has_value()) {
+					continue;
+				}
+				std::scoped_lock lock{ getter->cellMutex(baseCell) };
+				if (!thisValue.has_value()) {
+					thisValue.has_value() = true;
+					thisValue.value() = otherValue.value();
+					continue;
+				}
+
+				if (row == rcExt.minrow || row == rcExt.maxrow || col == rcExt.mincol || col == rcExt.maxcol) {
+					continue;
+				}
+
+				thisValue.value() = otherValue.value();
+			}
+		}
+	}
+
 	size_t CsmHandler::handlerRegisteredIndex = LapisController::registerHandler(new CsmHandler(&RunParameters::singleton()));
 	void CsmHandler::reset()
 	{
 		*this = CsmHandler(_getter);
+	}
+
+	bool CsmHandler::doThisProduct()
+	{
+		return _getter->doCsm();
 	}
 
 	std::string CsmHandler::name()
@@ -32,39 +76,39 @@ namespace lapis {
 		}
 		_initMetrics();
 	}
-	void CsmHandler::handlePoints(const LidarPointVector& points, const Extent& e, size_t index)
+	void CsmHandler::handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index)
 	{
-		if (!_getter->doCsm()) {
-			return;
+		if (!_csmGenerators.contains(index)) {
+			Alignment thisAlign = cropAlignment(*_getter->csmAlign(), e, SnapType::out);
+			_csmGenerators.emplace(index, _getter->csmAlgorithm()->getCsmMaker(thisAlign));
 		}
-
-		Raster<csm_t> csm = _getter->csmAlgorithm()->createCsm(points, cropAlignment(*_getter->csmAlign(), e, SnapType::out));
-
-		writeRasterLogErrors(getFullTempFilename(csmTempDir(), _csmBaseName, OutputUnitLabel::Default, index), csm);
+		_csmGenerators[index]->addPoints(points);
+	}
+	void CsmHandler::finishLasFile(const Extent& e, size_t index)
+	{
+		writeRasterLogErrors(getFullTempFilename(csmTempDir(), _csmBaseName, OutputUnitLabel::Default, index), *_csmGenerators[index]->currentCsm());
+		_csmGenerators.erase(index);
 	}
 	void CsmHandler::handleDem(const Raster<coord_t>& dem, size_t index)
 	{
 	}
 	void CsmHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
 	{
-		if (!_getter->doCsm()) {
-			return;
-		}
 		for (CSMMetricRaster& metric : _csmMetrics) {
 			Raster<metric_t> tileMetric = aggregate<metric_t, csm_t>(bufferedCsm, cropAlignment(*_getter->metricAlign(), bufferedCsm, SnapType::out), metric.fun);
-			metric.raster.overlayInside(tileMetric);
+			static std::mutex mut;
+
+			overlayExcludingEdgeThreadSafe(metric.raster, tileMetric, _getter);
 		}
 
 		Extent cropExt = _getter->layout()->extentFromCell(tile); //unbuffered extent
-		Raster<csm_t> unbuffered = cropRaster(bufferedCsm, cropExt, SnapType::out);
+
+		Raster<csm_t> unbuffered = cropRaster(bufferedCsm, cropExt, SnapType::near);
 
 		writeRasterLogErrors(getFullTileFilename(csmDir(), _csmBaseName, OutputUnitLabel::Default, tile), unbuffered);
 	}
 	void CsmHandler::cleanup()
 	{
-		if (!_getter->doCsm()) {
-			return;
-		}
 		tryRemove(csmTempDir());
 		deleteTempDirIfEmpty();
 
@@ -76,9 +120,6 @@ namespace lapis {
 
 	void CsmHandler::describeInPdf(MetadataPdf& pdf)
 	{
-		if (!_getter->doCsm()) {
-			return;
-		}
 		pdf.newPage();
 		pdf.writePageTitle("Canopy Surface Model");
 		pdf.writeSubsectionTitle("Overall Description");
@@ -109,9 +150,8 @@ namespace lapis {
 		std::stringstream cellAndUnits;
 		cellAndUnits << "The cellsize of the CSM is " <<
 			pdf.numberWithUnits(
-				convertUnits(_getter->csmAlign()->xres(),
-					_getter->csmAlign()->crs().getXYUnits(),
-					_getter->outUnits()),
+				_getter->outUnits().convertOneToThis(_getter->csmAlign()->xres(),
+					_getter->csmAlign()->crs().getXYLinearUnits()),
 				_getter->unitSingular(), _getter->unitPlural()) << ". ";
 		cellAndUnits << "The values of the rasters are in " << pdf.strToLower(_getter->unitPlural()) << ".";
 
@@ -157,7 +197,10 @@ namespace lapis {
 
 		Extent thistile = layout->extentFromCell(tile);
 
-		Raster<csm_t> bufferedCsm = getEmptyRasterFromTile<csm_t>(tile, *csmAlign, 30);
+		coord_t bufferAmount = std::max(_getter->metricAlign()->xres(), _getter->metricAlign()->yres()) * 1.5;
+		bufferAmount = linearUnitPresets::meter.convertOneToThis(bufferAmount, _getter->metricAlign()->crs().getXYLinearUnits().value());
+
+		Raster<csm_t> bufferedCsm = getEmptyRasterFromTile<csm_t>(tile, *csmAlign, bufferAmount);
 
 		Extent extentWithData;
 		bool extentInit = false;

@@ -1,6 +1,6 @@
 #include"LapisLogger.hpp"
 #include"../imgui/imgui.h"
-#include<iostream>
+#include"LapisWindows.hpp"
 
 namespace lapis {
 	LapisLogger& LapisLogger::getLogger()
@@ -46,7 +46,7 @@ namespace lapis {
 		_needEllipsis = needEllipsis;
 		_lastProgressNoEllipsis = displayString;
 
-		std::cout << displayString << "\n";
+		lapisCout << displayString << "\n";
 		_totalForTask = total;
 		_progressTracker.push_back(displayString);
 		_currentOutOfTotal = 0;
@@ -61,7 +61,7 @@ namespace lapis {
 		std::scoped_lock(_mut);
 		_currentOutOfTotal++;
 		if (message.size()) {
-			std::cout << message << " " << _currentOutOfTotal << "/" << _totalForTask << "\n";
+			lapisCout << message << " " << _currentOutOfTotal << "/" << _totalForTask << "\n";
 		}
 		if (_totalForTask > 0) {
 			_updateIncStr();
@@ -70,7 +70,7 @@ namespace lapis {
 	void LapisLogger::logMessage(const std::string& s)
 	{
 		std::scoped_lock(_mut);
-		std::cout << s << "\n";
+		lapisCout << s << "\n";
 		_messages.push_back(s);
 		if (_messages.size() > 100000) {
 			_messages.pop_front();

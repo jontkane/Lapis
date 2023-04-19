@@ -7,20 +7,42 @@
 namespace lapis {
 
 	class MetadataPdf;
+
+	class DemAlgoApplier {
+	public:
+
+		virtual ~DemAlgoApplier() = default;
+
+		DemAlgoApplier(LasReader&& l, const CoordRef& outCrs, coord_t minHt, coord_t maxHt) : _las(std::move(l)), _crs(outCrs), _minHt(minHt), _maxHt(maxHt) {}
+		DemAlgoApplier() = default;
+
+		virtual std::shared_ptr<Raster<coord_t>> getDem() = 0;
+
+		//the span returned by this function will be valid until the next time getPoints is called
+		virtual std::span<LasPoint> getPoints(size_t n) = 0;
+		virtual size_t pointsRemaining() = 0;
+
+		//this function is split off mostly to aid with testing
+		virtual void normalizePointVector(LidarPointVector& points);
+		virtual bool normalizePoint(LasPoint& p) = 0;
+
+	protected:
+
+		LasReader _las;
+		CoordRef _crs;
+		coord_t _minHt = 0;
+		coord_t _maxHt = 300;
+	};
 	
+	//This class is intended to be a stand-between a LasReader and the code which actually uses the las points
+	//Because different dem algorithms have different needs (e.g., some need to read all points at the start, some can stream them),
+	//this class is responsible for handling that
 	class DemAlgorithm {
 	public:
 
 		virtual ~DemAlgorithm() = default;
-		
-		//this function takes in a list of lidar points and does two things:
-		//it normalizes the points to the ground according to whatever algorithm this class represents
-		//it calculates a rasterized version of the ground model
-		//the passed extent should contain all the points, and be in the same CRS as them
-		//the returned raster will be at least as large as e, and have a resolution no coarser than 1 meter
-		//the points vector will be modified in-place to not contain any points outside of the min and max filters
-		//and will not contain any points that couldn't be normalized
-		virtual Raster<coord_t> normalizeToGround(LidarPointVector& points, const Extent& e) = 0;
+
+		virtual std::unique_ptr<DemAlgoApplier> getApplier(LasReader&& l, const CoordRef& outCrs) = 0;
 
 		virtual void describeInPdf(MetadataPdf& pdf) = 0;
 
@@ -32,36 +54,7 @@ namespace lapis {
 	protected:
 		coord_t _minHt = 0;
 		coord_t _maxHt = 300;
-
-		//a helper function to take care of some shared logic
-		//f should be a functor like:
-		//bool operator()(LasPoint&) const;
-		//It normalizes the z value of the point in place and returns true if the normalization was successfull
-		//and false if it wasn't.
-		template<class FUNC>
-		void _normalizeByFunction(LidarPointVector& points, const FUNC& f);
 	};
-	template<class FUNC>
-	inline void DemAlgorithm::_normalizeByFunction(LidarPointVector& points, const FUNC& f)
-	{
-		size_t nFiltered = 0;
-		for (size_t i = 0; i < points.size(); ++i) {
-			LasPoint& point = points[i];
-			if (!f(point)) {
-				nFiltered++;
-				continue;
-			}
-
-			if (point.z > _maxHt || point.z < _minHt) {
-				nFiltered++;
-				continue;
-			}
-			if (nFiltered > 0) {
-				points[i - nFiltered] = point;
-			}
-		}
-		points.resize(points.size() - nFiltered);
-	}
 }
 
 #endif

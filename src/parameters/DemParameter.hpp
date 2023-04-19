@@ -9,7 +9,7 @@ namespace lapis {
 
 	namespace DemAlgo {
 		enum DemAlgo {
-			OTHER,
+			DEMALGO_ERROR,
 			DONTNORMALIZE,
 			VENDORRASTER
 		};
@@ -74,20 +74,20 @@ namespace lapis {
 		class DemOpener {
 		public:
 
-			DemOpener(const CoordRef& crsOverride, const Unit& unitOverride);
+			DemOpener(const CoordRef& crsOverride, const LinearUnit& unitOverride);
 
 			DemFileAlignment operator()(const std::filesystem::path& f) const;
 
 		private:
 			const CoordRef& _crsOverride;
-			const Unit& _unitOverride;
+			const LinearUnit& _unitOverride;
 		};
 
 		std::vector<DemFileAlignment> _demFileAligns;
 
 		bool _runPrepared = false;
 
-		RadioSelect<UnitDecider, Unit> _unit{ "Vertical units in DEM files:","dem-units" };
+		RadioSelect<UnitDecider, LinearUnit> _unit{ "Vertical units in DEM files:","dem-units" };
 		CRSInput _crs{ "DEM CRS:","dem-crs","Infer from files" };
 		bool _displayCrsWindow = false;
 		bool _displayAdvanced = false;

@@ -7,55 +7,10 @@ namespace lapis {
 		:_footprintRadius(footprintDiameter/2.)
 	{
 	}
-	Raster<csm_t> MaxPoint::createCsm(const LidarPointVector& points, const Alignment& a)
+	std::unique_ptr<CsmMaker> MaxPoint::getCsmMaker(const Alignment& a)
 	{
-		Raster<csm_t> csm{ Alignment(bufferExtent(a,_footprintRadius),a.xOrigin(),a.yOrigin(),a.xres(),a.yres()) };
-
-		const coord_t diagonal = _footprintRadius / std::sqrt(2);
-		const coord_t epsilon = -0.000001; //the purpose of this value is to avoid ties caused by the footprint algorithm messing with the high points TAO algorithm
-		struct XYEpsilon {
-			coord_t x, y, epsilon;
-		};
-		std::vector<XYEpsilon> circle;
-		if (_footprintRadius == 0) {
-			circle = { {0.,0.,0.} };
-		}
-		else {
-			circle = { {0,0,0},
-				{_footprintRadius,0,epsilon},
-				{-_footprintRadius,0,epsilon},
-				{0,_footprintRadius,epsilon},
-				{0,-_footprintRadius,epsilon},
-				{diagonal,diagonal,2 * epsilon},
-				{diagonal,-diagonal,2 * epsilon},
-				{-diagonal,diagonal,2 * epsilon},
-				{-diagonal,-diagonal,2 * epsilon} };
-		}
-
-		//there are generally far more points than cells, so it's worth it to do some goofy stuff to reduce the amount of work in the core loop
-		//in particular, this escapes the need to handle has_value() inside the point loop
-		for (cell_t cell = 0; cell < csm.ncell(); ++cell) {
-			csm[cell].value() = std::numeric_limits<csm_t>::lowest();
-		}
-
-		for (const LasPoint& p : points) {
-			for (const XYEpsilon& direction : circle) {
-				coord_t x = p.x + direction.x;
-				coord_t y = p.y + direction.y;
-				csm_t z = p.z + direction.epsilon;
-				cell_t cell = csm.cellFromXYUnsafe(x, y);
-
-				csm[cell].value() = std::max(csm[cell].value(), z);
-			}
-		}
-
-		for (cell_t cell = 0; cell < csm.ncell(); ++cell) {
-			if (csm[cell].value() > std::numeric_limits<csm_t>::lowest()) {
-				csm[cell].has_value() = true;
-			}
-		}
-
-		return csm;
+		Alignment buffered = Alignment(bufferExtent(a, _footprintRadius), a.xOrigin(), a.yOrigin(), a.xres(), a.yres());
+		return std::make_unique<MaxPointCsmMaker>(buffered, _footprintRadius);
 	}
 	csm_t MaxPoint::combineCells(csm_t a, csm_t b)
 	{
@@ -77,5 +32,60 @@ namespace lapis {
 	coord_t MaxPoint::footprintRadius()
 	{
 		return _footprintRadius;
+	}
+
+	MaxPointCsmMaker::MaxPointCsmMaker(const Alignment& a, coord_t footprintRadius)
+		: _footprintRadius(footprintRadius)
+	{
+		_csm = std::make_shared<Raster<csm_t>>(a);
+
+		//there are generally far more points than cells, so it's worth it to do some goofy stuff to reduce the amount of work in the core loop
+		//in particular, this escapes the need to handle has_value() inside the point loop
+		for (cell_t cell : CellIterator(*_csm)) {
+			_csm->atCellUnsafe(cell).value() = std::numeric_limits<csm_t>::lowest();
+		}
+	}
+	void MaxPointCsmMaker::addPoints(const std::span<LasPoint>& points)
+	{
+		const coord_t diagonal = _footprintRadius / std::sqrt(2);
+		const coord_t epsilon = -0.000001; //the purpose of this value is to avoid ties caused by the footprint algorithm messing with the high points TAO algorithm
+		struct XYEpsilon {
+			coord_t x, y, epsilon;
+		};
+		std::vector<XYEpsilon> circle;
+		if (_footprintRadius == 0) {
+			circle = { {0.,0.,0.} };
+		}
+		else {
+			circle = { {0,0,0},
+				{_footprintRadius,0,epsilon},
+				{-_footprintRadius,0,epsilon},
+				{0,_footprintRadius,epsilon},
+				{0,-_footprintRadius,epsilon},
+				{diagonal,diagonal,2 * epsilon},
+				{diagonal,-diagonal,2 * epsilon},
+				{-diagonal,diagonal,2 * epsilon},
+				{-diagonal,-diagonal,2 * epsilon} };
+		}
+
+		for (const LasPoint& p : points) {
+			for (const XYEpsilon& direction : circle) {
+				coord_t x = p.x + direction.x;
+				coord_t y = p.y + direction.y;
+				csm_t z = p.z + direction.epsilon;
+				cell_t cell = _csm->cellFromXYUnsafe(x, y);
+
+				_csm->atCellUnsafe(cell).value() = std::max(_csm->atCellUnsafe(cell).value(), z);
+			}
+		}
+	}
+	std::shared_ptr<Raster<csm_t>> MaxPointCsmMaker::currentCsm()
+	{
+		for (cell_t cell : CellIterator(*_csm)) {
+			if (_csm->atCellUnsafe(cell).value() > std::numeric_limits<csm_t>::lowest()) {
+				_csm->atCellUnsafe(cell).has_value() = true;
+			}
+		}
+		return _csm;
 	}
 }

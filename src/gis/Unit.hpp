@@ -6,73 +6,75 @@
 #include<regex>
 
 namespace lapis {
-	enum class unitStatus {
-		statedInCRS, //the CRS explicitly states the units
-		inferredFromCRS, //the CRS isn't explicit but a plausible guess can be made; e.g., assuming that the vertical and horizontal units are the same
-		unknown, //the unit status is completely unknown
-		setByUser //the units were set by the user and not derived from the CRS
+
+	class LinearUnitConverter;
+
+	class LinearUnit {
+		friend class LinearUnitConverter;
+
+	public:
+
+		//Produces an unknown linear unit. An unknown unit has a conversion factor of 1 with all other units
+		LinearUnit();
+
+		//Following existing convention, the conversion factor is the value that you multiply by to get meters
+		LinearUnit(const std::string& name, coord_t convFactor);
+
+		const std::string& name() const;
+
+		coord_t convertOneFromThis(coord_t value, const LinearUnit& destUnits) const;
+		coord_t convertOneFromThis(coord_t value, const std::optional<LinearUnit>& destUnits) const;
+		coord_t convertOneToThis(coord_t value, const LinearUnit& sourceUnits) const;
+		coord_t convertOneToThis(coord_t value, const std::optional<LinearUnit>& sourceUnits) const;
+
+		//returns true if either this or other are unknown, or if their conv factors are equal to within floating point imprecision
+		bool isConsistent(const LinearUnit& other) const;
+
+		bool isUnknown() const;
+
+		//this tests not for full equality of all members, but just that either both or neither are unknown, and also that the conv factors are within a floating point error
+		bool operator==(const LinearUnit& other) const;
+
+	private:
+		std::string _name;
+		coord_t _convFactor;
+		bool _isUnknown;
+
 	};
-	enum class unitType {
-		linear,
-		angular,
-		area,
-		unknown
+
+	class LinearUnitConverter {
+	public:
+
+		LinearUnitConverter();
+		LinearUnitConverter(const LinearUnit& source, const LinearUnit& dest);
+		LinearUnitConverter(const std::optional<LinearUnit>& source, const std::optional<LinearUnit>& dest);
+
+		//these are aliases for each other
+		coord_t convertOne(coord_t value) const;
+		coord_t operator()(coord_t value) const;
+
+		//This function converts values in a contiguous container, which is not necessarily an array of coord_t
+		//The span variable indicates the distance between successive values to convert
+		//For example, if we have: struct XYZ {coord_t x, y, z;};
+		//and a std::vector<XYZ> of size 1000 named v, and we want to convert the z values only, the call would be:
+		//convertManyInPlace(&v[0].z, 1000, sizeof(XYZ));
+		//if span is unspecified, then the assumption is that po is a pointer to an array of coord_t
+		void convertManyInPlace(coord_t* po, size_t count, size_t span = sizeof(coord_t)) const;
+
+	private:
+		coord_t _conv;
 	};
 
-	struct Unit {
-		std::string name; //the name as stored in the wkt, or "unknown"
-		coord_t convFactor; //the number to multiple by to get to SI units (or to radians)
-		unitType type; //true if it's a linear unit that can be converted to meters
-		unitStatus status;
+	namespace linearUnitPresets {
 
-		Unit() : name("unknown"), convFactor(1), type(unitType::unknown), status(unitStatus::unknown) {}
-		Unit(const std::string& name, coord_t convFactor, unitType type, unitStatus status) : name(name), convFactor(convFactor), type(type), status(status) {}
-		Unit(const std::string& name);
+		//Spelled 'metre' to match the convention in WKT strings
+		const LinearUnit meter{ "metre", 1. };
 
-		bool isUnknown() const {
-			return status == unitStatus::unknown;
-		}
-		bool isLinear() const {
-			return type == unitType::linear;
-		}
-	};
-	namespace LinearUnitDefs {
-		const Unit meter{ "metre",1.,unitType::linear,unitStatus::setByUser };
-		const Unit foot{ "foot",0.3048,unitType::linear,unitStatus::setByUser };
-		const Unit surveyFoot{ "US survey foot",0.30480060960122,unitType::linear,unitStatus::setByUser };
-		const Unit unkLinear{ "unknown",1.,unitType::linear,unitStatus::unknown };
-	}
+		const LinearUnit internationalFoot{ "foot",0.3048 };
 
-	inline bool operator==(const Unit& lhs, const Unit& rhs) {
-		//Not checking that the name strings are identical because I don't care about the difference between 'meter' and 'metre'
-		return (lhs.convFactor == rhs.convFactor) && (lhs.type == rhs.type) && (lhs.isUnknown() == rhs.isUnknown());
-	}
+		const LinearUnit usSurveyFoot{ "US survey foot", 0.30480060960122 };
 
-	inline coord_t convertUnits(coord_t value, const Unit& src, const Unit& dst) {
-		if (src.isUnknown() || dst.isUnknown()) {
-			return value;
-		}
-		value *= src.convFactor;
-		value /= dst.convFactor;
-		return value;
-	}
-
-	inline Unit::Unit(const std::string& name) {
-		std::regex meter{ ".*m.*" };
-		std::regex surveyfoot{ ".*us.*" };
-		std::regex intlfoot{ ".*f.*" };
-		if (std::regex_match(name, meter)) {
-			*this = LinearUnitDefs::meter;
-		}
-		else if (std::regex_match(name, surveyfoot)) {
-			*this = LinearUnitDefs::surveyFoot;
-		}
-		else if (std::regex_match(name, intlfoot)) {
-			*this = LinearUnitDefs::foot;
-		}
-		else {
-			*this = LinearUnitDefs::unkLinear;
-		}
+		const LinearUnit unknownLinear{};
 	}
 }
 

@@ -545,6 +545,9 @@ namespace lapis {
 	}
 	template<class T>
 	Raster<T> Raster<T>::transformRaster(const CoordRef& crs, ExtractMethod method) const {
+		if (crs.isConsistentHoriz(this->crs())) {
+			return *this;
+		}
 		return resample(this->transformAlignment(crs), method);
 	}
 
