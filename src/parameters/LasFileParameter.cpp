@@ -144,6 +144,12 @@ namespace lapis {
 	LasReader LasFileParameter::getLas(size_t n)
 	{
 		prepareForRun();
+		if (!std::filesystem::exists(_lasFileNames[n])) {
+			std::stringstream ss;
+			ss << "The following las file no longer exists: " << _lasFileNames[n];
+			LapisLogger::getLogger().logMessage(ss.str());
+			return LasReader();
+		}
 		LasReader out{ _lasFileNames[n] };
 		
 		const CoordRef& crsOverride = _crs.cachedCrs();

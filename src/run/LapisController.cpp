@@ -292,7 +292,9 @@ namespace lapis {
 
 		for (auto& handler : _handlers()) {
 			if (handler->doThisProduct()) {
-				handler->finishLasFile(projectedExtent, n);
+				if (totalPoints > 0) {
+					handler->finishLasFile(projectedExtent, n);
+				}
 				handler->handleDem(croppedDem, n);
 			}
 		}

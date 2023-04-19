@@ -209,6 +209,13 @@ namespace lapis {
 
 		projE.defineCRS(CoordRef("")); //if there's a crs override, then there may be a spurious CRS mismatch
 
+		if (!std::filesystem::exists(_demFileAligns[n].file.string())) {
+			std::stringstream ss;
+			ss << "The following DEM file no longer exists: " << _demFileAligns[n].file.string();
+			LapisLogger::getLogger().logMessage(ss.str());
+			return std::optional<Raster<coord_t>>();
+		}
+
 		std::optional<Raster<coord_t>> outopt{ std::in_place, _demFileAligns[n].file.string(), projE, SnapType::out};
 		Raster<coord_t>& out = outopt.value();
 		const CoordRef& crsOverride = _crs.cachedCrs();

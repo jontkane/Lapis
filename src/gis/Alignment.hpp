@@ -288,9 +288,21 @@ namespace lapis {
 			bool isEnd;
 		};
 
-		CellIterator(Alignment a, Extent e, SnapType snap) : _a(a), _e(cropExtent(a.alignExtent(e, snap), a)) {}
+		CellIterator(Alignment a, Extent e, SnapType snap) : _a(a) {
+			if (e.touches(a)) {
+				_e = cropExtent(a.alignExtent(e, snap), a);
+				hasAnyCells = true;
+			}
+			else {
+				hasAnyCells = false;
+				_e = Extent();
+			}
+		}
 		CellIterator(Alignment a) : CellIterator(a, a, SnapType::near) {}
 		iterator begin() {
+			if (!hasAnyCells) {
+				return end();
+			}
 			if (_e.xmin() == _e.xmax() || _e.ymin() == _e.ymax()) {
 				return end();
 			}
@@ -301,6 +313,7 @@ namespace lapis {
 		}
 
 	private:
+		bool hasAnyCells = true;
 		Alignment _a;
 		Extent _e;
 	};
