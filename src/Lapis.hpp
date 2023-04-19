@@ -8,6 +8,9 @@
 #include"parameters/RunParameters.hpp"
 #include"run/AllHandlers.hpp"
 
+#define LAPIS_VERSION_MAJOR 0
+#define LAPIS_VERSION_MINOR 7
+
 namespace lapis {
 
 	void logGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg) {

@@ -3,6 +3,7 @@
 #include"AllParameters.hpp"
 #include"LapisGui.hpp"
 #include"..\utils\LapisWindows.hpp"
+#include"..\Lapis.hpp"
 
 namespace lapis {
 
