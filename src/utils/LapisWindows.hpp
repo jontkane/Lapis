@@ -11,6 +11,7 @@
 #define NOMINMAX
 #include<windows.h>
 #include<shellapi.h>
+#undef near
 #endif
 
 #include<iostream>

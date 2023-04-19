@@ -2,6 +2,9 @@
 #ifndef lp_lapistypedefs_h
 #define lp_lapistypedefs_h
 
+#define LAPIS_VERSION_MAJOR 0
+#define LAPIS_VERSION_MINOR 7
+
 namespace lapis {
 
 	using coord_t = double;
