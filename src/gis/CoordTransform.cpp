@@ -10,7 +10,9 @@ CoordTransform::CoordTransform(const CoordRef& src, const CoordRef& dst) {
 	if (_needXYConv) {
 		ProjPJWrapper temp = ProjPJWrapper(proj_create_crs_to_crs_from_pj(
 			ProjContextByThread::get(), src.getPtr(), dst.getPtr(), nullptr, nullptr));
-		_tr = ProjPJWrapper(proj_normalize_for_visualization(ProjContextByThread::get(), temp.ptr()));
+		if (temp.ptr() != nullptr) {
+			_tr = ProjPJWrapper(proj_normalize_for_visualization(ProjContextByThread::get(), temp.ptr()));
+		}
 	}
 }
 

@@ -73,6 +73,8 @@ namespace lapis {
 
 		bool _displayAdvancedOptions = false;
 		void _renderAdvancedOptions();
+
+		bool _warnedAboutVersionMinor = false;
 	};
 }
 

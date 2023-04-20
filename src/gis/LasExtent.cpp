@@ -7,12 +7,14 @@ namespace lapis {
 		LasIO las{ s };
 		_setFromLasIO(las);
 		_nPoints = las.header.NumberOfPoints();
+		_versionMinor = las.header.VersionMinor;
 	}
 
 	LasExtent::LasExtent(const LasIO& las)
 	{
 		_setFromLasIO(las);
 		_nPoints = las.header.NumberOfPoints();
+		_versionMinor = las.header.VersionMinor;
 	}
 
 }

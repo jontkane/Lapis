@@ -223,6 +223,16 @@ namespace lapis {
 		_crs.setCrs(withZUnits);
 
 		Extent e = rp.fullExtent();
+		if (!e.crs().isProjected()) {
+			if (e.xmin() < -180 || e.xmax() > 180 || e.ymin() < -180 || e.ymax() > 180) {
+				log.logMessage("There's something unusual with the laz file CRS information. You may need to manually specify the CRS to get accurate results.");
+			}
+			else {
+				log.logMessage("The input data appears to be in lat/lon. Currently, lapis does not support output in lat/lon, only in projected CRS. Please specify a different output CRS.");
+				return false;
+			}
+
+		}
 
 		coord_t xres, yres, xorigin, yorigin;
 
@@ -248,7 +258,7 @@ namespace lapis {
 		}
 
 		//the branch where this doesn't have a value is handled above
-		LinearUnitConverter converter{ rp.outUnits(), e.crs().getXYLinearUnits().value() };
+		LinearUnitConverter converter{ rp.outUnits(), e.crs().getXYLinearUnits().value_or(linearUnitPresets::unknownLinear) };
 
 		xres = converter(xres);
 		yres = converter(yres);

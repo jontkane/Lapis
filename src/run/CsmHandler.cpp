@@ -198,7 +198,8 @@ namespace lapis {
 		Extent thistile = layout->extentFromCell(tile);
 
 		coord_t bufferAmount = std::max(_getter->metricAlign()->xres(), _getter->metricAlign()->yres()) * 1.5;
-		bufferAmount = linearUnitPresets::meter.convertOneToThis(bufferAmount, _getter->metricAlign()->crs().getXYLinearUnits().value());
+		bufferAmount = linearUnitPresets::meter.convertOneToThis(bufferAmount, 
+			_getter->metricAlign()->crs().getXYLinearUnits().value_or(linearUnitPresets::unknownLinear));
 
 		Raster<csm_t> bufferedCsm = getEmptyRasterFromTile<csm_t>(tile, *csmAlign, bufferAmount);
 

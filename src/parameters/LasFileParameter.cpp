@@ -71,6 +71,7 @@ namespace lapis {
 		if (_runPrepared) {
 			return true;
 		}
+		_warnedAboutVersionMinor = false;
 
 		RunParameters& rp = RunParameters::singleton();
 
@@ -151,6 +152,14 @@ namespace lapis {
 			return LasReader();
 		}
 		LasReader out{ _lasFileNames[n] };
+
+		if (out.versionMinor() < 4 && !_warnedAboutVersionMinor) {
+			_warnedAboutVersionMinor = true;
+
+			LapisLogger::getLogger().logMessage(
+				"Some or all of the laz files are earlier than version 1.4. They are more likely to have incorrect CRS information. Please consider manually specifying their CRS.");
+			
+		}
 		
 		const CoordRef& crsOverride = _crs.cachedCrs();
 		const LinearUnit& unitOverride = _unit.currentSelection();
