@@ -5,6 +5,7 @@
 #include"param_pch.hpp"
 #include"RunParameters.hpp"
 #include"AllParameters.hpp"
+#include"..\utils\LapisFonts.hpp"
 
 namespace lapis {
 
@@ -77,7 +78,7 @@ namespace lapis {
 		ImGuiStyle& style = ImGui::GetStyle();
 		style.Colors[ImGuiCol_TabActive] = ImVec4(0.6f, 0.4f, 1.0f, 1.0f);
 
-		GuiCmdElement::initFonts();
+		LapisFonts::initFonts();
 
 		ImGui_ImplGlfw_InitForOpenGL(window, true);
 		ImGui_ImplOpenGL3_Init(glsl_version);
@@ -92,7 +93,7 @@ namespace lapis {
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
 
-			ImGui::PushFont(GuiCmdElement::getRegularFont());
+			ImGui::PushFont(LapisFonts::getRegularFont());
 
 			_mainTabs();
 
@@ -237,7 +238,7 @@ namespace lapis {
 				rp.writeOptions(ofs, ParamCategory::process);
 			}
 			else {
-				LapisLogger::getLogger().logMessage("Unable to write to " + std::string(outputIniFile.get()));
+				LapisLogger::getLogger().logWarningOrError("Unable to write to " + std::string(outputIniFile.get()));
 			}
 			outputIniFile.reset();
 		}

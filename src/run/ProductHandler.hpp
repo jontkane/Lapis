@@ -73,7 +73,7 @@ namespace lapis {
 			r.writeRaster(filename.string());
 		}
 		catch (InvalidRasterFileException e) {
-			LapisLogger::getLogger().logMessage("Error writing " + filename.string());
+			LapisLogger::getLogger().logWarningOrError("Error writing " + filename.string());
 		}
 	}
 	template<class T>

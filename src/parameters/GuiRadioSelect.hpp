@@ -105,7 +105,7 @@ namespace lapis {
 			_radio = candidate;
 		}
 		else {
-			LapisLogger::getLogger().logMessage(_boostString + " is not a valid option for " + _cmdName);
+			LapisLogger::getLogger().logWarningOrError(_boostString + " is not a valid option for " + _cmdName);
 		}
 
 		_boostString.clear();

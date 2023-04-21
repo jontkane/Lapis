@@ -70,7 +70,7 @@ namespace lapis {
 		for (coord_t v : _topoWindows.cachedValues()) {
 
 			if (v <= 0) {
-				log.logMessage("Topo windows must be positive");
+				log.logWarningOrError("Topo windows must be positive");
 				return false;
 			}
 

@@ -1,6 +1,7 @@
 #include"param_pch.hpp"
 #include"GuiCheckBox.hpp"
-#include "GuiTitle.hpp"
+#include"GuiTitle.hpp"
+#include"..\utils\LapisFonts.hpp"
 
 namespace lapis {
 	lapis::Title::Title(const std::string& guiDesc) : GuiCmdElement(guiDesc, "")
@@ -15,7 +16,7 @@ namespace lapis {
 	}
 	bool Title::renderGui()
 	{
-		ImGui::PushFont(getBoldFont());
+		ImGui::PushFont(LapisFonts::getBoldFont());
 		ImGui::Text(_guiDesc.c_str());
 		ImGui::PopFont();
 

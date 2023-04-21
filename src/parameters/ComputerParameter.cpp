@@ -49,7 +49,7 @@ namespace lapis {
 
 		if ((int)_thread.getValueLogErrors() <= 0) {
 			LapisLogger& log = LapisLogger::getLogger();
-			log.logMessage("Number of threads must be positive");
+			log.logWarningOrError("Number of threads must be positive");
 			return false;
 		}
 		return true;

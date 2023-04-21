@@ -89,7 +89,7 @@ namespace lapis {
 			return false;
 		}
 		if (_canopyCutoff.getValueLogErrors() < 0) {
-			log.logMessage("Canopy cutoff is negative. Is this intentional?");
+			log.logWarningOrError("Canopy cutoff is negative. Is this intentional?");
 		}
 
 		if (!rp.doPointMetrics()) {

@@ -138,7 +138,7 @@ namespace lapis {
 
 		case DemAlgo::VENDORRASTER:
 			if (!_specifiers.getSpecifiers().size()) {
-				log.logMessage("No DEM rasters specified");
+				log.logWarningOrError("No DEM rasters specified");
 				return false;
 			}
 
@@ -156,7 +156,7 @@ namespace lapis {
 			_algorithm = std::make_unique<VendorRaster<DemParameter>>(this);
 			break;
 		default:
-			log.logMessage("Invalid DEM algorithm value");
+			log.logWarningOrError("Invalid DEM algorithm value");
 			return false;
 		}
 
@@ -212,7 +212,7 @@ namespace lapis {
 		if (!std::filesystem::exists(_demFileAligns[n].file.string())) {
 			std::stringstream ss;
 			ss << "The following DEM file no longer exists: " << _demFileAligns[n].file.string();
-			LapisLogger::getLogger().logMessage(ss.str());
+			LapisLogger::getLogger().logWarningOrError(ss.str());
 			return std::optional<Raster<coord_t>>();
 		}
 

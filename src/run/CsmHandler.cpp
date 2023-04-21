@@ -227,7 +227,7 @@ namespace lapis {
 				thisr = Raster<csm_t>{ filename,thisext, SnapType::out };
 			}
 			catch (InvalidRasterFileException e) {
-				LapisLogger::getLogger().logMessage("Unable to open " + filename);
+				LapisLogger::getLogger().logWarningOrError("Unable to open " + filename);
 				continue;
 			}
 

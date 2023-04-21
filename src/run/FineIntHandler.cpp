@@ -114,7 +114,7 @@ namespace lapis {
 				thisDenominator.defineCRS(denominator.crs());
 			}
 			catch (InvalidRasterFileException e) {
-				LapisLogger::getLogger().logMessage("Issue opening temporary intensity file " + std::to_string(i));
+				LapisLogger::getLogger().logWarningOrError("Issue opening temporary intensity file " + std::to_string(i));
 				continue;
 			}
 

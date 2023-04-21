@@ -60,7 +60,6 @@ namespace lapis {
 	{
 		for (size_t i = 0; i < _params.size(); ++i) {
 			if (!_params[i]->prepareForRun()) {
-				LapisLogger::getLogger().logMessage("Aborting");
 				return false;
 			}
 		}
@@ -373,8 +372,9 @@ namespace lapis {
 		}
 		catch (po::error_with_option_name e) {
 			LapisLogger& log = LapisLogger::getLogger();
-			log.logMessage("Error reading parameters: ");
-			log.logMessage(e.what());
+			std::stringstream ss;
+			ss << "Error reading parameters: " << e.what();
+			log.logWarningOrError(ss.str());
 			return ParseResults::invalidOpts;
 		}
 		importBoostAndUpdateUnits();
@@ -404,8 +404,9 @@ namespace lapis {
 		}
 		catch (po::error e) {
 			LapisLogger& log = LapisLogger::getLogger();
-			log.logMessage("Error in ini file " + path);
-			log.logMessage(e.what());
+			std::stringstream ss;
+			ss << "error in ini file " << path << ": " << e.what();
+			log.logWarningOrError(ss.str());
 			return ParseResults::invalidOpts;
 		}
 	}

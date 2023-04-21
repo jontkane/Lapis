@@ -34,10 +34,6 @@ namespace lapis {
 
 		void displayHelp();
 
-		static ImFont* getRegularFont();
-		static ImFont* getBoldFont();
-		static void initFonts();
-
 	protected:
 		std::string _cmdName;
 		std::string _cmdDesc;

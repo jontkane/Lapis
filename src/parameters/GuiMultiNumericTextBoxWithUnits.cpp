@@ -61,7 +61,7 @@ namespace lapis {
 				numericStrata.push_back(std::stod(temp));
 			}
 			catch (std::invalid_argument e) {
-				LapisLogger::getLogger().logMessage("Unable to interpret " + temp + " as a number");
+				LapisLogger::getLogger().logWarningOrError("Unable to interpret " + temp + " as a number");
 				numericStrata.clear();
 				break;
 			}
@@ -166,7 +166,6 @@ namespace lapis {
 		}
 
 		if (slatedForDeletion != _buffers.end()) {
-			LapisLogger::getLogger().logMessage(slatedForDeletion->asText());
 			_buffers.erase(slatedForDeletion);
 		}
 

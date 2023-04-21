@@ -102,7 +102,7 @@ namespace lapis {
 				return false;
 			}
 			if (_cutoff.getValueLogErrors() < 0) {
-				log.logMessage("Fine Intensity cutoff is negative. Is this intentional?");
+				log.logWarningOrError("Fine Intensity cutoff is negative. Is this intentional?");
 			}
 		}
 
@@ -117,7 +117,7 @@ namespace lapis {
 				return false;
 			}
 			if (cellsize <= 0) {
-				log.logMessage("Fine Intensity Cellsize is Negative");
+				log.logWarningOrError("Fine Intensity Cellsize is Negative");
 				_runPrepared = true;
 				return false;
 			}

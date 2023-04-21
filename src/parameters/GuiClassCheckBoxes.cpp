@@ -60,7 +60,7 @@ namespace lapis {
 			_boostString = _boostString.substr(1, _boostString.size());
 		}
 		else {
-			LapisLogger::getLogger().logMessage("Incorrect formatting for class string");
+			LapisLogger::getLogger().logWarningOrError("Incorrect formatting for class string");
 			_boostString.clear();
 			return false;
 		}
@@ -71,7 +71,7 @@ namespace lapis {
 		while (std::getline(tokenizer, temp, ',')) {
 			int cl = std::stoi(temp);
 			if (cl > _checks.size() || cl < 0) {
-				LapisLogger::getLogger().logMessage("Class values must be between 0 and 255");
+				LapisLogger::getLogger().logWarningOrError("Class values must be between 0 and 255");
 			}
 			else {
 				set.insert(cl);

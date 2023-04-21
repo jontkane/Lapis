@@ -24,6 +24,8 @@ namespace lapis {
 
 		void logMessage(const std::string& s);
 
+		void logWarningOrError(const std::string& s);
+
 		void reset();
 
 		void displayBenchmarking();
@@ -36,11 +38,10 @@ namespace lapis {
 
 		void _updateEllipsis();
 
-		constexpr static size_t messageLength = 30;
 		std::vector<std::string> _progressTracker;
-		constexpr static size_t incrementStrLength = 15;
 		std::vector<std::string> _incrementStrings;
 		std::list<std::string> _messages;
+		std::list<std::string> _warningsAndErrors;
 
 		int _totalForTask = 0;
 		int _currentOutOfTotal = 0;

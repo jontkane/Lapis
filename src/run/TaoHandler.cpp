@@ -29,7 +29,7 @@ namespace lapis {
 		std::ofstream ofs{ fileName,std::ios::binary };
 
 		if (!ofs) {
-			LapisLogger::getLogger().logMessage("Error writing to " + fileName.string());
+			LapisLogger::getLogger().logWarningOrError("Error writing to " + fileName.string());
 			return;
 		}
 
@@ -64,7 +64,7 @@ namespace lapis {
 		std::filesystem::path fileName = getFullTempFilename(taoTempDir(), _taoBasename, OutputUnitLabel::Unitless, tile, "tmp");
 		std::ifstream ifs{ fileName,std::ios::binary };
 		if (!ifs) {
-			LapisLogger::getLogger().logMessage("Error reading from " + fileName.string());
+			LapisLogger::getLogger().logWarningOrError("Error reading from " + fileName.string());
 			return std::vector<TaoInfo>();
 		}
 
@@ -180,7 +180,7 @@ namespace lapis {
 			segments = Raster<taoid_t>{ name };
 		}
 		catch (InvalidRasterFileException e) {
-			log.logMessage("Error opening " + name);
+			log.logWarningOrError("Error opening " + name);
 			return segments;
 		}
 

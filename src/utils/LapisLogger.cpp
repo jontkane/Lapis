@@ -1,6 +1,7 @@
 #include"LapisLogger.hpp"
 #include"../imgui/imgui.h"
 #include"LapisWindows.hpp"
+#include"..\utils\LapisFonts.hpp"
 
 namespace lapis {
 	LapisLogger& LapisLogger::getLogger()
@@ -28,11 +29,70 @@ namespace lapis {
 
 		ImGui::EndChild();
 
-		ImGui::BeginChild("logger messages", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y - 2), true, ImGuiWindowFlags_HorizontalScrollbar);
+		bool needSep = false;
 
+		auto centerAlignTitle = [](const std::string& s) {
+			ImGui::PushFont(LapisFonts::getBoldFont());
+
+			float size = ImGui::CalcTextSize(s.c_str()).x + ImGui::GetStyle().FramePadding.x * 2.0f;
+			float avail = ImGui::GetContentRegionAvail().x;
+			float offset = (avail - size) * 0.5f;
+			if (offset > 0.0f) {
+				ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset);
+			}
+			ImGui::Text(s.c_str());
+
+			ImGui::PopFont();
+		};
+
+		ImGui::BeginChild("logger messages title",
+			ImVec2(ImGui::GetContentRegionAvail().x * 0.5f, ImGui::GetContentRegionAvail().y),
+			true, ImGuiWindowFlags_HorizontalScrollbar);
+
+		centerAlignTitle("Messages");
+
+		ImGui::BeginChild("logger messages",
+			ImGui::GetContentRegionAvail(),
+			false,
+			0);
+
+		ImGui::PushTextWrapPos();
 		for (auto it = _messages.rbegin(); it != _messages.rend(); ++it) {
+			if (needSep) {
+				ImGui::Separator();
+			}
 			ImGui::Text(it->c_str());
+			needSep = true;
 		}
+		ImGui::PopTextWrapPos();
+		ImGui::EndChild();
+		ImGui::EndChild();
+
+
+		needSep = false;
+		ImGui::SameLine();
+		ImGui::BeginChild("logger errors title",
+			ImGui::GetContentRegionAvail(),
+				true,
+				ImGuiWindowFlags_HorizontalScrollbar);
+
+		centerAlignTitle("Warnings and Errors");
+		ImGui::BeginChild("logger errors",
+			ImGui::GetContentRegionAvail(),
+			false, 0);
+
+		ImGui::PushTextWrapPos();
+		ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));
+		for (auto it = _warningsAndErrors.rbegin(); it != _warningsAndErrors.rend(); ++it) {
+			if (needSep) {
+				ImGui::Separator();
+			}
+			ImGui::Text(it->c_str());
+			needSep = true;
+		}
+		ImGui::PopStyleColor();
+		ImGui::PopTextWrapPos();
+		ImGui::EndChild();
 		ImGui::EndChild();
 	}
 	void LapisLogger::setProgress(const std::string& displayString, int total, bool needEllipsis)
@@ -74,6 +134,14 @@ namespace lapis {
 		_messages.push_back(s);
 		if (_messages.size() > 100000) {
 			_messages.pop_front();
+		}
+	}
+	void LapisLogger::logWarningOrError(const std::string& s) {
+		std::scoped_lock(_mut);
+		lapisCerr << s << "\n";
+		_warningsAndErrors.push_back(s);
+		if (_warningsAndErrors.size() > 100000) {
+			_warningsAndErrors.pop_front();
 		}
 	}
 	void LapisLogger::reset()

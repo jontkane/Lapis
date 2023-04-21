@@ -37,7 +37,7 @@ namespace lapis {
 
 		PJ* test_proj = proj_create(ProjContextByThread::get(), "EPSG:2927");
 		if (test_proj == nullptr) {
-			log.logMessage("proj.db not loaded");
+			log.logWarningOrError("proj.db not loaded");
 			sendAbortSignal();
 		}
 		else {
@@ -129,7 +129,7 @@ namespace lapis {
 
 		std::ofstream fullParams{ paramDir / "FullParameters.ini" };
 		if (!fullParams) {
-			log.logMessage("Could not open " + (paramDir / "FullParameters.ini").string() + " for writing");
+			log.logWarningOrError("Could not open " + (paramDir / "FullParameters.ini").string() + " for writing");
 		}
 		else {
 			rp.writeOptions(fullParams, ParamCategory::data);
@@ -140,7 +140,7 @@ namespace lapis {
 
 		std::ofstream runAndComp{ paramDir / "ProcessingAndComputerParameters.ini" };
 		if (!runAndComp) {
-			log.logMessage("Could not open " + (paramDir / "ProcessingAndComputerParameters.ini").string() + " for writing");
+			log.logWarningOrError("Could not open " + (paramDir / "ProcessingAndComputerParameters.ini").string() + " for writing");
 		}
 		else {
 			rp.writeOptions(runAndComp, ParamCategory::process);
@@ -149,7 +149,7 @@ namespace lapis {
 
 		std::ofstream data{ paramDir / "DataParameters.ini" };
 		if (!data) {
-			log.logMessage("Could not open " + (paramDir / "DataParameters.ini").string() + " for writing");
+			log.logWarningOrError("Could not open " + (paramDir / "DataParameters.ini").string() + " for writing");
 		}
 		else {
 			rp.writeOptions(data, ParamCategory::data);
@@ -157,7 +157,7 @@ namespace lapis {
 
 		std::ofstream metric{ paramDir / "ProcessingParameters.ini" };
 		if (!data) {
-			log.logMessage("Could not open " + (paramDir / "ProcessingParameters.ini").string() + " for writing");
+			log.logWarningOrError("Could not open " + (paramDir / "ProcessingParameters.ini").string() + " for writing");
 		}
 		else {
 			rp.writeOptions(metric, ParamCategory::process);
@@ -165,7 +165,7 @@ namespace lapis {
 
 		std::ofstream computer{ paramDir / "ComputerParameters.ini" };
 		if (!data) {
-			log.logMessage("Could not open " + (paramDir / "ComputerParameters.ini").string() + " for writing");
+			log.logWarningOrError("Could not open " + (paramDir / "ComputerParameters.ini").string() + " for writing");
 		}
 		else {
 			rp.writeOptions(computer, ParamCategory::computer);
@@ -264,7 +264,7 @@ namespace lapis {
 			lr = rp.getLas(n);
 		}
 		catch (InvalidLasFileException e) {
-			log.logMessage(e.what());
+			log.logWarningOrError(e.what());
 		}
 		Extent projectedExtent = QuadExtent(lr, rp.metricAlign()->crs()).outerExtent();
 		LAPIS_CHECK_ABORT;
@@ -284,7 +284,7 @@ namespace lapis {
 		}
 
 		if (totalPoints == 0) {
-			log.logMessage("No points passed filters in las file " + std::to_string(n) + ". Perhaps an issue with the ground models or with the units?");
+			log.logWarningOrError("No points passed filters in las file " + std::to_string(n) + ". Perhaps an issue with the ground models or with the units?");
 		}
 		LAPIS_CHECK_ABORT;
 

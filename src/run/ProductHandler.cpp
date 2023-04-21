@@ -32,7 +32,7 @@ namespace lapis {
 			std::filesystem::remove_all(p);
 		}
 		catch (...) {
-			LapisLogger::getLogger().logMessage("Unable to delete " + p.string());
+			LapisLogger::getLogger().logWarningOrError("Unable to delete " + p.string());
 		}
 	}
 	std::filesystem::path ProductHandler::getFullFilename(const std::filesystem::path& dir,
