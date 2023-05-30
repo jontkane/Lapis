@@ -32,7 +32,7 @@ namespace lapis {
 			std::filesystem::remove_all(p);
 		}
 		catch (...) {
-			LapisLogger::getLogger().logWarningOrError("Unable to delete " + p.string());
+			LapisLogger::getLogger().logWarning("Unable to delete " + p.string());
 		}
 	}
 	std::filesystem::path ProductHandler::getFullFilename(const std::filesystem::path& dir,
@@ -56,6 +56,9 @@ namespace lapis {
 		}
 		else if (u == oul::Radian) {
 			unitString = "_Radians";
+		}
+		else if (u == oul::Degree) {
+			unitString = "_Degrees";
 		}
 		std::string runName = _sharedGetter->name().size() ? _sharedGetter->name() + "_" : "";
 		std::filesystem::path fullPath = dir / (runName + baseName + unitString + "." + extension);

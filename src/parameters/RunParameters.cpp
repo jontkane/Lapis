@@ -73,7 +73,14 @@ namespace lapis {
 		}
 		coord_t tileRes = targetNRowCol * fineCellSize;
 		Alignment layoutAlign{ *metricAlign(),0,0,tileRes,tileRes};
+		
 		_layout = std::make_shared<Raster<bool>>(layoutAlign);
+		for (const Extent& e : lasExtents()) {
+			for (cell_t cell : CellIterator(*_layout, e, SnapType::out)) {
+				_layout->atCellUnsafe(cell).has_value() = true;
+			}
+		}
+
 		return true;
 	}
 	void RunParameters::cleanAfterRun()
@@ -236,6 +243,10 @@ namespace lapis {
 	{
 		return getParam<TopoParameter>().topoWindowNames();
 	}
+	bool RunParameters::useRadians()
+	{
+		return getParam<TopoParameter>().useRadians();
+	}
 	const std::filesystem::path& RunParameters::outFolder()
 	{
 		return getParam<OutputParameter>().path();
@@ -374,7 +385,7 @@ namespace lapis {
 			LapisLogger& log = LapisLogger::getLogger();
 			std::stringstream ss;
 			ss << "Error reading parameters: " << e.what();
-			log.logWarningOrError(ss.str());
+			log.logError(ss.str());
 			return ParseResults::invalidOpts;
 		}
 		importBoostAndUpdateUnits();
@@ -406,7 +417,7 @@ namespace lapis {
 			LapisLogger& log = LapisLogger::getLogger();
 			std::stringstream ss;
 			ss << "error in ini file " << path << ": " << e.what();
-			log.logWarningOrError(ss.str());
+			log.logError(ss.str());
 			return ParseResults::invalidOpts;
 		}
 	}

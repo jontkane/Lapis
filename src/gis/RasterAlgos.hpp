@@ -74,7 +74,7 @@ namespace lapis {
 	template<class OUTPUT, class INPUT>
 	inline Raster<OUTPUT> focal(const Raster<INPUT>& r, int windowSize, ViewFunc<OUTPUT, INPUT> f) {
 		if (windowSize < 0 || windowSize % 2 != 1) {
-			throw std::invalid_argument("");
+			throw std::invalid_argument("Invalid window size in focal");
 		}
 
 		Raster<OUTPUT> out{ (Alignment)r };
@@ -255,7 +255,7 @@ namespace lapis {
 	}
 
 	template<class OUTPUT, class INPUT>
-	inline xtl::xoptional<OUTPUT> viewSlope(const CropView<INPUT>& in) {
+	inline xtl::xoptional<OUTPUT> viewSlopeRadians(const CropView<INPUT>& in) {
 		slopeComponents<OUTPUT> comp = getSlopeComponents<OUTPUT, INPUT>(in);
 		if (!comp.nsSlope.has_value()) {
 			return xtl::missing<OUTPUT>();
@@ -264,7 +264,7 @@ namespace lapis {
 		return xtl::xoptional<OUTPUT>((OUTPUT)std::atan(slopeProp));
 	}
 	template<class OUTPUT, class INPUT>
-	inline xtl::xoptional<OUTPUT> viewAspect(const CropView<INPUT>& in) {
+	inline xtl::xoptional<OUTPUT> viewAspectRadians(const CropView<INPUT>& in) {
 		slopeComponents<OUTPUT> comp = getSlopeComponents<OUTPUT, INPUT>(in);
 		if (!comp.nsSlope.has_value()) {
 			return xtl::missing<OUTPUT>();
@@ -296,6 +296,113 @@ namespace lapis {
 				return xtl::missing<OUTPUT>();
 			}
 		}
+	}
+
+	template<class OUTPUT, class INPUT>
+	inline xtl::xoptional<OUTPUT> viewSlopeDegrees(const CropView<INPUT>& in) {
+		constexpr OUTPUT toDegrees = (OUTPUT)(360. / 2. / M_PI);
+		return viewSlopeRadians<OUTPUT, INPUT>(in) * toDegrees;
+	}
+	template<class OUTPUT, class INPUT>
+	inline xtl::xoptional<OUTPUT> viewAspectDegrees(const CropView<INPUT>& in) {
+		constexpr OUTPUT toDegrees = (OUTPUT)(360. / 2. / M_PI);
+		return viewAspectRadians<OUTPUT, INPUT>(in) * toDegrees;
+	}
+
+	/*
+	
+	The curvature formulas are taken from:
+	https://www.onestopgis.com/GIS-Theory-and-Techniques/Terrain-Mapping-and-Analysis/Terrain-Analysis-Surface-Curvature/2-Equation-for-Computing-Curvature.html
+	Variable names match that page
+
+	*/
+
+	template<class T>
+	struct CurvatureTempVariables {
+		xtl::xoptional<T> D, E, F, G, H;
+	};
+
+	template<class OUTPUT, class INPUT>
+	CurvatureTempVariables<OUTPUT> calcCurveTempVars(const CropView<INPUT>& in) {
+		CurvatureTempVariables<OUTPUT> vars;
+#pragma warning(push)
+#pragma warning(disable : 4244)
+		vars.D = ((in[3] + in[5]) / 2. - in[4]) / (in.xres() * in.xres());
+		vars.E = ((in[1] + in[7]) / 2. - in[4]) / (in.yres() * in.yres());
+		vars.F = (-in[0] + in[2] + in[6] - in[8]) / (4 * in.xres() * in.yres());
+		vars.G = (-in[3] + in[5]) / (2 * in.xres());
+		vars.H = (in[1] - in[7]) / (2 * in.yres());
+#pragma warning(pop)
+		return vars;
+	}
+
+
+	template<class OUTPUT, class INPUT>
+	inline xtl::xoptional<OUTPUT> viewCurvature(const CropView<INPUT>& in) {
+		if (in.ncell() < 9) {
+			return xtl::missing<OUTPUT>();
+		}
+		auto vars = calcCurveTempVars<OUTPUT, INPUT>(in);
+		return -200 * (vars.D + vars.E);
+	}
+
+	template<class OUTPUT, class INPUT>
+	inline xtl::xoptional<OUTPUT> viewProfileCurvature(const CropView<INPUT>& in) {
+		if (in.ncell() < 9) {
+			return xtl::missing<OUTPUT>();
+		}
+		auto vars = calcCurveTempVars<OUTPUT, INPUT>(in);
+		return -200 * (vars.D * vars.G * vars.G + vars.E * vars.H * vars.H + vars.F * vars.G * vars.H) / (vars.G * vars.G + vars.H * vars.H);
+	}
+
+	template<class OUTPUT, class INPUT>
+	inline xtl::xoptional<OUTPUT> viewPlanCurvature(const CropView<INPUT>& in) {
+		if (in.ncell() < 9) {
+			return xtl::missing<OUTPUT>();
+		}
+		auto vars = calcCurveTempVars<OUTPUT, INPUT>(in);
+		return 200 * (vars.D * vars.H * vars.H + vars.E * vars.G * vars.G - vars.F * vars.G * vars.H) / (vars.G * vars.G + vars.H * vars.H);
+	}
+
+	template<class OUTPUT, class INPUT>
+	inline xtl::xoptional<OUTPUT> viewSRI(const CropView<INPUT>& in) {
+		if (in.ncell() < 9) {
+			return xtl::missing<OUTPUT>();
+		}
+		try {
+			CoordTransform toLonLat{ in.crs(),"EPSG:4326" };
+			coord_t latitude = toLonLat.transformSingleXY(in.xFromCell(4), in.yFromCell(4)).y;
+			latitude = latitude / 180. * M_PI;
+			xtl::xoptional<OUTPUT> slope = viewSlopeRadians<OUTPUT, INPUT>(in);
+			xtl::xoptional<OUTPUT> aspect = viewAspectRadians<OUTPUT, INPUT>(in);
+			if (!slope.has_value()) {
+				return xtl::missing<OUTPUT>();
+			}
+			if (!aspect.has_value()) {
+				return xtl::missing<OUTPUT>();
+			}
+			return xtl::xoptional<OUTPUT>(
+				(OUTPUT)(1 + std::cos(latitude) * std::cos(slope.value()) + std::sin(latitude) * std::sin(slope.value()) * std::cos(M_PI - aspect.value())));
+		}
+		catch (...) {
+			return xtl::missing<OUTPUT>();
+		}
+	}
+
+	template<class OUTPUT, class INPUT>
+	inline xtl::xoptional<OUTPUT> viewTRI(const CropView<INPUT>& in) {
+		if (in.ncell() < 9) {
+			return xtl::missing<OUTPUT>();
+		}
+		xtl::xoptional<OUTPUT> tri = (OUTPUT)0;
+#pragma warning(push)
+#pragma warning(disable : 4244)
+		for (cell_t cell : CellIterator(in)) {
+			tri += ((in[cell] - in[4]) * (in[cell] - in[4]));
+		}
+#pragma warning(pop)
+		tri.value() = (OUTPUT)std::sqrt(tri.value());
+		return tri;
 	}
 
 	struct RowColOffset {
@@ -380,7 +487,7 @@ namespace lapis {
 	inline void overlayInside(Raster<T>& base, const Raster<T>& over) {
 		CropView<T> view{ &base,over,SnapType::near };
 		if (view.ncell() != over.ncell()) {
-			throw AlignmentMismatchException();
+			throw AlignmentMismatchException("Alignment mismatch in overlayInside");
 		}
 
 		for (rowcol_t row = 0; row < view.nrow(); ++row) {
@@ -405,7 +512,7 @@ namespace lapis {
 	inline void overlaySum(Raster<T>& base, const Raster<T>& over) {
 		CropView<T> view{ &base, over, SnapType::near };
 		if (view.ncell() != over.ncell()) {
-			throw AlignmentMismatchException();
+			throw AlignmentMismatchException("Alignment mismatch in overlaySum");
 		}
 
 		for (rowcol_t row = 0; row < view.nrow(); ++row) {

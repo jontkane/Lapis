@@ -148,16 +148,16 @@ namespace lapis {
 		if (!std::filesystem::exists(_lasFileNames[n])) {
 			std::stringstream ss;
 			ss << "The following las file no longer exists: " << _lasFileNames[n];
-			LapisLogger::getLogger().logWarningOrError(ss.str());
+			LapisLogger::getLogger().logWarning(ss.str());
 			return LasReader();
 		}
 		LasReader out{ _lasFileNames[n] };
 
-		if (out.versionMinor() < 4 && !_warnedAboutVersionMinor) {
+		if (out.versionMinor() < 4 && !_warnedAboutVersionMinor && _crs.cachedCrs().isEmpty()) {
 			_warnedAboutVersionMinor = true;
 
-			LapisLogger::getLogger().logWarningOrError(
-				"Some or all of the laz files are earlier than version 1.4. They are more likely to have incorrect CRS information. Please consider manually specifying their CRS.");
+			LapisLogger::getLogger().logWarning(
+				"Some or all of the laz files are earlier than version 1.4. They are more likely to have incorrect CRS information. Please consider manually specifying their CRS and units.");
 			
 		}
 		
@@ -235,8 +235,12 @@ namespace lapis {
 			}
 			return { f,e };
 		}
+		catch (InvalidLasFileException e) {
+			log.logWarning(std::string(e.what()) + " in file " + f.string());
+			throw e;
+		}
 		catch (...) {
-			log.logWarningOrError("Error reading " + f.string());
+			log.logWarning("Unknown error reading " + f.string());
 			throw InvalidLasFileException("");
 		}
 	}

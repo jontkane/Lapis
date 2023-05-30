@@ -216,27 +216,27 @@ namespace lapis {
 		//These functions just throw if the given values are outside the bounds of the alignment
 		void _checkX(const coord_t x) const {
 			if (x<xmin() || x>xmax()) {
-				throw OutsideExtentException("");
+				throw OutsideExtentException("X outside extent");
 			}
 		}
 		void _checkY(const coord_t y) const {
 			if (y<ymin() || y>ymax()) {
-				throw OutsideExtentException("");
+				throw OutsideExtentException("Y outside extent");
 			}
 		}
 		void _checkRow(const rowcol_t row) const {
 			if (row < 0 || row >= nrow()) {
-				throw OutsideExtentException("");
+				throw OutsideExtentException("Row outside extent");
 			}
 		}
 		void _checkCol(const rowcol_t col) const {
 			if (col < 0 || col >= ncol()) {
-				throw OutsideExtentException("");
+				throw OutsideExtentException("Col outside extent");
 			}
 		}
 		void _checkCell(const cell_t cell) const {
 			if (cell < 0 || cell >= ncell()) {
-				throw OutsideExtentException("");
+				throw OutsideExtentException("Cell outside extent");
 			}
 		}
 

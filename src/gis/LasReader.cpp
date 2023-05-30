@@ -2,7 +2,7 @@
 #include"LasReader.hpp"
 
 namespace lapis {
-	LasReader::LasReader(const std::string& file) : _filters(), CurrentLasPoint(file) {}
+	LasReader::LasReader(const std::string& file) : _filters(), CurrentLasPoint(file), _filename(file) {}
 
 
 	LasReader::LasReader(const Extent& e)
@@ -62,5 +62,10 @@ namespace lapis {
 		}
 	
 		return points;
+	}
+
+	const std::string& LasReader::filename()
+	{
+		return _filename;
 	}
 }

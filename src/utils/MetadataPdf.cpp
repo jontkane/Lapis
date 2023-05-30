@@ -13,7 +13,7 @@ namespace lapis {
 			HPDF_STATUS detail_no,
 			void* user_data) {
 #ifndef NDEBUG
-				LapisLogger::getLogger().logWarningOrError("PDF Error");
+				LapisLogger::getLogger().logError("PDF Error");
 				assert(false);
 #endif
 		};

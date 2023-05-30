@@ -21,11 +21,18 @@ namespace lapis {
 		return _topoWindowNames;
 	}
 
+	bool TopoParameter::useRadians()
+	{
+		return _useRadians.currentState();
+	}
+
 	TopoParameter::TopoParameter() :
 		_topoWindows("Radius:", "topo-scale", "500,1000,2000")
 	{
 		_topoWindows.addHelpText("Some topographic metrics, such as topographic position index (TPI), have a scale of calculations independent of the resolution"
 			" of the output raster. You can choose the radius of those calculations here.");
+
+		_useRadians.displayFalseFirst();
 	}
 	void TopoParameter::addToCmd(BoostOptDesc& visible,
 		BoostOptDesc& hidden) {
@@ -40,8 +47,16 @@ namespace lapis {
 	}
 	void TopoParameter::renderGui() {
 		_title.renderGui();
+
+		ImGui::Text("Units for Angular Metrics:");
+		ImGui::SameLine();
+		_useRadians.renderGui();
+
+		ImGui::Separator();
+
 		ImGui::Text("Window size for large-scale topo metrics");
 		_topoWindows.renderGui();
+
 	}
 	void TopoParameter::importFromBoost() {
 		_topoWindows.importFromBoost();
@@ -70,7 +85,7 @@ namespace lapis {
 		for (coord_t v : _topoWindows.cachedValues()) {
 
 			if (v <= 0) {
-				log.logWarningOrError("Topo windows must be positive");
+				log.logError("Topo windows must be positive");
 				return false;
 			}
 

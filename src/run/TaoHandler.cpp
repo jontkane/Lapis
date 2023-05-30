@@ -29,7 +29,7 @@ namespace lapis {
 		std::ofstream ofs{ fileName,std::ios::binary };
 
 		if (!ofs) {
-			LapisLogger::getLogger().logWarningOrError("Error writing to " + fileName.string());
+			LapisLogger::getLogger().logWarning("Error writing to " + fileName.string());
 			return;
 		}
 
@@ -64,7 +64,7 @@ namespace lapis {
 		std::filesystem::path fileName = getFullTempFilename(taoTempDir(), _taoBasename, OutputUnitLabel::Unitless, tile, "tmp");
 		std::ifstream ifs{ fileName,std::ios::binary };
 		if (!ifs) {
-			LapisLogger::getLogger().logWarningOrError("Error reading from " + fileName.string());
+			LapisLogger::getLogger().logWarning("Error reading from " + fileName.string());
 			return std::vector<TaoInfo>();
 		}
 
@@ -180,7 +180,7 @@ namespace lapis {
 			segments = Raster<taoid_t>{ name };
 		}
 		catch (InvalidRasterFileException e) {
-			log.logWarningOrError("Error opening " + name);
+			log.logWarning("Error opening " + name);
 			return segments;
 		}
 
@@ -227,12 +227,17 @@ namespace lapis {
 
 		Extent unbufferedExtent = _getter->layout()->extentFromCell(tile);
 
+		log.beginVerboseBenchmarkTimer("Identifying TAOs");
 		std::vector<cell_t> highPoints = _getter->taoIdAlgorithm()->identifyTaos(bufferedCsm);
+		log.endVerboseBenchmarkTimer("Identifying TAOs");
+		log.beginVerboseBenchmarkTimer("Segmenting TAOs");
 		GenerateIdByTile idGenerator{ _getter->layout()->ncell(),tile };
 		Raster<taoid_t> segments = _getter->taoSegAlgorithm()->segment(bufferedCsm, highPoints, idGenerator);
+		log.endVerboseBenchmarkTimer("Segmenting TAOs");
 
 		_updateMap(segments, highPoints, unbufferedExtent, tile);
 
+		log.beginVerboseBenchmarkTimer("Calulating TAO max height");
 		Raster<csm_t> maxHeight{ (Alignment)segments };
 		std::unordered_map<taoid_t, csm_t> heightByID;
 		for (cell_t c : highPoints) {
@@ -244,6 +249,7 @@ namespace lapis {
 				maxHeight[cell].value() = heightByID[segments[cell].value()];
 			}
 		}
+		log.endVerboseBenchmarkTimer("Calculating TAO max height");
 
 		_writeHighPointsAsArray(highPoints, bufferedCsm, segments, unbufferedExtent, tile);
 
@@ -255,6 +261,7 @@ namespace lapis {
 	}
 	void TaoHandler::cleanup()
 	{
+		LapisLogger::getLogger().setProgress("Assigning Unique TAO IDs");
 		cell_t sofar = 0;
 		std::vector<std::thread> threads;
 		for (int i = 0; i < _getter->nThread(); ++i) {

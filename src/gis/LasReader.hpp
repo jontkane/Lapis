@@ -35,6 +35,7 @@ namespace lapis {
 		LasReader& operator=(const LasReader&) = delete;
 		LasReader& operator=(LasReader&&) = default;
 		LasReader(const Extent& e);
+		const std::string& filename();
 		virtual ~LasReader() = default;
 
 		//Adds a filter which will be applied to every requested point. Points that fail the filter will be skipped.
@@ -49,6 +50,7 @@ namespace lapis {
 
 	private:
 		std::vector<std::shared_ptr<LasFilter>> _filters;
+		std::string _filename;
 	};
 }
 

@@ -41,15 +41,15 @@ namespace lapis {
 	void ComputerParameter::updateUnits() {}
 	bool ComputerParameter::prepareForRun() {
 		if (_benchmark.currentState()) {
-			LapisLogger::getLogger().displayBenchmarking();
+			LapisLogger::getLogger().turnOnVerboseBenchmarking();
 		}
 		else {
-			LapisLogger::getLogger().stopBenchmarking();
+			LapisLogger::getLogger().turnOffVerboseBenchmarking();
 		}
 
 		if ((int)_thread.getValueLogErrors() <= 0) {
 			LapisLogger& log = LapisLogger::getLogger();
-			log.logWarningOrError("Number of threads must be positive");
+			log.logError("Number of threads must be positive");
 			return false;
 		}
 		return true;

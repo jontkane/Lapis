@@ -33,11 +33,22 @@ namespace lapis {
 		displayHelp();
 
 		ImGui::BeginChild(("##classlist" + _cmdName).c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 50), true, ImGuiWindowFlags_HorizontalScrollbar);
-		if (_inverseDisplayString()) {
-			ImGui::Text("All but: ");
-			ImGui::SameLine();
+
+		if (_displayString.size()) {
+			if (_inverseDisplayString()) {
+				ImGui::Text("All but: ");
+				ImGui::SameLine();
+			}
+			ImGui::Text(_displayString.c_str());
 		}
-		ImGui::Text(_displayString.c_str());
+		else {
+			if (_inverseDisplayString()) {
+				ImGui::Text("All");
+			}
+			else {
+				ImGui::Text("None");
+			}
+		}
 		ImGui::EndChild();
 
 		return changed;
@@ -47,8 +58,8 @@ namespace lapis {
 		if (!_boostString.size()) {
 			return false;
 		}
-		std::regex whitelistregex{ "[0-9]+(,[0-9]+)*" };
-		std::regex blacklistregex{ "~[0-9]+(,[0-9]+)*" };
+		std::regex whitelistregex{ "$|([0-9]+(,[0-9]+)*)" };
+		std::regex blacklistregex{ "~($|([0-9]+(,[0-9]+)*))" };
 
 		bool isWhiteList = true;
 
@@ -60,7 +71,7 @@ namespace lapis {
 			_boostString = _boostString.substr(1, _boostString.size());
 		}
 		else {
-			LapisLogger::getLogger().logWarningOrError("Incorrect formatting for class string");
+			LapisLogger::getLogger().logError("Incorrect formatting for class string");
 			_boostString.clear();
 			return false;
 		}
@@ -71,15 +82,14 @@ namespace lapis {
 		while (std::getline(tokenizer, temp, ',')) {
 			int cl = std::stoi(temp);
 			if (cl > _checks.size() || cl < 0) {
-				LapisLogger::getLogger().logWarningOrError("Class values must be between 0 and 255");
+				LapisLogger::getLogger().logError("Class values must be between 0 and 255");
 			}
 			else {
 				set.insert(cl);
 			}
 		}
 		for (size_t i = 0; i < _checks.size(); ++i) {
-			bool inset = set.contains((int)i);
-			if (inset) {
+			if (set.contains((int)i)) {
 				_checks[i] = isWhiteList;
 			}
 			else {

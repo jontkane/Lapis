@@ -238,7 +238,7 @@ namespace lapis {
 				rp.writeOptions(ofs, ParamCategory::process);
 			}
 			else {
-				LapisLogger::getLogger().logWarningOrError("Unable to write to " + std::string(outputIniFile.get()));
+				LapisLogger::getLogger().logWarning("Unable to write to " + std::string(outputIniFile.get()));
 			}
 			outputIniFile.reset();
 		}

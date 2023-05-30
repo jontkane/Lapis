@@ -244,6 +244,9 @@ namespace lapis {
 	}
 	void PointMetricHandler::handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index)
 	{
+		LapisLogger& log = LapisLogger::getLogger();
+		log.beginVerboseBenchmarkTimer("Assigning points to metric cells");
+
 		//This structure is kind of ugly and inelegant, but it ensures that all returns and first returns can share a call to cellFromXY
 		//without needing to pollute the loop with a bunch of if checks
 		//Right now, with only two booleans, the combinatorics are bearable; if it increases, then it probably won't be
@@ -256,9 +259,15 @@ namespace lapis {
 		else if (_getter->doFirstReturnMetrics()) {
 			_assignPointsToCalculators<false, true>(points);
 		}
+		log.pauseVerboseBenchmarkTimer("Assigning points to metric cells");
 	}
 	void PointMetricHandler::finishLasFile(const Extent& e, size_t index)
 	{
+		LapisLogger& log = LapisLogger::getLogger();
+		log.endVerboseBenchmarkTimer("Assigning points to metric cells");
+
+		log.beginVerboseBenchmarkTimer("Calculating point metrics");
+
 		for (cell_t cell : CellIterator(_nLaz, e, SnapType::out)) {
 			std::scoped_lock lock{ _getter->cellMutex(cell) };
 			_nLaz.atCellUnsafe(cell).value()--;
@@ -270,6 +279,7 @@ namespace lapis {
 			if (_getter->doFirstReturnMetrics())
 				_processPMCCell(cell, _firstReturnPMC->atCellUnsafe(cell).value(), ReturnType::FIRST);
 		}
+		log.endVerboseBenchmarkTimer("Calculating point metrics");
 	}
 	void PointMetricHandler::handleDem(const Raster<coord_t>& dem, size_t index)
 	{
@@ -278,6 +288,7 @@ namespace lapis {
 	void PointMetricHandler::cleanup() {
 		namespace fs = std::filesystem;
 
+		LapisLogger::getLogger().setProgress("Writing Point Metrics");
 		if (_getter->doAllReturnMetrics()) {
 			fs::path allReturnsMetricDir = _getter->doFirstReturnMetrics() ? pointMetricDir() / "AllReturns" : pointMetricDir();
 			_writePointMetricRasters(allReturnsMetricDir, ReturnType::ALL);

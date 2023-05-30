@@ -12,11 +12,11 @@
 namespace lapis {
 
 	void logGDALErrors(CPLErr eErrClass, CPLErrorNum nError, const char* pszErrorMsg) {
-		LapisLogger::getLogger().logWarningOrError(pszErrorMsg);
+		LapisLogger::getLogger().logWarning(pszErrorMsg);
 	}
 
 	void logProjErrors(void* v, int i, const char* c) {
-		LapisLogger::getLogger().logWarningOrError(c);
+		LapisLogger::getLogger().logWarning(c);
 	}
 
 	template<class PARAMETER>

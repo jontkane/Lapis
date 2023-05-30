@@ -86,7 +86,7 @@ namespace lapis {
 		}
 		catch (std::invalid_argument e) {
 			LapisLogger& log = LapisLogger::getLogger();
-			log.logWarningOrError("Error reading value of " + _guiDesc);
+			log.logError("Error reading value of " + _guiDesc);
 			return std::nan("");
 		}
 	}

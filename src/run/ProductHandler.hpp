@@ -12,7 +12,7 @@ namespace lapis {
 	class MetadataPdf;
 
 	enum class OutputUnitLabel {
-		Default, Radian, Percent, Unitless
+		Default, Radian, Percent, Unitless, Degree
 	};
 
 	class ProductHandler {
@@ -73,7 +73,7 @@ namespace lapis {
 			r.writeRaster(filename.string());
 		}
 		catch (InvalidRasterFileException e) {
-			LapisLogger::getLogger().logWarningOrError("Error writing " + filename.string());
+			LapisLogger::getLogger().logWarning("Error writing " + filename.string());
 		}
 	}
 	template<class T>

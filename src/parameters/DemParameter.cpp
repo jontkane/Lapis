@@ -138,7 +138,7 @@ namespace lapis {
 
 		case DemAlgo::VENDORRASTER:
 			if (!_specifiers.getSpecifiers().size()) {
-				log.logWarningOrError("No DEM rasters specified");
+				log.logError("No DEM rasters specified");
 				return false;
 			}
 
@@ -156,7 +156,7 @@ namespace lapis {
 			_algorithm = std::make_unique<VendorRaster<DemParameter>>(this);
 			break;
 		default:
-			log.logWarningOrError("Invalid DEM algorithm value");
+			log.logError("Invalid DEM algorithm value");
 			return false;
 		}
 
@@ -212,7 +212,7 @@ namespace lapis {
 		if (!std::filesystem::exists(_demFileAligns[n].file.string())) {
 			std::stringstream ss;
 			ss << "The following DEM file no longer exists: " << _demFileAligns[n].file.string();
-			LapisLogger::getLogger().logWarningOrError(ss.str());
+			LapisLogger::getLogger().logWarning(ss.str());
 			return std::optional<Raster<coord_t>>();
 		}
 
@@ -229,7 +229,7 @@ namespace lapis {
 	Raster<coord_t> DemParameter::bufferElevation(const Raster<coord_t>& unbuffered, const Extent& desired)
 	{
 		if (!desired.overlaps(unbuffered)) {
-			throw OutsideExtentException();
+			throw OutsideExtentException("Outisde extent in bufferElevation");
 		}
 
 		Alignment a = unbuffered;
