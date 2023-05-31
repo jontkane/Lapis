@@ -70,6 +70,11 @@ namespace lapis {
 			return false;
 		}
 
+		auto parentRasterHash() const {
+			
+			return std::hash<Raster<T>*>()(_parent);
+		}
+
 	private:
 		Raster<T>* _parent;
 		rowcol_t _rowoffset, _coloffset;
