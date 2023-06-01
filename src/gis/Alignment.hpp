@@ -289,8 +289,9 @@ namespace lapis {
 		};
 
 		CellIterator(Alignment a, Extent e, SnapType snap) : _a(a) {
-			if (e.touches(a)) {
-				_e = cropExtent(a.alignExtent(e, snap), a);
+			Extent snapE = a.alignExtent(e, snap);
+			if (snapE.overlaps(a)) {
+				_e = cropExtent(snapE, a);
 				hasAnyCells = true;
 			}
 			else {

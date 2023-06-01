@@ -85,8 +85,7 @@ namespace lapis {
 		: DemAlgoApplier(std::move(l), outCrs, minHt, maxHt), _getter(getter)
 	{
 		if (!_getter) {
-			
-			std::invalid_argument("Null getter in VendorRasterApplier");
+			throw std::invalid_argument("Null getter in VendorRasterApplier");
 		}
 
 		_makeDem(_las);
