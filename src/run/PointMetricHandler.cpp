@@ -246,7 +246,6 @@ namespace lapis {
 	{
 		LapisLogger& log = LapisLogger::getLogger();
 		log.beginVerboseBenchmarkTimer("Assigning points to metric cells");
-
 		//This structure is kind of ugly and inelegant, but it ensures that all returns and first returns can share a call to cellFromXY
 		//without needing to pollute the loop with a bunch of if checks
 		//Right now, with only two booleans, the combinatorics are bearable; if it increases, then it probably won't be

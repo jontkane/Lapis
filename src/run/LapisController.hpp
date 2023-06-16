@@ -51,7 +51,16 @@ namespace lapis {
 					thisidx = sofar;
 					++sofar;
 				}
-				func(thisidx);
+				try {
+					func(thisidx);
+				}
+				catch (std::exception e) {
+					LapisLogger& log = LapisLogger::getLogger();
+					log.logError("Fatal error: " + std::string(e.what()));
+					log.logMessage("Please contact the developer at lapis-lidar@uw.edu for advice or to report this bug.");
+					_needAbort = true;
+					return;
+				}
 			}
 		}
 

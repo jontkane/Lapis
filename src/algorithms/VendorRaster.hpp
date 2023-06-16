@@ -165,10 +165,10 @@ namespace lapis {
 				converter.convertManyInPlace(&dem[0].value(), dem.ncell(), sizeof(coord_t));
 			}
 			Raster<coord_t> resampled;
-			if (!_dem->isSameAlignment(dem)) {
+			if (!_dem->consistentAlignment(dem)) {
 				resampled = dem.resample(*_dem, ExtractMethod::bilinear);
 			}
-			const Raster<coord_t>* useRaster = _dem->isSameAlignment(dem) ? &dem : &resampled;
+			const Raster<coord_t>* useRaster = _dem->consistentAlignment(dem) ? &dem : &resampled;
 
 			_dem->overlay(*useRaster, [](coord_t a, coord_t b) {return a; });
 		}
