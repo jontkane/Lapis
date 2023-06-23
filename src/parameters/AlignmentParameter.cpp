@@ -92,7 +92,10 @@ namespace lapis {
 			ImGui::Text("Cellsize: Different X/Y");
 		}
 		else {
-			_cellsize.renderGui();
+			if (_cellsize.renderGui()) {
+				_xres.copyFrom(_cellsize);
+				_yres.copyFrom(_cellsize);
+			}
 		}
 
 #ifndef NDEBUG

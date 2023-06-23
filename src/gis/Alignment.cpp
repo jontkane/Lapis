@@ -200,7 +200,7 @@ namespace lapis {
 		cropE = cropExtent(cropE, a);
 		rowcol_t nrow = (rowcol_t)std::round((cropE.ymax() - cropE.ymin()) / a.yres());
 		rowcol_t ncol = (rowcol_t)std::round((cropE.xmax() - cropE.xmin()) / a.xres());
-		return Alignment(cropE, nrow, ncol);
+		return Alignment(cropE.xmin(), cropE.ymin(), nrow, ncol, a.xres(), a.yres(), a.crs());
 	}
 
 	Alignment extendAlignment(const Alignment& a, const Extent& e, SnapType snap) {
@@ -225,7 +225,7 @@ namespace lapis {
 		if (extE.ymax() > a.ymax()) {
 			prerows = (rowcol_t)round((extE.ymax() - a.ymax()) / a.yres());
 		}
-		return Alignment(extE, a.nrow() + postrows + prerows, a.ncol() + postcols + precols);
+		return Alignment(extE.xmin(),extE.ymin(), a.nrow() + postrows + prerows, a.ncol() + postcols + precols,a.xres(),a.yres(),a.crs());
 	}
 
 	bool operator==(const Alignment& lhs, const Alignment& rhs) {

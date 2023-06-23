@@ -57,16 +57,17 @@ namespace lapis {
 		for (cell_t cell : CellIterator(a, r, SnapType::out)) {
 			Extent e = a.extentFromCell(cell);
 
-			if (!r.overlaps(e)) {
-				continue; //In theory this shouldn't happen, but it was happening in some weird circumstances related to floating point inaccuracies
+			try {
+				Raster<INPUT>* po = const_cast<Raster<INPUT>*>(&r); //I promise I'm not actually going to modify it; forgive this const_cast
+				const CropView<INPUT> cv{ po, e, SnapType::near }; //see, I even made the view const
+
+				auto v = f(cv);
+				out[cell].has_value() = v.has_value();
+				out[cell].value() = v.value();
 			}
-
-			Raster<INPUT>* po = const_cast<Raster<INPUT>*>(&r); //I promise I'm not actually going to modify it; forgive this const_cast
-			const CropView<INPUT> cv{ po, e, SnapType::near }; //see, I even made the view const
-
-			auto v = f(cv);
-			out[cell].has_value() = v.has_value();
-			out[cell].value() = v.value();
+			catch (OutsideExtentException e) {
+				continue; //This can happen due to floating point inaccuracies
+			}
 		}
 		return out;
 	}
