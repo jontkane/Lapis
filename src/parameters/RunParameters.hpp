@@ -43,6 +43,7 @@ namespace lapis {
 
 		const std::vector<Extent>& lasExtents();
 		LasReader getLas(size_t i);
+		std::optional<LinearUnit> lasZUnits();
 
 		std::unique_ptr<DemAlgoApplier> demAlgorithm(LasReader&& l);
 

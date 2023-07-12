@@ -102,6 +102,8 @@ namespace lapis {
 
 		void _renderAdvancedOptions();
 
+		LinearUnit _demUnitsCache;
+
 		class DemIterator {
 		public:
 			DemIterator(std::vector<DemFileAlignment>::const_iterator it) : _it(it) {}

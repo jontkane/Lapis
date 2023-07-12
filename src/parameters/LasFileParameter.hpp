@@ -33,6 +33,8 @@ namespace lapis {
 		
 		LasReader getLas(size_t n);
 
+		std::optional<LinearUnit> lasZUnits();
+
 	private:
 		FileSpecifierSet _specifiers{ "Las","las",
 		"Specify input point cloud (las/laz) files in one of three ways:\n"

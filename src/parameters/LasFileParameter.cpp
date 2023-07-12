@@ -103,6 +103,21 @@ namespace lapis {
 		}
 		std::sort(fileExtentVector.begin(), fileExtentVector.end());
 		log.logMessage(std::to_string(fileExtentVector.size()) + " Las Files Found");
+
+		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
+		for (LasFileExtent& lfe : fileExtentVector) {
+			const CoordRef& crs = lfe.ext.crs();
+			countByCRS.try_emplace(crs, 0);
+			countByCRS[crs]++;
+		}
+		for (auto& pair : countByCRS) {
+			std::stringstream ss;
+			ss << pair.second << " of the las files had the following CRS: ";
+			ss << pair.first.getShortName() << " and the following vertical units: ";
+			ss << pair.first.getZUnits().name() << ". If this seems wrong, consider specifying the CRS and units manually.";
+			log.logMessage(ss.str());
+		}
+
 		if (fileExtentVector.size() == 0) {
 			return false;
 		}
@@ -168,6 +183,22 @@ namespace lapis {
 		}
 		if (!unitOverride.isUnknown()) {
 			out.setZUnits(unitOverride);
+		}
+		return out;
+	}
+
+	std::optional<LinearUnit> LasFileParameter::lasZUnits()
+	{
+		prepareForRun();
+		std::optional<LinearUnit> out;
+		for (auto& ext : _lasExtents) {
+			if (!out.has_value()) {
+				out = ext.crs().getZUnits();
+				continue;
+			}
+			if (out.value() != ext.crs().getZUnits()) {
+				return std::optional<LinearUnit>();
+			}
 		}
 		return out;
 	}

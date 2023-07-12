@@ -185,6 +185,10 @@ namespace lapis {
 		}
 		return l;
 	}
+	std::optional<LinearUnit> RunParameters::lasZUnits()
+	{
+		return getParam<LasFileParameter>().lasZUnits();
+	}
 	std::unique_ptr<DemAlgoApplier> RunParameters::demAlgorithm(LasReader&& l)
 	{
 		auto x = getParam<DemParameter>().demAlgorithm();
