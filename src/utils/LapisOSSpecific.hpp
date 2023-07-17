@@ -1,8 +1,6 @@
 #pragma once
-#ifndef LP_LAPISWINDOWS_H
-#define LP_LAPISWINDOWS_H
-
-//This header file contains utilities to handle Windows-specific stuff
+#ifndef LP_LAPISOSSPECIFIC_H
+#define LP_LAPISOSSPECIFIC_H
 
 #ifdef _WIN32
 #undef APIENTRY
@@ -47,6 +45,8 @@ namespace lapis {
 		std::ostream* _os;
 		void* _handle;
 	};
+
+	std::string executableFolder();
 
 
 	//these variables get re-defined if the program enters via WinMain

@@ -2,7 +2,7 @@
 #include"RunParameters.hpp"
 #include"AllParameters.hpp"
 #include"LapisGui.hpp"
-#include"..\utils\LapisWindows.hpp"
+#include"..\utils\LapisOSSpecific.hpp"
 
 namespace lapis {
 
@@ -334,6 +334,9 @@ namespace lapis {
 				("gui", "Display the GUI")
 				("ini-file", po::value<std::vector<std::string>>(), "The .ini file containing parameters for this run\n"
 					"You may specify this multiple times; values from earlier files will be preferred")
+#ifdef _WIN32
+				("nodefault", "Don't use the options stored in lapisdefault.ini")
+#endif
 				;
 			po::positional_options_description pos;
 			pos.add("ini-file", -1);
@@ -364,6 +367,15 @@ namespace lapis {
 				.run(), vmFull);
 			po::notify(vmFull);
 
+			if (!vmFull.count("nodefault")) {
+				std::filesystem::path defaultini = executableFolder();
+				defaultini = defaultini.parent_path() / "lapisdefault.ini";
+				if (std::filesystem::exists(defaultini)) {
+					po::store(po::parse_config_file(defaultini.string().c_str(), iniOptions), vmFull);
+					po::notify(vmFull);
+					LapisLogger::getLogger().logMessage("Defaults loaded from " + defaultini.string());
+				}
+			}
 
 			if (vmFull.count("ini-file")) {
 				for (auto& ini : vmFull.at("ini-file").as<std::vector<std::string>>()) {

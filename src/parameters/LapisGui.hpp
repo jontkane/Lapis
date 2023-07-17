@@ -223,13 +223,17 @@ namespace lapis {
 			inputIniFile.reset();
 		}
 
+		auto writeOptions = [&](const std::string& x) {
+			
+		};
+
 		static NFD::UniquePathU8 outputIniFile;
 		ImGui::SameLine();
 		if (ImGui::Button("Save Parameters")) {
 			NFD::SaveDialog(outputIniFile, &iniFileFilter, 1);
 		}
 		if (outputIniFile) {
-			std::ofstream ofs{ outputIniFile.get() };
+			std::ofstream ofs{ outputIniFile.get()};
 			if (ofs) {
 				rp.writeOptions(ofs, ParamCategory::data);
 				ofs << "\n";
@@ -238,9 +242,25 @@ namespace lapis {
 				rp.writeOptions(ofs, ParamCategory::process);
 			}
 			else {
-				LapisLogger::getLogger().logWarning("Unable to write to " + std::string(outputIniFile.get()));
+				LapisLogger::getLogger().logWarning("Unable to write options to " + std::string(outputIniFile.get()));
 			}
 			outputIniFile.reset();
+		}
+
+		ImGui::SameLine();
+		if (ImGui::Button("Save Parameters as Default")) {
+			std::filesystem::path defaultini = executableFolder();
+			defaultini = defaultini.parent_path() / "lapisdefault.ini";
+			std::ofstream ofs{ defaultini.string() };
+			if (ofs) {
+				rp.writeOptions(ofs, ParamCategory::computer);
+				ofs << "\n";
+				rp.writeOptions(ofs, ParamCategory::process);
+			}
+			else {
+				LapisLogger::getLogger().logWarning("Unable to write options to " + defaultini.string());
+			}
+			LapisLogger::getLogger().logMessage("Current parameters written to " + defaultini.string());
 		}
 
 		//ImGui::SameLine();

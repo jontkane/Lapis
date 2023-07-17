@@ -2,7 +2,7 @@
 #ifndef LP_LAPIS_H
 #define LP_LAPIS_H
 
-#include"utils/LapisWindows.hpp"
+#include"utils/LapisOSSpecific.hpp"
 #include"run/LapisController.hpp"
 #include"parameters/LapisGui.hpp"
 #include"parameters/RunParameters.hpp"
@@ -29,7 +29,7 @@ namespace lapis {
 		LapisController::replaceHandlerWithMod<HANDLER>(newBehavior);
 	}
 
-	void setProjDataDirectory(char* exeName) {
+	void setProjDataDirectory(const char* exeName) {
 		std::string parent = std::filesystem::path(exeName).parent_path().string();
 		char* cStr = new char[parent.size() + 1];
 		strncpy_s(cStr,parent.size() + 1, parent.c_str(), parent.size() + 1);
@@ -50,6 +50,8 @@ namespace lapis {
 		CPLSetErrorHandler(silenceGDALErrors);
 		proj_log_level(ProjContextByThread::get(), PJ_LOG_NONE);
 #endif
+
+		setProjDataDirectory(executableFolder().c_str());
 
 		RunParameters& rp = RunParameters::singleton();
 		rp.resetObject();
@@ -100,7 +102,7 @@ namespace lapis {
 
 #ifdef _WIN32
 	void pressEnter() {
-		INPUT ip;
+		INPUT ip{};
 		// Set up a generic keyboard event.
 		ip.type = INPUT_KEYBOARD;
 		ip.ki.wScan = 0; // hardware scan code for key
@@ -124,29 +126,28 @@ namespace lapis {
 		_In_ LPSTR lpCmdLine,
 		_In_ int nShowCmd) {
 
-		char exePath[255];
-		GetModuleFileNameA(nullptr, exePath, 255);
-		setProjDataDirectory(exePath);
+		bool commandLine = AttachConsole(ATTACH_PARENT_PROCESS);
+		std::array<char, 30> oldTitle = std::array<char, 30>();
+		if (commandLine) {
+			//lapis was run from the command line
+			GetConsoleTitle(oldTitle.data(), (DWORD)oldTitle.size());
+			SetConsoleTitle("Lapis");
 
-		if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
-			LapisGui<LapisController>::singleton().renderFullGui();
-			return 0;
+			lapisCout = LapisWindowsWriter(&std::cout, GetStdHandle(STD_OUTPUT_HANDLE));
+			lapisCerr = LapisWindowsWriter(&std::cerr, GetStdHandle(STD_ERROR_HANDLE));
 		}
 
-		//command line
-
-		std::array<char, 30> oldTitle = std::array<char, 30>();
-		GetConsoleTitle(oldTitle.data(), (DWORD)oldTitle.size());
-		SetConsoleTitle("Lapis");
-
-		lapisCout = LapisWindowsWriter(&std::cout, GetStdHandle(STD_OUTPUT_HANDLE));
-		lapisCerr = LapisWindowsWriter(&std::cerr, GetStdHandle(STD_ERROR_HANDLE));
-
 		std::vector<std::string> args = boost::program_options::split_winmain(lpCmdLine);
+		if (!commandLine) {
+			args.push_back("--gui");
+		}
 		int result = lapisUnifiedMain(args);
-		SetConsoleTitle(oldTitle.data());
-		pressEnter();
-		FreeConsole();
+		if (commandLine) {
+			SetConsoleTitle(oldTitle.data());
+			pressEnter();
+			FreeConsole();
+		}
+
 		return result;
 	}
 #endif
