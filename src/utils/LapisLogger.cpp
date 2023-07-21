@@ -48,6 +48,7 @@ namespace lapis {
 	}
 	void LapisLogger::renderGui()
 	{
+		std::scoped_lock lock{ *_mut };
 		_updateEllipsis();
 		ImGui::BeginChild("logger main progress", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y * 0.5f), true, 0);
 		centerAlignTitle("Progress");
@@ -116,6 +117,7 @@ namespace lapis {
 	}
 	void LapisLogger::setProgress(const std::string& displayString, int total, bool needTimer)
 	{
+		std::scoped_lock lock{ *_mut };
 		if (_progressTracker.size()) {
 			size_t previdx = _progressTracker.size() - 1;
 			_progressTracker[previdx] = _lastProgressNoEllipsis + "...";

@@ -113,10 +113,8 @@ namespace lapis {
 			}
 
 		private:
-			static constexpr int MAXBUFFERSIZE = 256;
 			LasIO _las;
-#pragma warning(suppress: 26495)
-			std::array<char, MAXBUFFERSIZE> _buffer;
+			std::vector<char> _buffer;
 			coord_t _x = 0, _y = 0, _z = 0;
 
 			bool _ispoint14 = false;

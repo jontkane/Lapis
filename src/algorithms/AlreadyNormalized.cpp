@@ -24,8 +24,8 @@ namespace lapis {
 	std::shared_ptr<Raster<coord_t>> AlreadyNormalizedApplier::getDem()
 	{
 		std::shared_ptr<Raster<coord_t>> out = std::make_shared<Raster<coord_t>>(Alignment(_las, 1, 1)); //the simplest and smallest raster that fulfills the contract of the function
-		out->atCellUnsafe(0).has_value() = true;
-		out->atCellUnsafe(0).value() = 0;
+		out->atCell(0).has_value() = true;
+		out->atCell(0).value() = 0;
 		return out;
 	}
 	std::span<LasPoint> AlreadyNormalizedApplier::getPoints(size_t n)

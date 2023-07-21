@@ -150,7 +150,7 @@ namespace lapis {
 			ifs.read(userID.data(), 16); //User ID
 
 			uint16_t recordID;
-			T recordLength;
+			T recordLength = 0;
 			_readBytes(&recordID);
 			_readBytes(&recordLength);
 
