@@ -46,7 +46,7 @@ namespace lapis {
 		void* _handle;
 	};
 
-	std::string executableFolder();
+	std::string executableFilePath();
 
 
 	//these variables get re-defined if the program enters via WinMain

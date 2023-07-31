@@ -50,8 +50,7 @@ namespace lapis {
 		CPLSetErrorHandler(silenceGDALErrors);
 		proj_log_level(ProjContextByThread::get(), PJ_LOG_NONE);
 #endif
-
-		setProjDataDirectory(executableFolder().c_str());
+		setProjDataDirectory(executableFilePath().c_str());
 
 		RunParameters& rp = RunParameters::singleton();
 		rp.resetObject();

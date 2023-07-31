@@ -2,7 +2,7 @@
 #include<vector>
 
 namespace lapis {
-	std::string executableFolder() {
+	std::string executableFilePath() {
 #ifdef _WIN32
 		std::vector<char> pathBuf;
 		int copied = 0;
@@ -14,7 +14,7 @@ namespace lapis {
 
 		return std::string(pathBuf.begin(), pathBuf.end());
 #else
-		static_assert(false, "Please implement executableFolder() for this OS");
+		static_assert(false, "Please implement executableFilePath() for this OS");
 #endif
 	}
 }

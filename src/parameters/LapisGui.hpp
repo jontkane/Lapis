@@ -249,7 +249,7 @@ namespace lapis {
 
 		ImGui::SameLine();
 		if (ImGui::Button("Save Parameters as Default")) {
-			std::filesystem::path defaultini = executableFolder();
+			std::filesystem::path defaultini = executableFilePath();
 			defaultini = defaultini.parent_path() / "lapisdefault.ini";
 			std::ofstream ofs{ defaultini.string() };
 			if (ofs) {

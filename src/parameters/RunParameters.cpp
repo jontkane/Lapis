@@ -368,7 +368,7 @@ namespace lapis {
 			po::notify(vmFull);
 
 			if (!vmFull.count("nodefault")) {
-				std::filesystem::path defaultini = executableFolder();
+				std::filesystem::path defaultini = executableFilePath();
 				defaultini = defaultini.parent_path() / "lapisdefault.ini";
 				if (std::filesystem::exists(defaultini)) {
 					po::store(po::parse_config_file(defaultini.string().c_str(), iniOptions), vmFull);
