@@ -29,6 +29,7 @@
 #include"../gis/LasReader.hpp"
 #include"../gis/LasFilter.hpp"
 #include"../utils/LapisLogger.hpp"
+#include"../utils/LapisOSSpecific.hpp"
 
 #include<nfd.hpp>
 

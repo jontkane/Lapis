@@ -19,12 +19,17 @@ namespace lapis {
 
 		virtual ~LasExtent() = default;
 
-		std::uint64_t nPoints() const {
+		uint64_t nPoints() const {
 			return _nPoints;
 		}
 
+		uint8_t versionMinor() const {
+			return _versionMinor;
+		}
+
 	protected:
-		std::uint64_t _nPoints = 0;
+		uint64_t _nPoints = 0;
+		uint8_t _versionMinor = 0;
 	};
 
 }

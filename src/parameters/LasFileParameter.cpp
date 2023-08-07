@@ -71,6 +71,7 @@ namespace lapis {
 		if (_runPrepared) {
 			return true;
 		}
+		_warnedAboutVersionMinor = false;
 
 		RunParameters& rp = RunParameters::singleton();
 
@@ -102,6 +103,21 @@ namespace lapis {
 		}
 		std::sort(fileExtentVector.begin(), fileExtentVector.end());
 		log.logMessage(std::to_string(fileExtentVector.size()) + " Las Files Found");
+
+		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
+		for (LasFileExtent& lfe : fileExtentVector) {
+			const CoordRef& crs = lfe.ext.crs();
+			countByCRS.try_emplace(crs, 0);
+			countByCRS[crs]++;
+		}
+		for (auto& pair : countByCRS) {
+			std::stringstream ss;
+			ss << pair.second << " of the las files had the following CRS: ";
+			ss << pair.first.getShortName() << " and the following vertical units: ";
+			ss << pair.first.getZUnits().name() << ". If this seems wrong, consider specifying the CRS and units manually.";
+			log.logMessage(ss.str());
+		}
+
 		if (fileExtentVector.size() == 0) {
 			return false;
 		}
@@ -144,7 +160,21 @@ namespace lapis {
 	LasReader LasFileParameter::getLas(size_t n)
 	{
 		prepareForRun();
+		if (!std::filesystem::exists(_lasFileNames[n])) {
+			std::stringstream ss;
+			ss << "The following las file no longer exists: " << _lasFileNames[n];
+			LapisLogger::getLogger().logWarning(ss.str());
+			return LasReader();
+		}
 		LasReader out{ _lasFileNames[n] };
+
+		if (out.versionMinor() < 4 && !_warnedAboutVersionMinor && _crs.cachedCrs().isEmpty()) {
+			_warnedAboutVersionMinor = true;
+
+			LapisLogger::getLogger().logWarning(
+				"Some or all of the laz files are earlier than version 1.4. They are more likely to have incorrect CRS information. Please consider manually specifying their CRS and units.");
+			
+		}
 		
 		const CoordRef& crsOverride = _crs.cachedCrs();
 		const LinearUnit& unitOverride = _unit.currentSelection();
@@ -153,6 +183,22 @@ namespace lapis {
 		}
 		if (!unitOverride.isUnknown()) {
 			out.setZUnits(unitOverride);
+		}
+		return out;
+	}
+
+	std::optional<LinearUnit> LasFileParameter::lasZUnits()
+	{
+		prepareForRun();
+		std::optional<LinearUnit> out;
+		for (auto& ext : _lasExtents) {
+			if (!out.has_value()) {
+				out = ext.crs().getZUnits();
+				continue;
+			}
+			if (out.value() != ext.crs().getZUnits()) {
+				return std::optional<LinearUnit>();
+			}
 		}
 		return out;
 	}
@@ -220,8 +266,12 @@ namespace lapis {
 			}
 			return { f,e };
 		}
+		catch (InvalidLasFileException e) {
+			log.logWarning(std::string(e.what()) + " in file " + f.string());
+			throw e;
+		}
 		catch (...) {
-			log.logMessage("Error reading " + f.string());
+			log.logWarning("Unknown error reading " + f.string());
 			throw InvalidLasFileException("");
 		}
 	}

@@ -94,17 +94,17 @@ namespace lapis {
 		}
 
 		if (_footprintDiameter.getValueLogErrors() < 0) {
-			log.logMessage("Pulse diameter must be non-negative");
+			log.logError("Pulse diameter must be non-negative");
 			return false;
 		}
 		if (_cellsize.getValueLogErrors() <= 0) {
-			log.logMessage("CSM Cellsize must be positive");
+			log.logError("CSM Cellsize must be positive");
 			return false;
 		}
 
 		//so large that the outer edge of the circle will skip entire cells sometimes
 		if (_footprintDiameter.getValueLogErrors() >= _cellsize.getValueLogErrors() * 2) {
-			log.logMessage("Pulse diameter is too large for your CSM resolution. Increase CSM cellsize or reduce pulse diameter.");
+			log.logError("Pulse diameter is too large for your CSM resolution. Increase CSM cellsize or reduce pulse diameter.");
 		}
 
 		coord_t cellsize = u.convertOneFromThis(_cellsize.getValueLogErrors(), metricAlign.crs().getXYLinearUnits());

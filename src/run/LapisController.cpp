@@ -35,72 +35,87 @@ namespace lapis {
 		LapisLogger& log = LapisLogger::getLogger();
 		RunParameters& rp = RunParameters::singleton();
 
-		PJ* test_proj = proj_create(ProjContextByThread::get(), "EPSG:2927");
-		if (test_proj == nullptr) {
-			log.logMessage("proj.db not loaded");
-			sendAbortSignal();
-		}
-		else {
-			proj_destroy(test_proj);
+		try {
+			PJ* test_proj = proj_create(ProjContextByThread::get(), "EPSG:2927");
+			if (test_proj == nullptr) {
+				log.logError("proj.db not loaded");
+				sendAbortSignal();
+			}
+			else {
+				proj_destroy(test_proj);
 #ifndef NDEBUG
-			log.logMessage("proj.db successfully loaded");
+				log.logMessage("proj.db successfully loaded");
 #endif
+			}
+			LAPIS_CHECK_ABORT_AND_DEALLOC;
+
+			if (!rp.prepareForRun()) {
+				sendAbortSignal();
+			}
+			LAPIS_CHECK_ABORT_AND_DEALLOC;
+
+			writeParams();
+			LAPIS_CHECK_ABORT_AND_DEALLOC;
+
+			for (auto& p : _handlers()) {
+				if (p->doThisProduct())
+					p->prepareForRun();
+			}
+			writeMetadata(); //this call has to happen in between preparing for the run and cleaning up
+
+			log.setNThread(rp.nThread());
+
+			log.setProgress("Processing LAS Files", (int)rp.lasExtents().size());
+			uint64_t soFar = 0;
+			std::vector<std::thread> threads;
+			auto lasThreadFunc = [&]() {
+				_distributeWork(soFar, rp.lasExtents().size(), [&](size_t n) {this->lasThread(n); }, rp.globalMutex());
+			};
+			for (int i = 0; i < rp.nThread(); ++i) {
+				threads.push_back(std::thread(lasThreadFunc));
+			}
+			for (int i = 0; i < rp.nThread(); ++i) {
+				threads[i].join();
+			}
+			LAPIS_CHECK_ABORT_AND_DEALLOC;
+
+
+			int nTile = 0;
+			for (cell_t cell : CellIterator(*rp.layout())) {
+				nTile += rp.layout()->atCellUnsafe(cell).has_value();
+			}
+
+			log.setProgress("Processing Tiles", nTile);
+			soFar = 0;
+			threads.clear();
+			auto tileThreadFunc = [&]() {
+				_distributeWork(soFar, rp.layout()->ncell(), [&](cell_t tile) {this->tileThread(tile); }, rp.globalMutex());
+			};
+			for (int i = 0; i < rp.nThread(); ++i) {
+				threads.push_back(std::thread(tileThreadFunc));
+			}
+			for (int i = 0; i < rp.nThread(); ++i) {
+				threads[i].join();
+			}
+			LAPIS_CHECK_ABORT_AND_DEALLOC;
+
+			cleanUp();
+			LAPIS_CHECK_ABORT_AND_DEALLOC;
+
+			rp.cleanAfterRun();
+
+			log.setProgress("Done!", 0, false);
+			_isRunning = false;
+
+			return true;
 		}
-		LAPIS_CHECK_ABORT_AND_DEALLOC;
-
-		if (!rp.prepareForRun()) {
-			sendAbortSignal();
+		catch (std::exception e) {
+			log.logError("Fatal error: " + std::string(e.what()));
+			log.logMessage("Please contact the developer at lapis-lidar@uw.edu for advice or to report this bug.");
+			_needAbort = true;
+			LAPIS_CHECK_ABORT_AND_DEALLOC;
+			return false;
 		}
-		LAPIS_CHECK_ABORT_AND_DEALLOC;
-
-		writeParams();
-		LAPIS_CHECK_ABORT_AND_DEALLOC;
-
-		for (auto& p : _handlers()) {
-			if (p->doThisProduct())
-				p->prepareForRun();
-		}
-		writeMetadata(); //this call has to happen in between preparing for the run and cleaning up
-
-		log.setProgress("Processing LAS Files", (int)rp.lasExtents().size());
-		uint64_t soFar = 0;
-		std::vector<std::thread> threads;
-		auto lasThreadFunc = [&]() {
-			_distributeWork(soFar, rp.lasExtents().size(), [&](size_t n) {this->lasThread(n); }, rp.globalMutex());
-		};
-		for (int i = 0; i < rp.nThread(); ++i) {
-			threads.push_back(std::thread(lasThreadFunc));
-		}
-		for (int i = 0; i < rp.nThread(); ++i) {
-			threads[i].join();
-		}
-		LAPIS_CHECK_ABORT_AND_DEALLOC;
-
-
-		log.setProgress("Processing Tiles", (int)rp.layout()->ncell());
-		soFar = 0;
-		threads.clear();
-		auto tileThreadFunc = [&]() {
-			_distributeWork(soFar, rp.layout()->ncell(), [&](cell_t tile) {this->tileThread(tile); }, rp.globalMutex());
-		};
-		for (int i = 0; i < rp.nThread(); ++i) {
-			threads.push_back(std::thread(tileThreadFunc));
-		}
-		for (int i = 0; i < rp.nThread(); ++i) {
-			threads[i].join();
-		}
-		LAPIS_CHECK_ABORT_AND_DEALLOC;
-
-		log.setProgress("Final Processing and Cleanup");
-		cleanUp();
-		LAPIS_CHECK_ABORT_AND_DEALLOC;
-
-		rp.cleanAfterRun();
-
-		log.setProgress("Done!",0,false);
-		_isRunning = false;
-
-		return true;
 	}
 
 	bool LapisController::isRunning() const
@@ -129,7 +144,7 @@ namespace lapis {
 
 		std::ofstream fullParams{ paramDir / "FullParameters.ini" };
 		if (!fullParams) {
-			log.logMessage("Could not open " + (paramDir / "FullParameters.ini").string() + " for writing");
+			log.logWarning("Could not open " + (paramDir / "FullParameters.ini").string() + " for writing");
 		}
 		else {
 			rp.writeOptions(fullParams, ParamCategory::data);
@@ -140,7 +155,7 @@ namespace lapis {
 
 		std::ofstream runAndComp{ paramDir / "ProcessingAndComputerParameters.ini" };
 		if (!runAndComp) {
-			log.logMessage("Could not open " + (paramDir / "ProcessingAndComputerParameters.ini").string() + " for writing");
+			log.logWarning("Could not open " + (paramDir / "ProcessingAndComputerParameters.ini").string() + " for writing");
 		}
 		else {
 			rp.writeOptions(runAndComp, ParamCategory::process);
@@ -149,7 +164,7 @@ namespace lapis {
 
 		std::ofstream data{ paramDir / "DataParameters.ini" };
 		if (!data) {
-			log.logMessage("Could not open " + (paramDir / "DataParameters.ini").string() + " for writing");
+			log.logWarning("Could not open " + (paramDir / "DataParameters.ini").string() + " for writing");
 		}
 		else {
 			rp.writeOptions(data, ParamCategory::data);
@@ -157,7 +172,7 @@ namespace lapis {
 
 		std::ofstream metric{ paramDir / "ProcessingParameters.ini" };
 		if (!data) {
-			log.logMessage("Could not open " + (paramDir / "ProcessingParameters.ini").string() + " for writing");
+			log.logWarning("Could not open " + (paramDir / "ProcessingParameters.ini").string() + " for writing");
 		}
 		else {
 			rp.writeOptions(metric, ParamCategory::process);
@@ -165,7 +180,7 @@ namespace lapis {
 
 		std::ofstream computer{ paramDir / "ComputerParameters.ini" };
 		if (!data) {
-			log.logMessage("Could not open " + (paramDir / "ComputerParameters.ini").string() + " for writing");
+			log.logWarning("Could not open " + (paramDir / "ComputerParameters.ini").string() + " for writing");
 		}
 		else {
 			rp.writeOptions(computer, ParamCategory::computer);
@@ -257,18 +272,17 @@ namespace lapis {
 		RunParameters& rp = RunParameters::singleton();
 		LapisLogger& log = LapisLogger::getLogger();
 
-		log.beginBenchmarkTimer("Las File");
-
 		LasReader lr;
 		try {
 			lr = rp.getLas(n);
 		}
 		catch (InvalidLasFileException e) {
-			log.logMessage(e.what());
+			log.logWarning(e.what());
 		}
 		Extent projectedExtent = QuadExtent(lr, rp.metricAlign()->crs()).outerExtent();
 		LAPIS_CHECK_ABORT;
 
+		std::string filename = lr.filename();
 		std::unique_ptr<DemAlgoApplier> pointGetter = rp.demAlgorithm(std::move(lr));
 
 		const size_t nPoints = 100ll * 1024ll * 1024ll / sizeof(LasPoint); //100 mb per thread
@@ -284,7 +298,7 @@ namespace lapis {
 		}
 
 		if (totalPoints == 0) {
-			log.logMessage("No points passed filters in las file " + std::to_string(n) + ". Perhaps an issue with the ground models or with the units?");
+			log.logWarning("No points passed filters in las file " + filename + ". Perhaps an issue with the ground models or with the units?");
 		}
 		LAPIS_CHECK_ABORT;
 
@@ -292,20 +306,24 @@ namespace lapis {
 
 		for (auto& handler : _handlers()) {
 			if (handler->doThisProduct()) {
-				handler->finishLasFile(projectedExtent, n);
+				if (totalPoints > 0) {
+					handler->finishLasFile(projectedExtent, n);
+				}
 				handler->handleDem(croppedDem, n);
 			}
 		}
 
 		LAPIS_CHECK_ABORT;
-
-		log.endBenchmarkTimer("Las File");
 		LapisLogger::getLogger().incrementTask("Las File Finished");
 	}
 
 	void LapisController::tileThread(cell_t tile)
 	{
 		RunParameters& rp = RunParameters::singleton();
+
+		if (!rp.layout()->atCellUnsafe(tile).has_value()) {
+			return;
+		}
 
 		CsmHandler* csmhandler = dynamic_cast<CsmHandler*>(_handlers()[CsmHandler::handlerRegisteredIndex].get());
 		Raster<csm_t> bufferedCsm = csmhandler->getBufferedCsm(tile);
@@ -326,10 +344,6 @@ namespace lapis {
 			LapisLogger::getLogger().incrementTask("Tile Finished");
 			return;
 		}
-
-		auto v = rp.layout()->atCellUnsafe(tile);
-		v.has_value() = true;
-		v.value() = true;
 
 		for (auto& handler : _handlers()) {
 			if (handler->doThisProduct())

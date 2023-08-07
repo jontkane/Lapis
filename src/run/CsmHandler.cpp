@@ -78,14 +78,20 @@ namespace lapis {
 	}
 	void CsmHandler::handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index)
 	{
+		LapisLogger& log = LapisLogger::getLogger();
+		log.beginVerboseBenchmarkTimer("Assign points to CSM cells");
+
 		if (!_csmGenerators.contains(index)) {
 			Alignment thisAlign = cropAlignment(*_getter->csmAlign(), e, SnapType::out);
 			_csmGenerators.emplace(index, _getter->csmAlgorithm()->getCsmMaker(thisAlign));
 		}
 		_csmGenerators[index]->addPoints(points);
+		
+		log.pauseVerboseBenchmarkTimer("Assign points to CSM cells");
 	}
 	void CsmHandler::finishLasFile(const Extent& e, size_t index)
 	{
+		LapisLogger::getLogger().endVerboseBenchmarkTimer("Assign points to CSM cells");
 		writeRasterLogErrors(getFullTempFilename(csmTempDir(), _csmBaseName, OutputUnitLabel::Default, index), *_csmGenerators[index]->currentCsm());
 		_csmGenerators.erase(index);
 	}
@@ -94,24 +100,32 @@ namespace lapis {
 	}
 	void CsmHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
 	{
+		LapisLogger& log = LapisLogger::getLogger();
+
+		log.beginVerboseBenchmarkTimer("Calculate canopy metrics");
+
 		for (CSMMetricRaster& metric : _csmMetrics) {
 			Raster<metric_t> tileMetric = aggregate<metric_t, csm_t>(bufferedCsm, cropAlignment(*_getter->metricAlign(), bufferedCsm, SnapType::out), metric.fun);
 			static std::mutex mut;
 
 			overlayExcludingEdgeThreadSafe(metric.raster, tileMetric, _getter);
 		}
+		log.endVerboseBenchmarkTimer("End canopy metrics");
 
 		Extent cropExt = _getter->layout()->extentFromCell(tile); //unbuffered extent
 
+		log.beginVerboseBenchmarkTimer("Write CSM tiles");
 		Raster<csm_t> unbuffered = cropRaster(bufferedCsm, cropExt, SnapType::near);
 
 		writeRasterLogErrors(getFullTileFilename(csmDir(), _csmBaseName, OutputUnitLabel::Default, tile), unbuffered);
+		log.endVerboseBenchmarkTimer("Write CSM tiles");
 	}
 	void CsmHandler::cleanup()
 	{
 		tryRemove(csmTempDir());
 		deleteTempDirIfEmpty();
 
+		LapisLogger::getLogger().setProgress("Writing Canopy Metrics");
 		for (CSMMetricRaster& metric : _csmMetrics) {
 			writeRasterLogErrors(getFullFilename(csmMetricDir(), metric.name, metric.unit),metric.raster);
 		}
@@ -192,13 +206,17 @@ namespace lapis {
 			return Raster<csm_t>();
 		}
 
+		LapisLogger& log = LapisLogger::getLogger();
+		log.beginVerboseBenchmarkTimer("Mosaic temporary CSM files");
+
 		std::shared_ptr<Alignment> layout = _getter->layout();
 		std::shared_ptr<Alignment> csmAlign = _getter->csmAlign();
 
 		Extent thistile = layout->extentFromCell(tile);
 
 		coord_t bufferAmount = std::max(_getter->metricAlign()->xres(), _getter->metricAlign()->yres()) * 1.5;
-		bufferAmount = linearUnitPresets::meter.convertOneToThis(bufferAmount, _getter->metricAlign()->crs().getXYLinearUnits().value());
+		bufferAmount = linearUnitPresets::meter.convertOneToThis(bufferAmount, 
+			_getter->metricAlign()->crs().getXYLinearUnits().value_or(linearUnitPresets::unknownLinear));
 
 		Raster<csm_t> bufferedCsm = getEmptyRasterFromTile<csm_t>(tile, *csmAlign, bufferAmount);
 
@@ -226,7 +244,7 @@ namespace lapis {
 				thisr = Raster<csm_t>{ filename,thisext, SnapType::out };
 			}
 			catch (InvalidRasterFileException e) {
-				LapisLogger::getLogger().logMessage("Unable to open " + filename);
+				LapisLogger::getLogger().logWarning("Unable to open " + filename);
 				continue;
 			}
 
@@ -248,6 +266,7 @@ namespace lapis {
 		}
 
 		if (!bufferedCsm.hasAnyValue()) {
+			log.endVerboseBenchmarkTimer("Mosaic temporary CSM files");
 			return Raster<csm_t>();
 		}
 
@@ -255,6 +274,7 @@ namespace lapis {
 
 		bufferedCsm = _getter->csmPostProcessAlgorithm()->postProcess(bufferedCsm);
 
+		log.endVerboseBenchmarkTimer("Mosaic temporary CSM files");
 		return bufferedCsm;
 	}
 	std::filesystem::path CsmHandler::csmTempDir() const

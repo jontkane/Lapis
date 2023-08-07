@@ -109,7 +109,7 @@ namespace lapis {
 				return false;
 			}
 			if (_minht.getValueLogErrors() < 0) {
-				log.logMessage("Minimum tree height is negative. Is this intentional?");
+				log.logWarning("Minimum tree height is negative. Is this intentional?");
 			}
 		}
 
@@ -117,7 +117,7 @@ namespace lapis {
 			return false;
 		}
 		if (_mindist.getValueLogErrors() < 0) {
-			log.logMessage("Minimum TAO Distance cannot be negative");
+			log.logError("Minimum TAO Distance cannot be negative");
 			return false;
 		}
 
@@ -131,7 +131,7 @@ namespace lapis {
 			_idAlgorithm = std::make_unique<HighPoints>(minTaoHt(), userXYUnits.convertOneFromThis(minTaoDist(), outXYUnits));
 			break;
 		default:
-			log.logMessage("Invalid TAO ID algorithm");
+			log.logError("Invalid TAO ID algorithm");
 			return false;
 		}
 
@@ -140,7 +140,7 @@ namespace lapis {
 			_segmentAlgorithm = std::make_unique<WatershedSegment>(minTaoHt(),rp.maxHt(),rp.binSize());
 			break;
 		default:
-			log.logMessage("Invalid TAO Segment algorithm");
+			log.logError("Invalid TAO Segment algorithm");
 			return false;
 		}
 

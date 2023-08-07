@@ -84,6 +84,7 @@ namespace lapis {
 		virtual Raster<coord_t> bufferedElev(const Raster<coord_t>& unbufferedElev) = 0;
 		virtual const std::vector<coord_t>& topoWindows() = 0;
 		virtual const std::vector<std::string>& topoWindowNames() = 0;
+		virtual bool useRadians() = 0;
 	};
 
 	class ParameterGetter :

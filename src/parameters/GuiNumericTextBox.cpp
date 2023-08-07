@@ -61,7 +61,7 @@ namespace lapis {
 			return std::stod(_buffer.data());
 		}
 		catch (std::invalid_argument e) {
-			log.logMessage("Error reading value of " + _guiDesc);
+			log.logError("Error reading value of " + _guiDesc);
 			return 1;
 		}
 	}

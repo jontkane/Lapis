@@ -291,7 +291,7 @@ namespace lapis {
 		ifs.close();
 
 		if (s.size() < 4) { //not enough characters to be a filename with an extension
-			throw UnableToDeduceCRSException(s);
+			throw UnableToDeduceCRSException("No extension in " + s);
 		}
 		std::string ext = s.substr(s.size() - 4, 4);
 		if (ext == ".las" || ext == ".laz") {
@@ -310,7 +310,7 @@ namespace lapis {
 		}
 			
 		if (isEmpty()) {
-			throw UnableToDeduceCRSException(s);
+			throw UnableToDeduceCRSException("Unable to get a CRS from " + s);
 		}
 
 	}
@@ -363,7 +363,7 @@ namespace lapis {
 		OGRSpatialReference osr{};
 		osr.importFromESRI(wgp.ptr);
 		if (osr.IsEmpty()) {
-			throw UnableToDeduceCRSException(s);
+			throw UnableToDeduceCRSException("Failed to read CRS from " + s);
 		}
 		GDALStringWrapper wgs;
 		osr.exportToWkt(&wgs.ptr);

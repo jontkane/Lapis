@@ -130,6 +130,8 @@ namespace lapis {
 		LapisLogger& log = LapisLogger::getLogger();
 
 		std::set<DemFileAlignment> fileAligns;
+		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
+		std::optional<LinearUnit> lasUnits;
 
 		switch (_demAlgo.currentSelection()) {
 		case DemAlgo::DONTNORMALIZE:
@@ -138,16 +140,41 @@ namespace lapis {
 
 		case DemAlgo::VENDORRASTER:
 			if (!_specifiers.getSpecifiers().size()) {
-				log.logMessage("No DEM rasters specified");
+				log.logError("No DEM rasters specified");
 				return false;
 			}
 
 			log.setProgress("Identifying DEM Files");
 
-			fileAligns = _specifiers.getFiles<DemOpener, DemFileAlignment>(DemOpener(_crs.cachedCrs(),_unit.currentSelection()));
+			_demUnitsCache = _unit.currentSelection();
+
+			if (_demUnitsCache == linearUnitPresets::unknownLinear) {
+				lasUnits = RunParameters::singleton().lasZUnits();
+				if (!lasUnits.has_value()) {
+					log.logError("Not all las files have the same units. \"Same as Las Files\" is an invalid option for dem units.");
+					return false;
+				}
+				_demUnitsCache = lasUnits.value();
+			}
+
+
+			fileAligns = _specifiers.getFiles<DemOpener, DemFileAlignment>(DemOpener(_crs.cachedCrs(),_demUnitsCache));
 			log.logMessage(std::to_string(fileAligns.size()) + " Dem Files Found");
 			if (fileAligns.size() == 0) {
 				return false;
+			}
+
+			for (const DemFileAlignment& dfa : fileAligns) {
+				const CoordRef& crs = dfa.align.crs();
+				countByCRS.try_emplace(crs, 0);
+				countByCRS[crs]++;
+			}
+			for (auto& pair : countByCRS) {
+				std::stringstream ss;
+				ss << pair.second << " of the dem files had the following CRS: ";
+				ss << pair.first.getShortName() << " and the following vertical units: ";
+				ss << pair.first.getZUnits().name() << ". If this seems wrong, consider specifying the CRS and units manually.";
+				log.logMessage(ss.str());
 			}
 
 			for (const DemFileAlignment& d : fileAligns) {
@@ -156,7 +183,7 @@ namespace lapis {
 			_algorithm = std::make_unique<VendorRaster<DemParameter>>(this);
 			break;
 		default:
-			log.logMessage("Invalid DEM algorithm value");
+			log.logError("Invalid DEM algorithm value");
 			return false;
 		}
 
@@ -209,20 +236,26 @@ namespace lapis {
 
 		projE.defineCRS(CoordRef("")); //if there's a crs override, then there may be a spurious CRS mismatch
 
+		if (!std::filesystem::exists(_demFileAligns[n].file.string())) {
+			std::stringstream ss;
+			ss << "The following DEM file no longer exists: " << _demFileAligns[n].file.string();
+			LapisLogger::getLogger().logWarning(ss.str());
+			return std::optional<Raster<coord_t>>();
+		}
+
 		std::optional<Raster<coord_t>> outopt{ std::in_place, _demFileAligns[n].file.string(), projE, SnapType::out};
 		Raster<coord_t>& out = outopt.value();
 		const CoordRef& crsOverride = _crs.cachedCrs();
-		const LinearUnit& unitOverride = _unit.currentSelection();
 		if (!crsOverride.isEmpty()) {
 			out.defineCRS(crsOverride);
 		}
-		out.setZUnits(unitOverride);
+		out.setZUnits(_demUnitsCache);
 		return outopt;
 	}
 	Raster<coord_t> DemParameter::bufferElevation(const Raster<coord_t>& unbuffered, const Extent& desired)
 	{
 		if (!desired.overlaps(unbuffered)) {
-			throw OutsideExtentException();
+			throw OutsideExtentException("Outisde extent in bufferElevation");
 		}
 
 		Alignment a = unbuffered;

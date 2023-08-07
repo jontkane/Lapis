@@ -92,7 +92,10 @@ namespace lapis {
 			ImGui::Text("Cellsize: Different X/Y");
 		}
 		else {
-			_cellsize.renderGui();
+			if (_cellsize.renderGui()) {
+				_xres.copyFrom(_cellsize);
+				_yres.copyFrom(_cellsize);
+			}
 		}
 
 #ifndef NDEBUG
@@ -115,8 +118,7 @@ namespace lapis {
 				std::optional<LinearUnit> srcOpt = a.crs().getXYLinearUnits();
 
 				if (!srcOpt) {
-					LapisLogger::getLogger().logMessage("At this time, output coordinate reference systems must be projected.");
-					LapisLogger::getLogger().logMessage("Lat/lon output may be supported in future releases.");
+					LapisLogger::getLogger().logError("At this time, output coordinate reference systems must be projected. Lat/lon output may be supported in future releases.");
 					return;
 				}
 				LinearUnitConverter converter{ srcOpt.value(), RunParameters::singleton().outUnits() };
@@ -214,7 +216,7 @@ namespace lapis {
 		LapisLogger& log = LapisLogger::getLogger();
 
 		if (!_crs.cachedCrs().isProjected()) {
-			log.logMessage("Currently, output must be in a projected CRS. Lat/Lon will be supported in future releases.");
+			log.logError("Currently, output must be in a projected CRS. Lat/Lon will be supported in future releases.");
 			return false;
 		}
 
@@ -223,6 +225,16 @@ namespace lapis {
 		_crs.setCrs(withZUnits);
 
 		Extent e = rp.fullExtent();
+		if (!e.crs().isProjected()) {
+			if (e.xmin() < -180 || e.xmax() > 180 || e.ymin() < -180 || e.ymax() > 180) {
+				log.logWarning("There's something unusual with the laz file CRS information. You may need to manually specify the CRS to get accurate results.");
+			}
+			else {
+				log.logError("The input data appears to be in lat/lon. Currently, lapis does not support output in lat/lon, only in projected CRS. Please specify a different output CRS.");
+				return false;
+			}
+
+		}
 
 		coord_t xres, yres, xorigin, yorigin;
 
@@ -248,7 +260,7 @@ namespace lapis {
 		}
 
 		//the branch where this doesn't have a value is handled above
-		LinearUnitConverter converter{ rp.outUnits(), e.crs().getXYLinearUnits().value() };
+		LinearUnitConverter converter{ rp.outUnits(), e.crs().getXYLinearUnits().value_or(linearUnitPresets::unknownLinear) };
 
 		xres = converter(xres);
 		yres = converter(yres);
@@ -256,7 +268,7 @@ namespace lapis {
 		yorigin = converter(yorigin);
 
 		if (xres <= 0 || yres <= 0) {
-			log.logMessage("Cellsize must be positive");
+			log.logError("Cellsize must be positive");
 			return false;
 		}
 

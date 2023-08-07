@@ -137,10 +137,17 @@ namespace lapis {
 
 		//these versions of the functions don't bother checking if the input data is valid
 		cell_t cellFromRowColUnsafe(const rowcol_t row, const rowcol_t col) const {
+#ifndef NDEBUG
+			_checkRow(row);
+			_checkCol(col);
+#endif
 			cell_t cell = col + (cell_t)(_ncol)*row;
 			return cell;
 		}
 		rowcol_t rowFromYUnsafe(const coord_t y) const {
+#ifndef NDEBUG
+			_checkY(y);
+#endif
 			rowcol_t out = (rowcol_t)((_ymax - y) / _yres);
 			if (y == _ymin) {
 				return _nrow - 1;
@@ -148,6 +155,9 @@ namespace lapis {
 			return out;
 		}
 		rowcol_t colFromXUnsafe(const coord_t x) const {
+#ifndef NDEBUG
+			_checkX(x);
+#endif
 			rowcol_t out = (rowcol_t)((x - _xmin) / _xres);
 			if (x == _xmax) {
 				return _ncol - 1;
@@ -155,24 +165,46 @@ namespace lapis {
 			return out;
 		}
 		rowcol_t rowFromCellUnsafe(const cell_t cell) const {
+#ifndef NDEBUG
+			_checkCell(cell);
+#endif
 			return (rowcol_t)(cell / _ncol);
 		}
 		rowcol_t colFromCellUnsafe(const cell_t cell) const {
+#ifndef NDEBUG
+			_checkCell(cell);
+#endif
 			return cell % _ncol;
 		}
 		coord_t xFromColUnsafe(const rowcol_t col) const {
+#ifndef NDEBUG
+			_checkCol(col);
+#endif
 			return _xmin + _xres * col + (_xres / 2);
 		}
 		coord_t yFromRowUnsafe(const rowcol_t row) const {
+#ifndef NDEBUG
+			_checkRow(row);
+#endif
 			return _ymax - _yres * row - (_yres / 2);
 		}
 		cell_t cellFromXYUnsafe(const coord_t x, const coord_t y) const {
+#ifndef NDEBUG
+			_checkX(x);
+			_checkY(y);
+#endif
 			return cellFromRowColUnsafe(rowFromYUnsafe(y), colFromXUnsafe(x));
 		}
 		coord_t xFromCellUnsafe(const cell_t cell) const {
+#ifndef NDEBUG
+			_checkCell(cell);
+#endif
 			return xFromColUnsafe(colFromCellUnsafe(cell));
 		}
 		coord_t yFromCellUnsafe(const cell_t cell) const {
+#ifndef NDEBUG
+			_checkCell(cell);
+#endif
 			return yFromRowUnsafe(rowFromCellUnsafe(cell));
 		}
 
@@ -216,27 +248,27 @@ namespace lapis {
 		//These functions just throw if the given values are outside the bounds of the alignment
 		void _checkX(const coord_t x) const {
 			if (x<xmin() || x>xmax()) {
-				throw OutsideExtentException("");
+				throw OutsideExtentException("X outside extent");
 			}
 		}
 		void _checkY(const coord_t y) const {
 			if (y<ymin() || y>ymax()) {
-				throw OutsideExtentException("");
+				throw OutsideExtentException("Y outside extent");
 			}
 		}
 		void _checkRow(const rowcol_t row) const {
 			if (row < 0 || row >= nrow()) {
-				throw OutsideExtentException("");
+				throw OutsideExtentException("Row outside extent");
 			}
 		}
 		void _checkCol(const rowcol_t col) const {
 			if (col < 0 || col >= ncol()) {
-				throw OutsideExtentException("");
+				throw OutsideExtentException("Col outside extent");
 			}
 		}
 		void _checkCell(const cell_t cell) const {
 			if (cell < 0 || cell >= ncell()) {
-				throw OutsideExtentException("");
+				throw OutsideExtentException("Cell outside extent");
 			}
 		}
 
@@ -288,9 +320,22 @@ namespace lapis {
 			bool isEnd;
 		};
 
-		CellIterator(Alignment a, Extent e, SnapType snap) : _a(a), _e(cropExtent(a.alignExtent(e, snap), a)) {}
+		CellIterator(Alignment a, Extent e, SnapType snap) : _a(a) {
+			Extent snapE = a.alignExtent(e, snap);
+			if (snapE.overlaps(a)) {
+				_e = cropExtent(snapE, a);
+				hasAnyCells = true;
+			}
+			else {
+				hasAnyCells = false;
+				_e = Extent();
+			}
+		}
 		CellIterator(Alignment a) : CellIterator(a, a, SnapType::near) {}
 		iterator begin() {
+			if (!hasAnyCells) {
+				return end();
+			}
 			if (_e.xmin() == _e.xmax() || _e.ymin() == _e.ymax()) {
 				return end();
 			}
@@ -301,6 +346,7 @@ namespace lapis {
 		}
 
 	private:
+		bool hasAnyCells = true;
 		Alignment _a;
 		Extent _e;
 	};

@@ -50,7 +50,7 @@ namespace lapis {
 				auto layer = wgd->GetLayer(0);
 				auto errcode = layer->GetExtent(&envelope);
 				if (errcode != OGRERR_NONE) {
-					throw InvalidVectorFileException(filename);
+					throw InvalidVectorFileException("Unable to open " + filename + " as an extent");
 				}
 				_xmin = envelope.MinX;
 				_xmax = envelope.MaxX;
@@ -101,7 +101,7 @@ namespace lapis {
 	//returns true if this extent has an overlap with non-zero area with the other extent
 	bool Extent::overlaps(const Extent& e) const {
 		if (!_crs.isConsistentHoriz(e.crs())) {
-			throw CRSMismatchException();
+			throw CRSMismatchException("CRS mismatch in overlaps");
 		}
 		return overlapsUnsafe(e);
 	}
@@ -122,7 +122,7 @@ namespace lapis {
 
 	bool Extent::touches(const Extent& e) const {
 		if (!_crs.isConsistentHoriz(e.crs())) {
-			throw CRSMismatchException();
+			throw CRSMismatchException("CRS mismatch in touches");
 		}
 		//the 'left' extent is the one with the lower xmin
 		coord_t rightxmin = std::max<coord_t>(_xmin, e._xmin);
@@ -149,7 +149,7 @@ namespace lapis {
 
 	void Extent::checkValidExtent() {
 		if (_xmin > _xmax || _ymin > _ymax) {
-			throw InvalidExtentException("");
+			throw InvalidExtentException("Invalid extent");
 		}
 	}
 
@@ -157,7 +157,7 @@ namespace lapis {
 		std::array<double, 6> gt{}; //xmin, xres, xshear, ymax, yshear, yres
 		auto errcode = wgd->GetGeoTransform(gt.data());
 		if (errcode != CE_None) {
-			throw InvalidRasterFileException(errormsg);
+			throw InvalidRasterFileException("GDAL error: " + errormsg);
 		}
 		return gt;
 	}
@@ -209,10 +209,10 @@ namespace lapis {
 	//If they do not touch, this will throw an exception
 	Extent cropExtent(const Extent& base, const Extent& e) {
 		if (!(base.crs().isConsistentHoriz(e.crs()))) {
-			throw CRSMismatchException();
+			throw CRSMismatchException("CRS mismatch in cropExtent");
 		}
 		if (!base.touches(e)) {
-			throw OutsideExtentException();
+			throw OutsideExtentException("Outside extent in cropExtent");
 		}
 		coord_t xmin = std::max(base.xmin(), e.xmin());
 		coord_t xmax = std::min(base.xmax(), e.xmax());
@@ -224,7 +224,7 @@ namespace lapis {
 	//This function creates a new extent object which is the smallest extent to encompass both of the given extents
 	Extent extendExtent(const Extent& base, const Extent& e) {
 		if (!(base.crs().isConsistentHoriz(e.crs()))) {
-			throw CRSMismatchException();
+			throw CRSMismatchException("CRS mismatch in extendExtent");
 		}
 		coord_t xmin = std::min(base.xmin(), e.xmin());
 		coord_t xmax = std::max(base.xmax(), e.xmax());

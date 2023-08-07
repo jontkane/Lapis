@@ -31,11 +31,14 @@ namespace lapis {
 		const std::vector<coord_t>& topoWindows();
 		const std::vector<std::string>& topoWindowNames();
 
+		bool useRadians();
+
 	private:
 		Title _title{ "Topography Options" };
 		MultiNumericTextBoxWithUnits _topoWindows;
 		std::vector<std::string> _topoWindowNames;
 		bool _runPrepared = false;
+		RadioBoolean _useRadians{ "radians","Radians","Degrees" };
 	};
 }
 

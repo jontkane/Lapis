@@ -269,7 +269,7 @@ namespace lapis {
 	template<class T>
 	inline Raster<T> cropRaster(const Raster<T>& r, const Extent& e, const SnapType snap) {
 		if (!r.crs().isConsistentHoriz(e.crs())) {
-			throw CRSMismatchException();
+			throw CRSMismatchException("CRS mismatch in cropRaster");
 		}
 		Extent snapE = r.alignExtent(e, snap);
 		Alignment a = cropAlignment((Alignment)r, snapE, snap);
@@ -293,7 +293,7 @@ namespace lapis {
 	template<class T>
 	inline Raster<T> extendRaster(const Raster<T>& r, const Extent& e, const SnapType snap) {
 		if (!r.crs().isConsistentHoriz(e.crs())) {
-			throw CRSMismatchException();
+			throw CRSMismatchException("CRS mismatch in extendRaster");
 		}
 		Extent snapE = r.alignExtent(e, snap);
 		Alignment a = extendAlignment((Alignment)r, snapE, snap);
@@ -344,7 +344,7 @@ namespace lapis {
 	template<class T, class S>
 	inline auto operator+(const Raster<T>& lhs, const Raster<S>& rhs)->Raster<decltype(T() + S())> {
 		if (!lhs.isSameAlignment(rhs)) {
-			throw AlignmentMismatchException("");
+			throw AlignmentMismatchException("Alignment mismatch in operator+");
 		}
 		using outtype = decltype(T() + S());
 		Raster<outtype> out{ (Alignment)lhs };
@@ -370,7 +370,7 @@ namespace lapis {
 	inline auto operator-(const Raster<T>& lhs, const Raster<S>& rhs)->Raster<decltype(T() - S())>
 	{
 		if (!lhs.isSameAlignment(rhs)) {
-			throw AlignmentMismatchException("");
+			throw AlignmentMismatchException("Alignment mismatch in operator-");
 		}
 		using outtype = decltype(T() - S());
 		Raster<outtype> out{ (Alignment)lhs };
@@ -395,7 +395,7 @@ namespace lapis {
 	template<class T, class S>
 	inline auto operator*(const Raster<T>& lhs, const Raster<S>& rhs)->Raster<decltype(T()* S())> {
 		if (!lhs.isSameAlignment(rhs)) {
-			throw AlignmentMismatchException("");
+			throw AlignmentMismatchException("Alignment mismatch in operator*");
 		}
 		using outtype = decltype(T()* S());
 		Raster<outtype> out{ (Alignment)lhs };
@@ -426,7 +426,7 @@ namespace lapis {
 	template<class T, class S>
 	inline auto operator/(const Raster<T>& lhs, const Raster<S>& rhs)->Raster<decltype(T() / S())> {
 		if (!lhs.isSameAlignment(rhs)) {
-			throw AlignmentMismatchException("");
+			throw AlignmentMismatchException("Alignment mismatch in operator/");
 		}
 		using outtype = decltype(T() / S());
 		Raster<outtype> out{ (Alignment)lhs };
@@ -455,7 +455,7 @@ namespace lapis {
 
 		GDALDatasetWrapper wgd = rasterGDALWrapper(filename);
 		if (wgd.isNull()) {
-			throw InvalidRasterFileException(filename);
+			throw InvalidRasterFileException("Unable to opent " + filename + " as a raster");
 		}
 		alignmentInitFromGDALRaster(wgd, getGeoTrans(wgd, filename));
 		checkValidAlignment();
@@ -496,7 +496,7 @@ namespace lapis {
 		_data.resize(ncell());
 		GDALDatasetWrapper wgd = rasterGDALWrapper(filename);
 		if (wgd.isNull()) {
-			throw InvalidRasterFileException(filename);
+			throw InvalidRasterFileException("Unable to open " + filename + " as a raster");
 		}
 		GDALRasterBand* rBand = wgd->GetRasterBand(band);
 		T naValue = (T)(rBand->GetNoDataValue());
@@ -516,7 +516,7 @@ namespace lapis {
 		}
 		GDALDatasetWrapper wgd{ driver,file,ncol(),nrow(),dataType };
 		if (wgd.isNull()) {
-			throw InvalidRasterFileException();
+			throw InvalidRasterFileException("Unable to open " + file + " as a raster");
 		}
 		std::array<double, 6> gt = { _xmin, _xres,0,_ymax,0,-(_yres) };
 		wgd->SetGeoTransform(gt.data());
@@ -645,7 +645,7 @@ namespace lapis {
 	template<class T> template<class S>
 	Raster<T>& Raster<T>::operator+=(const Raster<S>& rhs) {
 		if (!isSameAlignment(rhs)) {
-			throw AlignmentMismatchException("");
+			throw AlignmentMismatchException("Alignment mismatch in operator+=");
 		}
 		for (cell_t cell = 0; cell < ncell(); ++cell) {
 			_data[cell].has_value() = _data[cell].has_value() && rhs[cell].has_value();
@@ -663,7 +663,7 @@ namespace lapis {
 	template<class T> template<class S>
 	Raster<T>& Raster<T>::operator-=(const Raster<S>& rhs) {
 		if (!isSameAlignment(rhs)) {
-			throw AlignmentMismatchException("");
+			throw AlignmentMismatchException("Alignment mismatch in operator-=");
 		}
 		for (cell_t cell = 0; cell < ncell(); ++cell) {
 			_data[cell].has_value() = _data[cell].has_value() && rhs[cell].has_value();
@@ -681,7 +681,7 @@ namespace lapis {
 	template<class T> template<class S>
 	Raster<T>& Raster<T>::operator*=(const Raster<S>& rhs) {
 		if (!isSameAlignment(rhs)) {
-			throw AlignmentMismatchException("");
+			throw AlignmentMismatchException("Alignment mismatch in operator*=");
 		}
 		for (cell_t cell = 0; cell < ncell(); ++cell) {
 			_data[cell].has_value() = _data[cell].has_value() && rhs[cell].has_value();
@@ -699,7 +699,7 @@ namespace lapis {
 	template<class T> template<class S>
 	Raster<T>& Raster<T>::operator/=(const Raster<S>& rhs) {
 		if (!isSameAlignment(rhs)) {
-			throw AlignmentMismatchException("");
+			throw AlignmentMismatchException("Alignment mismatch in operator/=");
 		}
 		for (cell_t cell = 0; cell < ncell(); ++cell) {
 			if (rhs[cell].value() == 0) {

@@ -22,23 +22,45 @@ namespace lapis {
 		}
 
 		auto atCellUnsafe(cell_t cell) {
+#ifndef NDEBUG
+			_checkCell(cell);
+#endif
 			return operator[](cell);
 		}
 
 		const auto atCellUnsafe(cell_t cell) const {
+#ifndef NDEBUG
+			_checkCell(cell);
+#endif
 			return operator[](cell);
 		}
 
 		auto atRCUnsafe(rowcol_t row, rowcol_t col) {
+#ifndef NDEBUG
+			_checkRow(row);
+			_checkCol(col);
+#endif
 			return _parent->atRCUnsafe(row + _rowoffset, col + _coloffset);
 		}
 		const auto atRCUnsafe(rowcol_t row, rowcol_t col) const {
+#ifndef NDEBUG
+			_checkRow(row);
+			_checkCol(col);
+#endif
 			return _parent->atRCUnsafe(row + _rowoffset, col + _coloffset);
 		}
 		auto atXYUnsafe(coord_t x, coord_t y) {
+#ifndef NDEBUG
+			_checkX(x);
+			_checkY(y);
+#endif
 			return _parent->atXYUnsafe(x, y);
 		}
 		const auto atXYUnsafe(coord_t x, coord_t y) const {
+#ifndef NDEBUG
+			_checkX(x);
+			_checkY(y);
+#endif
 			return _parent->atXYUnsafe(x, y);
 		}
 
@@ -68,6 +90,11 @@ namespace lapis {
 				}
 			}
 			return false;
+		}
+
+		auto parentRasterHash() const {
+			
+			return std::hash<Raster<T>*>()(_parent);
 		}
 
 	private:

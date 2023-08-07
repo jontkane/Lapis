@@ -87,7 +87,7 @@ namespace lapis {
 
 		if (_minht.getValueLogErrors() > _maxht.getValueLogErrors()) {
 			LapisLogger& log = LapisLogger::getLogger();
-			log.logMessage("Low outlier must be less than high outlier");
+			log.logError("Low outlier must be less than high outlier");
 			return false;
 		}
 		if (_filterWithheld.currentState()) {

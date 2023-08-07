@@ -26,8 +26,6 @@ namespace lapis {
 		std::filesystem::path topoDir() const;
 
 	protected:
-		Raster<coord_t> _elevNumerator;
-		Raster<coord_t> _elevDenominator;
 
 		using TopoFunc = ViewFunc<metric_t, coord_t>;
 		struct TopoMetric {
@@ -52,6 +50,30 @@ namespace lapis {
 		std::vector<TopoRadiusMetric> _topoRadiusMetrics;
 
 		ParamGetter* _getter;
+
+		class ElevMergerRasterCell {
+		public:
+			void addRaster(const Raster<coord_t>& dtm, const Extent& thisCell);
+			xtl::xoptional<coord_t> reportMeanAndDealloc();
+
+		private:
+			xtl::xoptional<coord_t> finishedMean;
+			std::unique_ptr<Raster<coord_t>> miniRaster;
+			bool anyData = false;
+		};
+
+		class ElevMerger {
+		public:
+			ElevMerger(TopoHandler::ParamGetter* p);
+			void addRaster(const Raster<coord_t>& dtm);
+			Raster<coord_t> meanElev();
+
+		private:
+			Raster<ElevMergerRasterCell> cells;
+			TopoHandler::ParamGetter* getter;
+		};
+
+		std::unique_ptr<ElevMerger> merger;
 	};
 }
 

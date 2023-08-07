@@ -24,42 +24,97 @@ namespace lapis {
 
 		void logMessage(const std::string& s);
 
+		void logWarning(const std::string& s);
+		void logError(const std::string& s);
+
 		void reset();
 
-		void displayBenchmarking();
-		void stopBenchmarking();
-		void beginBenchmarkTimer(const std::string& what);
-		void endBenchmarkTimer(const std::string& what);
+		void beginVerboseBenchmarkTimer(const std::string& what);
+		void pauseVerboseBenchmarkTimer(const std::string& what);
+		void endVerboseBenchmarkTimer(const std::string& what);
+
+		void turnOnVerboseBenchmarking();
+		void turnOffVerboseBenchmarking();
+
+		void setNThread(int nThread);
 
 	private:
 		LapisLogger();
 
+		LapisLogger(const LapisLogger& other) = delete;
+		LapisLogger& operator=(const LapisLogger& other) = delete;
+		LapisLogger(LapisLogger&& other) = default;
+		LapisLogger& operator=(LapisLogger&& other) = default;
+
 		void _updateEllipsis();
 
-		constexpr static size_t messageLength = 30;
+		void _renderMessages();
+
 		std::vector<std::string> _progressTracker;
-		constexpr static size_t incrementStrLength = 15;
 		std::vector<std::string> _incrementStrings;
-		std::list<std::string> _messages;
 
 		int _totalForTask = 0;
 		int _currentOutOfTotal = 0;
 
-		char* _endOfNumber = nullptr;
-
 		int _frameCounter = 0;
 
-		bool _needEllipsis = false;
+		bool _needTimer = false;
 		std::string _lastProgressNoEllipsis;
 
-		mutable std::mutex _mut;
+		mutable std::unique_ptr<std::mutex> _mut;
 
 		void _updateIncStr();
 
-		bool _benchmark = false;
+		bool _displayVerboseBenchmark = false;
 
-		using Time = decltype(std::chrono::high_resolution_clock::now());
-		std::unordered_map<std::thread::id, std::unordered_map<std::string, Time>> _benchmarkTimers;
+		int _nThread = 1;
+
+		struct Message {
+
+			enum class Type {
+				Message, Warning, Error
+			};
+
+			std::string msg;
+			Type type;
+
+			Message(const std::string& msg, Type type) : msg(msg), type(type) {}
+			void render();
+		};
+		std::list<Message> _messages;
+
+		using Time = std::chrono::steady_clock::time_point;
+		using Duration = std::chrono::duration<long long, std::nano>;
+		struct BenchmarkTimer {
+			Duration beforeLastPause;
+			Time lastStarted;
+			bool currentlyRunning;
+			BenchmarkTimer() : beforeLastPause(0), lastStarted(std::chrono::high_resolution_clock::now()), currentlyRunning(true) {}
+			BenchmarkTimer(Time startTime) : beforeLastPause(0), lastStarted(startTime), currentlyRunning(true) {}
+		};
+		class BenchmarkInfo {
+		public:
+			BenchmarkInfo();
+			void stopTimer();
+			Duration timeSinceStart();
+			std::optional<Duration> meanDuration();
+
+			void beginOnThisThread();
+			void endOnThisThread();
+			void pauseOnThisThread();
+
+		private:
+			std::vector<Duration> finishedTimers;
+			std::unordered_map<std::thread::id, BenchmarkTimer> activeTimers;
+			Time startTime;
+			Time endTime;
+			bool isRunning;
+		};
+
+		std::vector<std::optional<BenchmarkInfo>> _mainProgressTimers;
+		std::unordered_map<std::string, BenchmarkInfo> _verboseTimers;
+
+		void _renderVerboseBenchmarkWindow();
 	};
 }
 

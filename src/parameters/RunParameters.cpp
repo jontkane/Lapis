@@ -2,7 +2,7 @@
 #include"RunParameters.hpp"
 #include"AllParameters.hpp"
 #include"LapisGui.hpp"
-#include"..\utils\LapisWindows.hpp"
+#include"..\utils\LapisOSSpecific.hpp"
 
 namespace lapis {
 
@@ -60,7 +60,6 @@ namespace lapis {
 	{
 		for (size_t i = 0; i < _params.size(); ++i) {
 			if (!_params[i]->prepareForRun()) {
-				LapisLogger::getLogger().logMessage("Aborting");
 				return false;
 			}
 		}
@@ -74,7 +73,14 @@ namespace lapis {
 		}
 		coord_t tileRes = targetNRowCol * fineCellSize;
 		Alignment layoutAlign{ *metricAlign(),0,0,tileRes,tileRes};
+		
 		_layout = std::make_shared<Raster<bool>>(layoutAlign);
+		for (const Extent& e : lasExtents()) {
+			for (cell_t cell : CellIterator(*_layout, e, SnapType::out)) {
+				_layout->atCellUnsafe(cell).has_value() = true;
+			}
+		}
+
 		return true;
 	}
 	void RunParameters::cleanAfterRun()
@@ -179,6 +185,10 @@ namespace lapis {
 		}
 		return l;
 	}
+	std::optional<LinearUnit> RunParameters::lasZUnits()
+	{
+		return getParam<LasFileParameter>().lasZUnits();
+	}
 	std::unique_ptr<DemAlgoApplier> RunParameters::demAlgorithm(LasReader&& l)
 	{
 		auto x = getParam<DemParameter>().demAlgorithm();
@@ -236,6 +246,10 @@ namespace lapis {
 	const std::vector<std::string>& RunParameters::topoWindowNames()
 	{
 		return getParam<TopoParameter>().topoWindowNames();
+	}
+	bool RunParameters::useRadians()
+	{
+		return getParam<TopoParameter>().useRadians();
 	}
 	const std::filesystem::path& RunParameters::outFolder()
 	{
@@ -320,6 +334,9 @@ namespace lapis {
 				("gui", "Display the GUI")
 				("ini-file", po::value<std::vector<std::string>>(), "The .ini file containing parameters for this run\n"
 					"You may specify this multiple times; values from earlier files will be preferred")
+#ifdef _WIN32
+				("nodefault", "Don't use the options stored in lapisdefault.ini")
+#endif
 				;
 			po::positional_options_description pos;
 			pos.add("ini-file", -1);
@@ -350,6 +367,15 @@ namespace lapis {
 				.run(), vmFull);
 			po::notify(vmFull);
 
+			if (!vmFull.count("nodefault")) {
+				std::filesystem::path defaultini = executableFilePath();
+				defaultini = defaultini.parent_path() / "lapisdefault.ini";
+				if (std::filesystem::exists(defaultini)) {
+					po::store(po::parse_config_file(defaultini.string().c_str(), iniOptions), vmFull);
+					po::notify(vmFull);
+					LapisLogger::getLogger().logMessage("Defaults loaded from " + defaultini.string());
+				}
+			}
 
 			if (vmFull.count("ini-file")) {
 				for (auto& ini : vmFull.at("ini-file").as<std::vector<std::string>>()) {
@@ -373,8 +399,9 @@ namespace lapis {
 		}
 		catch (po::error_with_option_name e) {
 			LapisLogger& log = LapisLogger::getLogger();
-			log.logMessage("Error reading parameters: ");
-			log.logMessage(e.what());
+			std::stringstream ss;
+			ss << "Error reading parameters: " << e.what();
+			log.logError(ss.str());
 			return ParseResults::invalidOpts;
 		}
 		importBoostAndUpdateUnits();
@@ -404,8 +431,9 @@ namespace lapis {
 		}
 		catch (po::error e) {
 			LapisLogger& log = LapisLogger::getLogger();
-			log.logMessage("Error in ini file " + path);
-			log.logMessage(e.what());
+			std::stringstream ss;
+			ss << "error in ini file " << path << ": " << e.what();
+			log.logError(ss.str());
 			return ParseResults::invalidOpts;
 		}
 	}

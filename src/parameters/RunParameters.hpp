@@ -43,6 +43,7 @@ namespace lapis {
 
 		const std::vector<Extent>& lasExtents();
 		LasReader getLas(size_t i);
+		std::optional<LinearUnit> lasZUnits();
 
 		std::unique_ptr<DemAlgoApplier> demAlgorithm(LasReader&& l);
 
@@ -78,6 +79,7 @@ namespace lapis {
 		Raster<coord_t> bufferedElev(const Raster<coord_t>& unbufferedElev);
 		const std::vector<coord_t>& topoWindows();
 		const std::vector<std::string>& topoWindowNames();
+		bool useRadians();
 
 		const std::filesystem::path& outFolder();
 		const std::string& name();

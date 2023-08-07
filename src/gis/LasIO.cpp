@@ -7,7 +7,7 @@ namespace lapis {
 		
 		std::ifstream& ifs = *_ifs;
 		if (!ifs) {
-			throw lapis::InvalidLasFileException(filename);
+			throw lapis::InvalidLasFileException("Unable to open file " + filename);
 		}
 
 		_readHeader();
@@ -150,7 +150,7 @@ namespace lapis {
 			ifs.read(userID.data(), 16); //User ID
 
 			uint16_t recordID;
-			T recordLength;
+			T recordLength = 0;
 			_readBytes(&recordID);
 			_readBytes(&recordLength);
 
@@ -175,9 +175,9 @@ namespace lapis {
 						vlrs.gtifKeys.resize(recordLength / sizeof(gtifKey));
 						ifs.read((char*)vlrs.gtifKeys.data(), recordLength);
 
-						if (vlrs.gtifKeys[0].header.numberOfKeys * sizeof(gtifKey) + sizeof(gtifKey) != recordLength) {
-							throw InvalidLasFileException("Issue with GeoTiff CRS in LAS header");
-						}
+						//if (vlrs.gtifKeys[0].header.numberOfKeys * sizeof(gtifKey) + sizeof(gtifKey) != recordLength) {
+						//	throw InvalidLasFileException("Issue with GeoTiff CRS in LAS header");
+						//}
 						continue;
 					}
 					if (recordID == gtifDoublesCode) {

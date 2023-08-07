@@ -37,7 +37,7 @@ namespace lapis {
 	Alignment::Alignment(const std::string& filename) {
 		GDALDatasetWrapper wgd = rasterGDALWrapper(filename);
 		if (wgd.isNull()) {
-			throw InvalidRasterFileException(filename);
+			throw InvalidRasterFileException("Error reading " + filename + " as an alignment");
 		}
 		alignmentInitFromGDALRaster(wgd, getGeoTrans(wgd, filename));
 		checkValidAlignment();
@@ -45,7 +45,7 @@ namespace lapis {
 
 	Extent Alignment::alignExtent(const Extent& e, const SnapType snap) const {
 		if (!_crs.isConsistentHoriz(e.crs())) {
-			throw CRSMismatchException();
+			throw CRSMismatchException("CRS mismatch in alignExtent");
 		}
 
 		coord_t xori = xOrigin();
@@ -80,7 +80,7 @@ namespace lapis {
 
 	std::vector<cell_t> Alignment::cellsFromExtent(const Extent& e, const SnapType snap) const {
 		if (!_crs.isConsistentHoriz(e.crs())) {
-			throw CRSMismatchException();
+			throw CRSMismatchException("CRS mismatch in cellsFromExtent");
 		}
 
 		std::vector<cell_t> out{};
@@ -122,10 +122,10 @@ namespace lapis {
 
 	Alignment::RowColExtent Alignment::rowColExtent(const Extent& e, SnapType snap) const {
 		if (!_crs.isConsistentHoriz(e.crs())) {
-			throw CRSMismatchException();
+			throw CRSMismatchException("CRS mismatch in rowColExtent");
 		}
 		if (!overlaps(e)) {
-			throw OutsideExtentException();
+			throw OutsideExtentException("Outside extent in rowColExtent");
 		}
 		auto snapE = alignExtent(e, snap);
 		snapE = cropExtent(snapE, *this);
@@ -170,13 +170,13 @@ namespace lapis {
 	void Alignment::checkValidAlignment() {
 		checkValidExtent();
 		if (_nrow < 0 || _ncol < 0 || _xres <= 0 || _yres <= 0) {
-			throw InvalidAlignmentException("");
+			throw InvalidAlignmentException("Ncol, nrow, xres, or yres less than 0");
 		}
 		if ((_xmax - _xmin) / _ncol - _xres > LAPIS_EPSILON) {
-			throw InvalidAlignmentException("");
+			throw InvalidAlignmentException("Extent, ncol, and xres not consistent");
 		}
 		if ((_ymax - _ymin) / _nrow - _yres > LAPIS_EPSILON) {
-			throw InvalidAlignmentException("");
+			throw InvalidAlignmentException("Extent, nrow, and yres not consistent");
 		}
 	}
 
@@ -191,16 +191,16 @@ namespace lapis {
 
 	Alignment cropAlignment(const Alignment& a, const Extent& e, SnapType snap) {
 		if (!a.crs().isConsistentHoriz(e.crs())) {
-			throw CRSMismatchException();
+			throw CRSMismatchException("CRS mismatch in cropAlignment");
 		}
 		if (!a.overlaps(e)) {
-			throw OutsideExtentException();
+			throw OutsideExtentException("Outside extent in cropAlignment");
 		}
 		Extent cropE = a.alignExtent(e, snap);
 		cropE = cropExtent(cropE, a);
 		rowcol_t nrow = (rowcol_t)std::round((cropE.ymax() - cropE.ymin()) / a.yres());
 		rowcol_t ncol = (rowcol_t)std::round((cropE.xmax() - cropE.xmin()) / a.xres());
-		return Alignment(cropE, nrow, ncol);
+		return Alignment(cropE.xmin(), cropE.ymin(), nrow, ncol, a.xres(), a.yres(), a.crs());
 	}
 
 	Alignment extendAlignment(const Alignment& a, const Extent& e, SnapType snap) {
@@ -225,7 +225,7 @@ namespace lapis {
 		if (extE.ymax() > a.ymax()) {
 			prerows = (rowcol_t)round((extE.ymax() - a.ymax()) / a.yres());
 		}
-		return Alignment(extE, a.nrow() + postrows + prerows, a.ncol() + postcols + precols);
+		return Alignment(extE.xmin(),extE.ymin(), a.nrow() + postrows + prerows, a.ncol() + postcols + precols,a.xres(),a.yres(),a.crs());
 	}
 
 	bool operator==(const Alignment& lhs, const Alignment& rhs) {

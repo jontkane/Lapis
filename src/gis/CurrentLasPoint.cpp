@@ -4,12 +4,10 @@
 
 namespace lapis {
 	CurrentLasPoint::CurrentLasPoint(const std::string& file)  {
-		try {
-			_las = LasIO(file);
-		}
-		catch (std::exception e) {
-			throw InvalidLasFileException(file);
-		}
+
+		_las = LasIO(file);
+
+		_buffer.resize((size_t)_las.header.PointLength + 256);
 
 		_setFromLasIO(_las);
 		_nPoints = _las.header.NumberOfPoints();

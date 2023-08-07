@@ -56,7 +56,7 @@ namespace lapis {
 		size_t maxFileLength = rp.maxLapisFileName + _outPath.string().size() + rp.name().size();
 		LapisLogger& log = LapisLogger::getLogger();
 		if (maxFileLength > rp.maxTotalFilePath) {
-			log.logMessage("Total file path is too long");
+			log.logError("Total file path is too long");
 			return false;
 		}
 		namespace fs = std::filesystem;
@@ -68,7 +68,7 @@ namespace lapis {
 			fs::create_directories(_outPath);
 		}
 		catch (fs::filesystem_error e) {
-			log.logMessage("Unable to create output directory");
+			log.logError("Unable to create output directory");
 			return false;
 		}
 		_runPrepared = true;

@@ -33,6 +33,9 @@ namespace lapis {
 	}
 	void FineIntHandler::handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index)
 	{
+		LapisLogger& log = LapisLogger::getLogger();
+
+		log.beginVerboseBenchmarkTimer("Assigning points to intensity cells");
 		if (!_tiles.contains(index)) {
 			Alignment thisAlign = cropAlignment(*_getter->fineIntAlign(), e, SnapType::out);
 			_tiles.emplace(index, NumDenom(thisAlign));
@@ -50,11 +53,14 @@ namespace lapis {
 			numerator[cell].value() += p.intensity;
 			denominator[cell].value()++;
 		}
+		log.pauseVerboseBenchmarkTimer("Assigning points to intensity cells");
 	}
 	void FineIntHandler::finishLasFile(const Extent& e, size_t index)
 	{
 		Raster<intensity_t>& numerator = _tiles.at(index).num;
 		Raster<intensity_t>& denominator = _tiles.at(index).denom;
+
+		LapisLogger::getLogger().endVerboseBenchmarkTimer("Assigning points to intensity cells");
 
 		//there are many more points than cells, so rearranging work to be O(cells) instead of O(points) is generally worth it, even if it's a bit awkward
 		for (cell_t cell : CellIterator(denominator)) {
@@ -75,6 +81,9 @@ namespace lapis {
 	void FineIntHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
 	{
 
+		LapisLogger& log = LapisLogger::getLogger();
+
+		log.beginVerboseBenchmarkTimer("Mosaic temporary intensity files");
 		Raster<intensity_t> numerator = getEmptyRasterFromTile<intensity_t>(tile, *_getter->fineIntAlign(), 0.);
 		Raster<intensity_t> denominator{ (Alignment)numerator };
 
@@ -114,7 +123,7 @@ namespace lapis {
 				thisDenominator.defineCRS(denominator.crs());
 			}
 			catch (InvalidRasterFileException e) {
-				LapisLogger::getLogger().logMessage("Issue opening temporary intensity file " + std::to_string(i));
+				LapisLogger::getLogger().logWarning("Issue opening temporary intensity file " + std::to_string(i));
 				continue;
 			}
 
@@ -131,12 +140,14 @@ namespace lapis {
 		}
 
 		if (!denominator.hasAnyValue()) {
+			log.endVerboseBenchmarkTimer("Mosaic temporary intensity files");
 			return;
 		}
 
 		Raster<intensity_t> meanIntensity = numerator / denominator;
 		meanIntensity = cropRaster(meanIntensity, extentWithData, SnapType::out);
 		writeRasterLogErrors(getFullTileFilename(fineIntDir(), _fineIntBaseName, OutputUnitLabel::Unitless, tile), meanIntensity);
+		log.endVerboseBenchmarkTimer("Mosaic temporary intensity files");
 	}
 	void FineIntHandler::cleanup() {
 		tryRemove(fineIntTempDir());
