@@ -38,8 +38,6 @@ namespace lapis {
 		NumericTextBox _thread{ "Number of Threads:","thread", _defaultNThread(),
 		"The number of threads to run Lapis on. Defaults to the number of cores on the computer" };
 		std::string _threadCmd = "thread";
-
-		CheckBox _benchmark{ "Display benchmarking information","bench","" };
 	};
 }
 
