@@ -106,9 +106,14 @@ namespace lapis {
 		return getParam<LasFileParameter>().getFullExtent();
 	}
 
-	const CoordRef& RunParameters::userCrs() 
+	const CoordRef& RunParameters::userCrsSpecification() 
 	{
 		return getParam<AlignmentParameter>().getCurrentOutCrs();
+	}
+
+	const CoordRef& RunParameters::outputCrs()
+	{
+		return metricAlign()->crs();
 	}
 
 	const std::shared_ptr<Alignment> RunParameters::metricAlign()
@@ -193,7 +198,7 @@ namespace lapis {
 	{
 		auto x = getParam<DemParameter>().demAlgorithm();
 		x->setMinMax(minHt(), maxHt());
-		return x->getApplier(std::move(l), userCrs());
+		return x->getApplier(std::move(l), metricAlign()->crs());
 	}
 	int RunParameters::nThread() 
 	{

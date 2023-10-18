@@ -47,8 +47,12 @@ namespace lapis {
 
 		std::unique_ptr<DemAlgoApplier> demAlgorithm(LasReader&& l);
 
+		//userCrsSpecification() returns what the user actually selected. It may be an empty crs, indicating no particular preference
+		//outputCrs() returns the actual crs being used. It will only be empty in rare circumstances
+		const CoordRef& userCrsSpecification();
+		const CoordRef& outputCrs();
+
 		const Extent& fullExtent();
-		const CoordRef& userCrs();
 		const std::shared_ptr<Alignment> metricAlign();
 		const std::shared_ptr<Alignment> csmAlign();
 		const std::shared_ptr<Alignment> fineIntAlign();

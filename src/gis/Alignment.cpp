@@ -131,6 +131,8 @@ namespace lapis {
 		snapE = cropExtent(snapE, *this);
 
 		//debuffering the extent slightly to correct for floating point imprecision
+		coord_t xbuffer = snapE.xmax() > snapE.xmin() ? xres() / 10. : 0;
+		coord_t ybuffer = snapE.ymax() > snapE.ymin() ? yres() / 10. : 0;
 		snapE = Extent(snapE.xmin() + xres() / 10., snapE.xmax() - xres() / 10., snapE.ymin() + yres() / 10., snapE.ymax() - yres() / 10.);
 
 		auto rc = RowColExtent();

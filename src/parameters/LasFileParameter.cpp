@@ -85,7 +85,7 @@ namespace lapis {
 		std::set<LasFileExtent> s = _specifiers.getFiles<LasOpener,LasFileExtent>(LasOpener(_crs.cachedCrs(),_unit.currentSelection()));
 
 
-		CoordRef outCrs = rp.userCrs();
+		CoordRef outCrs = rp.userCrsSpecification();
 		if (outCrs.isEmpty()) {
 			for (const LasFileExtent& e : s) {
 				outCrs = e.ext.crs();
@@ -96,20 +96,18 @@ namespace lapis {
 		}
 
 		std::vector<LasFileExtent> fileExtentVector;
+		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
 
 		for (const LasFileExtent& l : s) {
+			const CoordRef& crs = l.ext.crs();
+			countByCRS.try_emplace(crs, 0);
+			countByCRS[crs]++;
 			LasExtent e = { QuadExtent(l.ext, outCrs).outerExtent(), l.ext.nPoints() };
 			fileExtentVector.emplace_back(l.file, e);
 		}
 		std::sort(fileExtentVector.begin(), fileExtentVector.end());
 		log.logMessage(std::to_string(fileExtentVector.size()) + " Las Files Found");
 
-		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
-		for (LasFileExtent& lfe : fileExtentVector) {
-			const CoordRef& crs = lfe.ext.crs();
-			countByCRS.try_emplace(crs, 0);
-			countByCRS[crs]++;
-		}
 		for (auto& pair : countByCRS) {
 			std::stringstream ss;
 			ss << pair.second << " of the las files had the following CRS: ";

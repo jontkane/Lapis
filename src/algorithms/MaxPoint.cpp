@@ -9,7 +9,7 @@ namespace lapis {
 	}
 	std::unique_ptr<CsmMaker> MaxPoint::getCsmMaker(const Alignment& a)
 	{
-		Alignment buffered = Alignment(bufferExtent(a, _footprintRadius), a.xOrigin(), a.yOrigin(), a.xres(), a.yres());
+		Alignment buffered = Alignment(bufferExtent(a, _footprintRadius*1.01), a.xOrigin(), a.yOrigin(), a.xres(), a.yres());
 		return std::make_unique<MaxPointCsmMaker>(buffered, _footprintRadius);
 	}
 	csm_t MaxPoint::combineCells(csm_t a, csm_t b)
@@ -74,7 +74,6 @@ namespace lapis {
 				coord_t y = p.y + direction.y;
 				csm_t z = p.z + direction.epsilon;
 				cell_t cell = _csm->cellFromXYUnsafe(x, y);
-
 				_csm->atCellUnsafe(cell).value() = std::max(_csm->atCellUnsafe(cell).value(), z);
 			}
 		}

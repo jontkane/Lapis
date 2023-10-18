@@ -11,13 +11,13 @@ namespace lapis {
 
 	QuadExtent::QuadExtent() : _coords(4, CoordRef("")) {}
 
-	QuadExtent::QuadExtent(const Extent& e) : _coords(4, e.crs()), _innerExtent(e), _outerExtent(e) {
+	QuadExtent::QuadExtent(const Extent& e) : _coords(4, e.crs()), _outerExtent(e) {
 		_copyFromExtent(e);
 	}
 	QuadExtent::QuadExtent(const Extent& e, const CoordRef& crs) : _coords(4, e.crs()) {
 		_copyFromExtent(e);
 		_coords.transform(crs);
-		_initOuterInner();
+		_initOuter();
 	}
 	void QuadExtent::transform(const CoordRef& crs) {
 		_coords.transform(crs);
@@ -76,11 +76,6 @@ namespace lapis {
 		return _outerExtent;
 	}
 
-	Extent QuadExtent::innerExtent() const
-	{
-		return _innerExtent;
-	}
-
 	void QuadExtent::_copyFromExtent(const Extent& e) {
 		_coords[0].x = e.xmin();
 		_coords[0].y = e.ymin();
@@ -95,29 +90,20 @@ namespace lapis {
 		_coords[3].y = e.ymin();
 	}
 
-	void QuadExtent::_initOuterInner()
+	void QuadExtent::_initOuter()
 	{
-		{
-			coord_t xmin = std::numeric_limits<coord_t>::max();
-			coord_t ymin = std::numeric_limits<coord_t>::max();
-			coord_t xmax = std::numeric_limits<coord_t>::lowest();
-			coord_t ymax = std::numeric_limits<coord_t>::lowest();
+		coord_t xmin = std::numeric_limits<coord_t>::max();
+		coord_t ymin = std::numeric_limits<coord_t>::max();
+		coord_t xmax = std::numeric_limits<coord_t>::lowest();
+		coord_t ymax = std::numeric_limits<coord_t>::lowest();
 
-			for (int i = 0; i < 4; ++i) {
-				xmin = std::min(xmin, _coords[i].x);
-				xmax = std::max(xmax, _coords[i].x);
-				ymin = std::min(ymin, _coords[i].y);
-				ymax = std::max(ymax, _coords[i].y);
-			}
-			_outerExtent = Extent(xmin, xmax, ymin, ymax, _coords.crs);
+		for (int i = 0; i < 4; ++i) {
+			xmin = std::min(xmin, _coords[i].x);
+			xmax = std::max(xmax, _coords[i].x);
+			ymin = std::min(ymin, _coords[i].y);
+			ymax = std::max(ymax, _coords[i].y);
 		}
-		{
-			coord_t xmin = std::max(_coords[0].x, _coords[1].x);
-			coord_t ymax = std::min(_coords[1].y, _coords[2].y);
-			coord_t xmax = std::min(_coords[2].x, _coords[3].x);
-			coord_t ymin = std::max(_coords[3].y, _coords[0].y);
-			_innerExtent = Extent(xmin, xmax, ymin, ymax, _coords.crs);
-		}
+		_outerExtent = Extent(xmin, xmax, ymin, ymax, _coords.crs);
 	}
 
 	const CoordRef& QuadExtent::crs() const {

@@ -234,6 +234,6 @@ namespace lapis {
 	}
 	Extent bufferExtent(const Extent& base, coord_t bufferSize)
 	{
-		return Extent{ base.xmin() - bufferSize,base.xmax() + bufferSize,base.ymin() - bufferSize,base.ymax() + bufferSize };
+		return Extent{ base.xmin() - bufferSize,base.xmax() + bufferSize,base.ymin() - bufferSize,base.ymax() + bufferSize, base.crs() };
 	}
 }

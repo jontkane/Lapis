@@ -123,7 +123,7 @@ namespace lapis {
 
 		RunParameters& rp = RunParameters::singleton();
 		//any scenario where this wouldn't have a value should be caught earlier in the code
-		LinearUnit outXYUnits = rp.userCrs().getXYLinearUnits().value();
+		LinearUnit outXYUnits = rp.outputCrs().getXYLinearUnits().value();
 		LinearUnit userXYUnits = rp.outUnits();
 
 		switch (_idAlgo.currentSelection()) {

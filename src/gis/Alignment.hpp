@@ -336,7 +336,10 @@ namespace lapis {
 			if (!hasAnyCells) {
 				return end();
 			}
-			if (_e.xmin() == _e.xmax() || _e.ymin() == _e.ymax()) {
+			auto closeEnough = [](coord_t a, coord_t b, coord_t res)->bool {
+				return std::abs(a - b) < (res / 3.);
+			};
+			if (closeEnough(_e.xmin(),_e.xmax(),_a.xres()) || closeEnough(_e.ymin(),_e.ymax(),_a.yres())) {
 				return end();
 			}
 			return iterator(*this);
