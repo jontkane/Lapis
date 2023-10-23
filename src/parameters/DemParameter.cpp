@@ -128,6 +128,7 @@ namespace lapis {
 		}
 
 		LapisLogger& log = LapisLogger::getLogger();
+		RunParameters& rp = RunParameters::singleton();
 
 		std::set<DemFileAlignment> fileAligns;
 		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
@@ -159,6 +160,12 @@ namespace lapis {
 
 
 			fileAligns = _specifiers.getFiles<DemOpener, DemFileAlignment>(DemOpener(_crs.cachedCrs(),_demUnitsCache));
+			for (auto& dem : fileAligns) {
+				if (!rp.overlapsAoI(dem.align)) {
+					fileAligns.erase(dem);
+				}
+			}
+
 			log.logMessage(std::to_string(fileAligns.size()) + " Dem Files Found");
 			if (fileAligns.size() == 0) {
 				return false;

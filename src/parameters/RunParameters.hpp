@@ -65,6 +65,7 @@ namespace lapis {
 		const std::vector<std::shared_ptr<LasFilter>>& filters();
 		coord_t minHt();
 		coord_t maxHt();
+		bool overlapsAoI(const Extent& e);
 
 		CsmAlgorithm* csmAlgorithm();
 		CsmPostProcessor* csmPostProcessAlgorithm();

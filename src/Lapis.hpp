@@ -32,7 +32,7 @@ namespace lapis {
 	void setProjDataDirectory(const char* exeName) {
 		std::string parent = std::filesystem::path(exeName).parent_path().string();
 		char* cStr = new char[parent.size() + 1];
-		strncpy_s(cStr,parent.size() + 1, parent.c_str(), parent.size() + 1);
+		strncpy_s(cStr,parent.size() + 1, parent.c_str(), parent.size());
 		proj_context_set_search_paths(nullptr, 1, &cStr);
 
 		delete[] cStr;

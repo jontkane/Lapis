@@ -34,7 +34,7 @@ namespace lapis {
 			NFD::PickFolder(_nfdFolder);
 		}
 		if (_nfdFolder) {
-			strncpy_s(_buffer.data(), _buffer.size(), _nfdFolder.get(), _buffer.size());
+			strncpy_s(_buffer.data(), _buffer.size(), _nfdFolder.get(), _buffer.size()-1);
 			_nfdFolder.reset();
 			changed = true;
 		}
@@ -51,7 +51,7 @@ namespace lapis {
 		if (_boostString.size() > _buffer.size() - 1) {
 			_boostString.erase(_buffer.size() - 1, std::string::npos);
 		}
-		strncpy_s(_buffer.data(), _buffer.size(), _boostString.c_str(), _buffer.size());
+		strncpy_s(_buffer.data(), _buffer.size(), _boostString.c_str(), _buffer.size()-1);
 		_boostString.clear();
 		return true;
 	}

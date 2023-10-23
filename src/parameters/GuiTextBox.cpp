@@ -42,7 +42,7 @@ namespace lapis {
 		if (_boost.size() > _buffer.size() - 1) {
 			_boost.erase(_buffer.size() - 1, std::string::npos);
 		}
-		strncpy_s(_buffer.data(), _buffer.size(), _boost.c_str(), _buffer.size());
+		strncpy_s(_buffer.data(), _buffer.size(), _boost.c_str(), _buffer.size()-1);
 		_boost.clear();
 		return true;
 	}

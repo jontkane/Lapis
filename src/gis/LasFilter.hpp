@@ -121,6 +121,29 @@ namespace lapis {
 	private:
 		double maxscan;
 	};
+
+	class LasFilterAlwaysFail : public LasFilter {
+	public:
+		LasFilterAlwaysFail() {
+			priority = lasfilterpriority::high;
+		}
+		bool isFiltered(const CurrentLasPoint& p) override {
+			return true;
+		}
+	};
+
+	//this filter assumes that the extent matches the LasReader's crs
+	class LasFilterExtent : public LasFilter {
+	public:
+		LasFilterExtent(const Extent& e): _e(e) {
+			priority = lasfilterpriority::mid;
+		}
+		bool isFiltered(const CurrentLasPoint& p) override {
+			return !(_e.contains(p.x(), p.y()));
+		}
+	private:
+		Extent _e;
+	};
 }
 
 #endif

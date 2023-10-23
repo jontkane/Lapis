@@ -16,5 +16,6 @@
 #include"TaoParameter.hpp"
 #include"TopoParameter.hpp"
 #include"WhichProductsParameter.hpp"
+#include"AoIParameter.hpp"
 
 #endif

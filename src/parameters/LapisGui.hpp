@@ -28,6 +28,7 @@ namespace lapis {
 		void _runTab();
 		void _generalOptionsTab();
 		void _productsTab();
+		void _aoiTab();
 		void _renderLogger();
 		void _dataIssuesWindow();
 		void _modsTab();
@@ -175,6 +176,10 @@ namespace lapis {
 				_productsTab();
 				ImGui::EndTabItem();
 			}
+			if (ImGui::BeginTabItem("Area of Interest")) {
+				_aoiTab();
+				ImGui::EndTabItem();
+			}
 			if (_mods.size() && ImGui::BeginTabItem("Mods")) {
 				_modsTab();
 				ImGui::EndTabItem();
@@ -196,7 +201,6 @@ namespace lapis {
 	inline void LapisGui<RUNNERTYPE>::_runTab()
 	{
 		RunParameters& rp = RunParameters::singleton();
-
 
 		rp.renderGui<NameParameter>();
 		rp.renderGui<OutputParameter>();
@@ -337,6 +341,14 @@ namespace lapis {
 		}
 
 		ImGui::EndTabBar();
+	}
+
+	template<class RUNNERTYPE>
+	inline void LapisGui<RUNNERTYPE>::_aoiTab()
+	{
+		RunParameters& rp = RunParameters::singleton();
+
+		rp.renderGui<AoIParameter>();
 	}
 
 	template<class RUNNERTYPE>

@@ -279,6 +279,11 @@ namespace lapis {
 		catch (InvalidLasFileException e) {
 			log.logWarning(e.what());
 		}
+		if (!rp.overlapsAoI(lr))
+		{
+			LapisLogger::getLogger().incrementTask("Las File Didn't Overlap Area of Interest");
+			return;
+		}
 		Extent projectedExtent = QuadExtent(lr, rp.metricAlign()->crs()).outerExtent();
 		LAPIS_CHECK_ABORT;
 

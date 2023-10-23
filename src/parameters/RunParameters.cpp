@@ -167,6 +167,10 @@ namespace lapis {
 	{
 		return getParam<FilterParameter>().maxht();
 	}
+	bool RunParameters::overlapsAoI(const Extent& e)
+	{
+		return getParam<AoIParameter>().overlapsAoI(e);
+	}
 
 	CsmAlgorithm* RunParameters::csmAlgorithm()
 	{
@@ -188,6 +192,7 @@ namespace lapis {
 		for (auto& filter : filters()) {
 			l.addFilter(filter);
 		}
+		getParam<AoIParameter>().addFilter(l);
 		return l;
 	}
 	std::optional<LinearUnit> RunParameters::lasZUnits()

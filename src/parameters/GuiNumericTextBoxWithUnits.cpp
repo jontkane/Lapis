@@ -50,7 +50,7 @@ namespace lapis {
 	{
 		if (!std::isnan(_boostValue)) {
 			std::string s = truncDtoS(_boostValue);
-			strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), s.size());
+			strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size()-1);
 			_boostValue = std::nan("");
 			return true;
 		}
@@ -65,12 +65,12 @@ namespace lapis {
 			double v = std::stod(_buffer.data());
 			v = src.convertOneFromThis(v, dst);
 			std::string s = truncDtoS(v);
-			strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size());
+			strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size()-1);
 		}
 		catch (...) {
 			if (strlen(_buffer.data())) {
 				const char* msg = "Error";
-				strncpy_s(_buffer.data(), _buffer.size(), msg, _buffer.size());
+				strncpy_s(_buffer.data(), _buffer.size(), msg, _buffer.size()-1);
 			}
 		}
 	}
@@ -92,16 +92,16 @@ namespace lapis {
 	}
 	void NumericTextBoxWithUnits::copyFrom(const NumericTextBoxWithUnits& other)
 	{
-		strncpy_s(_buffer.data(), _buffer.size(), other._buffer.data(), other._buffer.size());
+		strncpy_s(_buffer.data(), _buffer.size(), other._buffer.data(), other._buffer.size()-1);
 	}
 	void NumericTextBoxWithUnits::setValue(coord_t v)
 	{
 		std::string s = truncDtoS(v);
-		strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size());
+		strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size()-1);
 	}
 	void NumericTextBoxWithUnits::setError()
 	{
-		strncpy_s(_buffer.data(), _buffer.size(), "Error", _buffer.size());
+		strncpy_s(_buffer.data(), _buffer.size(), "Error", _buffer.size()-1);
 	}
 	std::string NumericTextBoxWithUnits::truncDtoS(coord_t v) const
 	{

@@ -50,7 +50,7 @@ namespace lapis {
 			s.erase(_buffer.size() - 1, std::string::npos);
 		}
 
-		strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size());
+		strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size()-1);
 		_boostValue = -1;
 		return true;
 	}
@@ -62,7 +62,7 @@ namespace lapis {
 		}
 		catch (std::invalid_argument e) {
 			log.logError("Error reading value of " + _guiDesc);
-			return 1;
+			return std::nan("");
 		}
 	}
 
@@ -72,6 +72,6 @@ namespace lapis {
 
 	void NumericTextBox::setValue(double i) {
 		std::string s = std::to_string(i);
-		strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size());
+		strncpy_s(_buffer.data(), _buffer.size(), s.c_str(), _buffer.size()-1);
 	}
 }

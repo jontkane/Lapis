@@ -54,7 +54,7 @@ namespace lapis {
 			}
 			_nfdFile.reset();
 			std::string fullWkt = _cachedCrs.isEmpty() ? "No CRS in File" : _cachedCrs.getPrettyWKT();
-			strncpy_s(_buffer.data(), _buffer.size(), fullWkt.data(), _buffer.size());
+			strncpy_s(_buffer.data(), _buffer.size(), fullWkt.data(), _buffer.size()-1);
 			changed = true;
 		}
 		ImGui::SameLine();
@@ -65,7 +65,7 @@ namespace lapis {
 	{
 		bool changed = _boostString.size();
 		if (changed) {
-			strncpy_s(_buffer.data(), _buffer.size(), _boostString.c_str(), _buffer.size());
+			strncpy_s(_buffer.data(), _buffer.size(), _boostString.c_str(), _buffer.size()-1);
 			_updateCrsAndDisplayString("Error reading CRS from ini file");
 			_boostString.clear();
 		}
@@ -93,7 +93,7 @@ namespace lapis {
 		_cachedCrs = crs;
 		_displayString = crs.getShortName();
 		std::string wkt = crs.getPrettyWKT();
-		strncpy_s(_buffer.data(), _buffer.size(), wkt.c_str(), _buffer.size());
+		strncpy_s(_buffer.data(), _buffer.size(), wkt.c_str(), _buffer.size()-1);
 	}
 	void CRSInput::_updateCrsAndDisplayString(const std::string& displayIfEmpty)
 	{

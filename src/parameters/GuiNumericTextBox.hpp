@@ -25,7 +25,7 @@ namespace lapis {
 
 	private:
 		double _boostValue;
-		std::array<char, 11> _buffer;
+		std::array<char, 15> _buffer;
 	};
 }
 

@@ -396,7 +396,7 @@ namespace lapis {
 			return;
 		}
 		ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize;
-		if (!ImGui::Begin("Alignment Error Window", &_displayManualWindow, flags)) {
+		if (!ImGui::Begin("Alignment Error Window", &_displayErrorWindow, flags)) {
 			ImGui::End();
 			return;
 		}
