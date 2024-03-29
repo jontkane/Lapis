@@ -45,7 +45,9 @@ namespace lapis {
 		DemAlgorithm* demAlgorithm();
 
 		DemContainerWrapper demAligns();
+		const Alignment& demAlign(size_t index, const CoordRef& crs);
 		std::optional<Raster<coord_t>> getDem(size_t n, const Extent& e);
+		size_t nDem() const;
 
 		//this function is used to expand an elevation raster calculated using whatever algorithm by background DEMs
 		//The output is a raster which matched the alignment of the input raster, with an extent at least as large as desired
@@ -84,6 +86,8 @@ namespace lapis {
 		};
 
 		std::vector<DemFileAlignment> _demFileAligns;
+		std::unordered_map<CoordRef, std::vector<std::unique_ptr<Alignment>>, CoordRefHasher, CoordRefComparator> _alignsByCrs;
+		void _addCrsToMap(const CoordRef& crs);
 
 		bool _runPrepared = false;
 

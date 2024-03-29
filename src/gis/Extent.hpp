@@ -40,6 +40,9 @@ namespace lapis {
 		coord_t ymin() const;
 		coord_t ymax() const;
 
+		coord_t xspan() const;
+		coord_t yspan() const;
+
 		//returns true if this extent has an overlap with non-zero area with the other extent
 		bool overlaps(const Extent& e) const;
 		//returns true if the extents touch at all, even at a single point

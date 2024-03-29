@@ -297,8 +297,9 @@ namespace lapis {
 			std::span<LasPoint> view = pointGetter->getPoints(nPoints);
 			totalPoints += view.size();
 			for (auto& handler : _handlers()) {
-				if (handler->doThisProduct())
+				if (handler->doThisProduct()) {
 					handler->handlePoints(view, projectedExtent, n);
+				}
 			}
 		}
 

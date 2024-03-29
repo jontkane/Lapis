@@ -48,6 +48,27 @@ namespace lapis {
 		return out;
 	}
 
+	template<class T>
+	inline Raster<T> aggregateMean(const Raster<T>& r, const Alignment& a) {
+		Raster<T> out{ a };
+		for (cell_t bigCell : CellIterator(a, r, SnapType::out)) {
+			Extent e = a.extentFromCell(bigCell);
+			T numerator = 0;
+			T denominator = 0;
+			for (cell_t smallCell : CellIterator(r, e, SnapType::near)) {
+				if (r[smallCell].has_value()) {
+					denominator++;
+					numerator += r[smallCell].value();
+				}
+			}
+			if (denominator != 0) {
+				out[bigCell].has_value() = true;
+				out[bigCell].value() = numerator / denominator;
+			}
+		}
+		return out;
+	}
+
 	template<class OUTPUT, class INPUT>
 	using ViewFunc = std::function<const xtl::xoptional<OUTPUT>(const CropView<INPUT>&)>;
 

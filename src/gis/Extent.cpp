@@ -236,4 +236,13 @@ namespace lapis {
 	{
 		return Extent{ base.xmin() - bufferSize,base.xmax() + bufferSize,base.ymin() - bufferSize,base.ymax() + bufferSize, base.crs() };
 	}
+
+	coord_t Extent::xspan() const
+	{
+		return xmax() - xmin();
+	}
+
+	coord_t Extent::yspan() const {
+		return ymax() - ymin();
+	}
 }

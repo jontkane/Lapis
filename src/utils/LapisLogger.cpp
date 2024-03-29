@@ -63,6 +63,7 @@ namespace lapis {
 		}
 		*/
 
+
 		for (int i = (int)_progressTracker.size() - 1; i >= 0; --i) {
 
 			const std::string& name = _progressTracker.at(i);

@@ -123,6 +123,7 @@ namespace lapis {
 	template<class FILEGETTER>
 	inline void VendorRasterApplier<FILEGETTER>::_makeDem(const Extent& e)
 	{
+
 		Extent projE = QuadExtent(_las, _crs).outerExtent();
 
 		std::vector<Raster<coord_t>> overlappingDems;
@@ -131,15 +132,13 @@ namespace lapis {
 		Extent buffer = bufferExtent(projE, std::max(finestAlign.xres(), finestAlign.yres()));
 		finestAlign = finestAlign.transformAlignment(projE.crs());
 
-		int index = -1;
-		for (const Alignment& thisAlign : _getter->demAligns()) {
-			++index;
-			Alignment projAlign = thisAlign.transformAlignment(projE.crs());
+		for (size_t i = 0; i < _getter->nDem(); ++i) {
+			Alignment projAlign = _getter->demAlign(i, _crs);
 			if (!projAlign.overlaps(buffer)) {
 				continue;
 			}
 
-			std::optional<Raster<coord_t>> dem = _getter->getDem(index, buffer);
+			std::optional<Raster<coord_t>> dem = _getter->getDem(i, buffer);
 			if (!dem.has_value()) {
 				continue;
 			}

@@ -26,7 +26,7 @@ namespace lapis {
 		if (_currentPoint >= _nPoints) {
 			return LidarPointVector();
 		}
-		size_t maxCount = std::max(n, _nPoints - _currentPoint);
+		size_t maxCount = std::min(n, _nPoints - _currentPoint);
 		LidarPointVector points{ _crs };
 		points.reserve(maxCount);
 

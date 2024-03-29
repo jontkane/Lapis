@@ -14,8 +14,6 @@ namespace lapis {
 		near, in, out, ll
 	};
 
-	class CellExtentIterator;
-
 	class Alignment : public Extent {
 
 	public:
@@ -137,17 +135,10 @@ namespace lapis {
 
 		//these versions of the functions don't bother checking if the input data is valid
 		cell_t cellFromRowColUnsafe(const rowcol_t row, const rowcol_t col) const {
-#ifndef NDEBUG
-			_checkRow(row);
-			_checkCol(col);
-#endif
 			cell_t cell = col + (cell_t)(_ncol)*row;
 			return cell;
 		}
 		rowcol_t rowFromYUnsafe(const coord_t y) const {
-#ifndef NDEBUG
-			_checkY(y);
-#endif
 			rowcol_t out = (rowcol_t)((_ymax - y) / _yres);
 			if (y == _ymin) {
 				return _nrow - 1;
@@ -155,9 +146,6 @@ namespace lapis {
 			return out;
 		}
 		rowcol_t colFromXUnsafe(const coord_t x) const {
-#ifndef NDEBUG
-			_checkX(x);
-#endif
 			rowcol_t out = (rowcol_t)((x - _xmin) / _xres);
 			if (x == _xmax) {
 				return _ncol - 1;
@@ -165,46 +153,24 @@ namespace lapis {
 			return out;
 		}
 		rowcol_t rowFromCellUnsafe(const cell_t cell) const {
-#ifndef NDEBUG
-			_checkCell(cell);
-#endif
 			return (rowcol_t)(cell / _ncol);
 		}
 		rowcol_t colFromCellUnsafe(const cell_t cell) const {
-#ifndef NDEBUG
-			_checkCell(cell);
-#endif
 			return cell % _ncol;
 		}
 		coord_t xFromColUnsafe(const rowcol_t col) const {
-#ifndef NDEBUG
-			_checkCol(col);
-#endif
 			return _xmin + _xres * col + (_xres / 2);
 		}
 		coord_t yFromRowUnsafe(const rowcol_t row) const {
-#ifndef NDEBUG
-			_checkRow(row);
-#endif
 			return _ymax - _yres * row - (_yres / 2);
 		}
 		cell_t cellFromXYUnsafe(const coord_t x, const coord_t y) const {
-#ifndef NDEBUG
-			_checkX(x);
-			_checkY(y);
-#endif
 			return cellFromRowColUnsafe(rowFromYUnsafe(y), colFromXUnsafe(x));
 		}
 		coord_t xFromCellUnsafe(const cell_t cell) const {
-#ifndef NDEBUG
-			_checkCell(cell);
-#endif
 			return xFromColUnsafe(colFromCellUnsafe(cell));
 		}
 		coord_t yFromCellUnsafe(const cell_t cell) const {
-#ifndef NDEBUG
-			_checkCell(cell);
-#endif
 			return yFromRowUnsafe(rowFromCellUnsafe(cell));
 		}
 

@@ -12,6 +12,27 @@ namespace lapis {
 		*this = DemParameter();
 	}
 
+	void DemParameter::_addCrsToMap(const CoordRef& crs)
+	{
+		static std::mutex mut;
+		static bool currentlyWorking = false;
+		if (_alignsByCrs.contains(crs) && !currentlyWorking) {
+			return;
+		}
+		std::scoped_lock lock{ mut };
+		if (_alignsByCrs.contains(crs) && !currentlyWorking) {
+			return;
+		}
+		currentlyWorking = true;
+		_alignsByCrs.emplace(crs, std::vector<std::unique_ptr<Alignment>>(_demFileAligns.size()));
+		auto& vec = _alignsByCrs[crs];
+		for (size_t i = 0; i < _demFileAligns.size(); ++i) {
+			const Alignment& baseAlign = _demFileAligns[i].align;
+			vec[i] = std::make_unique<Alignment>(baseAlign.transformAlignment(crs));
+		}
+		currentlyWorking = false;
+	}
+
 	void DemParameter::_renderAdvancedOptions()
 	{
 		ImGui::Text("CRS of DEM Files:");
@@ -226,6 +247,15 @@ namespace lapis {
 		prepareForRun();
 		return DemContainerWrapper{ _demFileAligns };
 	}
+	const Alignment& DemParameter::demAlign(size_t index, const CoordRef& crs)
+	{
+		_addCrsToMap(crs);
+		auto& vec = _alignsByCrs[crs];
+		if (index >= vec.size()) {
+			throw std::out_of_range("dem index too high");
+		}
+		return *vec[index];
+	}
 	std::optional<Raster<coord_t>> DemParameter::getDem(size_t n, const Extent& e)
 	{
 		prepareForRun();
@@ -258,6 +288,10 @@ namespace lapis {
 		}
 		out.setZUnits(_demUnitsCache);
 		return outopt;
+	}
+	size_t DemParameter::nDem() const
+	{
+		return _demFileAligns.size();
 	}
 	Raster<coord_t> DemParameter::bufferElevation(const Raster<coord_t>& unbuffered, const Extent& desired)
 	{

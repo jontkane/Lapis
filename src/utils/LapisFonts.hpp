@@ -9,6 +9,7 @@ namespace lapis {
 	public:
 		static ImFont* getRegularFont();
 		static ImFont* getBoldFont();
+		static ImFont* getTitleFont();
 		static void initFonts();
 	};
 }

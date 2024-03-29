@@ -5,59 +5,65 @@
 #include"gis_pch.hpp"
 
 namespace lapis {
-	class CRSMismatchException : public std::runtime_error {
+
+	class LapisGisException : public std::runtime_error {
 	public:
-		CRSMismatchException(std::string s = "") : std::runtime_error("CRS do not match " + s) {}
-	};
-	class UnableToDeduceCRSException : public std::runtime_error {
-	public:
-		UnableToDeduceCRSException(std::string s = "") : std::runtime_error("Unable to deduce CRS: " + s) {}
-	};
-	class EmptyCRSException : public std::runtime_error {
-	public:
-		EmptyCRSException(std::string s = "") : std::runtime_error("EmptyCRSException: ") {}
+		LapisGisException(const std::string& s = "") : std::runtime_error(s) {}
 	};
 
-	class InvalidExtentException : public std::runtime_error {
+	class CRSMismatchException : public LapisGisException {
 	public:
-		InvalidExtentException(std::string s = "") : std::runtime_error("InvalidExtentException: " + s) {}
+		CRSMismatchException(const std::string& s = "") : LapisGisException("CRS do not match " + s) {}
 	};
-	class OutsideExtentException : public std::runtime_error {
+	class UnableToDeduceCRSException : public LapisGisException {
 	public:
-		OutsideExtentException(std::string s = "") : std::runtime_error("OutsideExtentException: " + s) {}
+		UnableToDeduceCRSException(const std::string& s = "") : LapisGisException("Unable to deduce CRS: " + s) {}
 	};
-
-	class InvalidRasterFileException : public std::runtime_error {
+	class EmptyCRSException : public LapisGisException {
 	public:
-		InvalidRasterFileException(std::string s = "") : std::runtime_error("Unable to open raster file: " + s) {}
-	};
-
-	class InvalidAlignmentException : public std::runtime_error {
-	public:
-		InvalidAlignmentException(std::string s = "") : std::runtime_error("InvalidAlignmentException: " + s) {}
-	};
-	class AlignmentMismatchException : public std::runtime_error {
-	public:
-		AlignmentMismatchException(std::string s = "") : std::runtime_error("AlignmentMismatchException: " + s) {}
+		EmptyCRSException(const std::string& s = "") : LapisGisException("EmptyCRSException: ") {}
 	};
 
-	class InvalidVectorFileException : public std::runtime_error {
+	class InvalidExtentException : public LapisGisException {
 	public:
-		InvalidVectorFileException(std::string s) : std::runtime_error("Unable to open vector file: " + s) {}
+		InvalidExtentException(const std::string& s = "") : LapisGisException("InvalidExtentException: " + s) {}
+	};
+	class OutsideExtentException : public LapisGisException {
+	public:
+		OutsideExtentException(const std::string& s = "") : LapisGisException("OutsideExtentException: " + s) {}
 	};
 
-	class InvalidLasFileException : public std::runtime_error {
+	class InvalidRasterFileException : public LapisGisException {
 	public:
-		InvalidLasFileException(std::string s) : std::runtime_error("Unable to open LAS file: " + s) {}
+		InvalidRasterFileException(const std::string& s = "") : LapisGisException("Unable to open raster file: " + s) {}
 	};
 
-	class UnitMismatchException : public std::runtime_error {
+	class InvalidAlignmentException : public LapisGisException {
 	public:
-		UnitMismatchException(std::string s) : std::runtime_error("UnitMismatchException: " + s) {}
+		InvalidAlignmentException(const std::string& s = "") : LapisGisException("InvalidAlignmentException: " + s) {}
 	};
-	class ImproperUnitsException : public std::runtime_error {
+	class AlignmentMismatchException : public LapisGisException {
 	public:
-		ImproperUnitsException(std::string s = "") : std::runtime_error("ImproperUnitsException: " + s) {}
+		AlignmentMismatchException(const std::string& s = "") : LapisGisException("AlignmentMismatchException: " + s) {}
+	};
+
+	class InvalidVectorFileException : public LapisGisException {
+	public:
+		InvalidVectorFileException(const std::string& s) : LapisGisException("Unable to open vector file: " + s) {}
+	};
+
+	class InvalidLasFileException : public LapisGisException {
+	public:
+		InvalidLasFileException(const std::string& s) : LapisGisException("Unable to open LAS file: " + s) {}
+	};
+
+	class UnitMismatchException : public LapisGisException {
+	public:
+		UnitMismatchException(const std::string& s) : LapisGisException("UnitMismatchException: " + s) {}
+	};
+	class ImproperUnitsException : public LapisGisException {
+	public:
+		ImproperUnitsException(const std::string& s = "") : LapisGisException("ImproperUnitsException: " + s) {}
 	};
 }
 

@@ -23,7 +23,7 @@ namespace lapis {
 		}
 	private:
 		inline static std::mutex mut;
-		inline static bool registered;
+		inline static bool registered = false;
 	};
 
 	//this class is an RAII-friendly and thread-safe wrapper around GDALDataset.
