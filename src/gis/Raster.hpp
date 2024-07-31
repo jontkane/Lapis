@@ -453,8 +453,8 @@ namespace lapis {
 	template<class T>
 	Raster<T>::Raster(const std::string& filename, const int band) {
 
-		GDALDatasetWrapper wgd = rasterGDALWrapper(filename);
-		if (wgd.isNull()) {
+		UniqueGdalDataset wgd = rasterGDALWrapper(filename);
+		if (!wgd) {
 			throw InvalidRasterFileException("Unable to opent " + filename + " as a raster");
 		}
 		alignmentInitFromGDALRaster(wgd, getGeoTrans(wgd, filename));
@@ -494,8 +494,8 @@ namespace lapis {
 		checkValidAlignment();
 
 		_data.resize(ncell());
-		GDALDatasetWrapper wgd = rasterGDALWrapper(filename);
-		if (wgd.isNull()) {
+		UniqueGdalDataset wgd = rasterGDALWrapper(filename);
+		if (!wgd) {
 			throw InvalidRasterFileException("Unable to open " + filename + " as a raster");
 		}
 		GDALRasterBand* rBand = wgd->GetRasterBand(band);
@@ -514,8 +514,8 @@ namespace lapis {
 		if (dataType == GDT_Unknown) {
 			dataType = GDT();
 		}
-		GDALDatasetWrapper wgd{ driver,file,ncol(),nrow(),dataType };
-		if (wgd.isNull()) {
+		UniqueGdalDataset wgd = gdalCreateWrapper(driver,file,ncol(),nrow(),dataType);
+		if (!wgd) {
 			throw InvalidRasterFileException("Unable to open " + file + " as a raster");
 		}
 		std::array<double, 6> gt = { _xmin, _xres,0,_ymax,0,-(_yres) };

@@ -75,8 +75,8 @@ namespace lapis {
 
 		void checkValidExtent();
 
-		std::array<double, 6> getGeoTrans(GDALDatasetWrapper& wgd, const std::string& errormsg);
-		void extentInitFromGDALRaster(GDALDatasetWrapper& wgd, const std::array<double, 6>& geotrans);
+		std::array<double, 6> getGeoTrans(UniqueGdalDataset& wgd, const std::string& errormsg);
+		void extentInitFromGDALRaster(UniqueGdalDataset& wgd, const std::array<double, 6>& geotrans);
 
 		void _setFromLasIO(const LasIO& las);
 	};

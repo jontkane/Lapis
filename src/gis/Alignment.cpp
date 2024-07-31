@@ -35,8 +35,8 @@ namespace lapis {
 	}
 
 	Alignment::Alignment(const std::string& filename) {
-		GDALDatasetWrapper wgd = rasterGDALWrapper(filename);
-		if (wgd.isNull()) {
+		UniqueGdalDataset wgd = rasterGDALWrapper(filename);
+		if (!wgd) {
 			throw InvalidRasterFileException("Error reading " + filename + " as an alignment");
 		}
 		alignmentInitFromGDALRaster(wgd, getGeoTrans(wgd, filename));
@@ -182,7 +182,7 @@ namespace lapis {
 		}
 	}
 
-	void Alignment::alignmentInitFromGDALRaster(GDALDatasetWrapper& wgd, const std::array<double, 6>& geotrans) {
+	void Alignment::alignmentInitFromGDALRaster(UniqueGdalDataset& wgd, const std::array<double, 6>& geotrans) {
 		//xmin, xres, xshear, ymax, yshear, yres
 		extentInitFromGDALRaster(wgd, geotrans);
 		_ncol = wgd->GetRasterXSize();

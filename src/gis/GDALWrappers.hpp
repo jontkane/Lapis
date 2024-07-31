@@ -11,100 +11,22 @@
 
 namespace lapis {
 
-	//A thread-safe wrapper around GDALAllRegister
-	class GDALRegisterWrapper {
-	public:
-		static void allRegister() {
-			std::scoped_lock<std::mutex> lock{ mut };
-			if (!registered) {
-				registered = true;
-				GDALAllRegister();
-			}
-		}
-	private:
-		inline static std::mutex mut;
-		inline static bool registered = false;
-	};
+	void gdalAllRegisterThreadSafe();
 
-	//this class is an RAII-friendly and thread-safe wrapper around GDALDataset.
-	class GDALDatasetWrapper { 
-	public:
-		GDALDatasetWrapper() = default;
+	using UniqueGdalDataset = std::unique_ptr<GDALDataset, void(*)(GDALDataset*)>;
+	UniqueGdalDataset makeUniqueGdalDataset(GDALDataset* p);
+	UniqueGdalDataset gdalCreateWrapper(const std::string& driver, const std::string& file, int ncol, int nrow, GDALDataType gdt);
+	UniqueGdalDataset rasterGDALWrapper(const std::string& filename);
+	UniqueGdalDataset vectorGDALWrapper(const std::string& filename);
 
-		//creates according to GDALOpen()
-		GDALDatasetWrapper(const std::string& filename, unsigned int openFlags);
-		//creates according to GDALDrive::Create()
-		GDALDatasetWrapper(const std::string& driver, const std::string& file, int ncol, int nrow, GDALDataType gdt);
-		~GDALDatasetWrapper();
+	using UniqueCslString = std::unique_ptr<char*, void(*)(char**)>;
+	UniqueCslString cslLoadWrapper(const std::string& filename);
 
-		GDALDatasetWrapper(const GDALDatasetWrapper&) = delete;
-		GDALDatasetWrapper& operator=(const GDALDatasetWrapper&) = delete;
-		GDALDatasetWrapper(GDALDatasetWrapper&& other) noexcept;
-		GDALDatasetWrapper& operator=(GDALDatasetWrapper&& other) noexcept;
+	using UniqueGdalString = std::unique_ptr<char, void(*)(char*)>;
+	UniqueGdalString exportToWktWrapper(const OGRSpatialReference& osr);
 
-		GDALDataset* operator->() {
-			return gd;
-		}
-		bool isNull() const {
-			return gd == nullptr;
-		}
-
-
-	private:
-		GDALDataset* gd;
-		std::string _file;
-	};
-
-	GDALDatasetWrapper rasterGDALWrapper(const std::string& filename);
-	GDALDatasetWrapper vectorGDALWrapper(const std::string& filename);
-
-	class GDALStringWrapper { //for use with OGRSpatialReference's export functions
-	public:
-		GDALStringWrapper() : ptr(nullptr) {}
-		~GDALStringWrapper() {
-			CPLFree(ptr);
-		}
-		char** operator&() {
-			return &ptr;
-		}
-		char* ptr;
-
-		//there's no protections against multiple destruction so just delete the copy constructors
-		GDALStringWrapper(const GDALStringWrapper& wgd) = delete;
-		GDALStringWrapper& operator=(const GDALStringWrapper& wgd) = delete;
-	};
-
-	class GDALPrjWrapper { //for calling CSLLoad in a memory-safe way
-	public:
-		GDALPrjWrapper() : ptr(nullptr) {}
-		GDALPrjWrapper(const std::string& filename) {
-			ptr = CSLLoad(filename.c_str());
-		}
-		~GDALPrjWrapper() {
-			CSLDestroy(ptr);
-		}
-		char** ptr;
-
-		//there's no protections against multiple destruction so just delete the copy constructors
-		GDALPrjWrapper(const GDALPrjWrapper& wgd) = delete;
-		GDALPrjWrapper& operator=(const GDALPrjWrapper& wgd) = delete;
-	};
-
-	class OGRFeatureWrapper {
-	public:
-		OGRFeatureWrapper() : ptr(nullptr) {}
-		OGRFeatureWrapper(OGRLayer* layer) : ptr(OGRFeature::CreateFeature(layer->GetLayerDefn())) {}
-		~OGRFeatureWrapper() {
-			if (ptr != nullptr) {
-				OGRFeature::DestroyFeature(ptr);
-			}
-		}
-		OGRFeature* operator->() {
-			return ptr;
-		}
-
-		OGRFeature* ptr;
-	};
+	using UniqueOGRFeature = std::unique_ptr<OGRFeature, void(*)(OGRFeature*)>;
+	UniqueOGRFeature createFeatureWrapper(OGRLayer* layer);
 
 	//pass this to CPLSetErrorHandler to make GDAL shut up
 #pragma warning(push)

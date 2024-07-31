@@ -379,9 +379,9 @@ namespace lapis {
 		fs::path filename = layoutDir / "TileLayout.shp";
 		fs::create_directories(layoutDir);
 
-		GDALRegisterWrapper::allRegister();
+		gdalAllRegisterThreadSafe();
 
-		GDALDatasetWrapper outshp("ESRI Shapefile", filename.string().c_str(), 0, 0, GDT_Unknown);
+		UniqueGdalDataset outshp = gdalCreateWrapper("ESRI Shapefile", filename.string().c_str(), 0, 0, GDT_Unknown);
 
 		OGRSpatialReference crs;
 		crs.importFromWkt(layout.crs().getCleanEPSG().getCompleteWKT().c_str());
@@ -405,7 +405,7 @@ namespace lapis {
 			if (!layout.atCell(cell).has_value()) {
 				continue;
 			}
-			OGRFeatureWrapper feature(layer);
+			UniqueOGRFeature feature = createFeatureWrapper(layer);
 			feature->SetField("Name", rp.layoutTileName(cell).c_str());
 			feature->SetField("ID", cell);
 			feature->SetField("Column", layout.colFromCell(cell)+1);
@@ -442,7 +442,7 @@ namespace lapis {
 			OGRGeometryFactory::createFromWkb((const void*)&tile, &crs, &geom, sizeof(WkbRectangle), wkbVariantPostGIS1, consumed);
 
 			feature->SetGeometry(geom);
-			layer->CreateFeature(feature.ptr);
+			layer->CreateFeature(feature.get());
 		}
 	}
 

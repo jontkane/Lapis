@@ -19,15 +19,13 @@ namespace lapis {
 		CoordRef(const std::string& s, LinearUnit zUnits);
 		CoordRef(const char* s);
 		CoordRef(const char* s, LinearUnit zUnits);
-		CoordRef(const ProjPJWrapper& pj);
-
-		//Constructor from a lasheader, to avoid double-reading from the file
+		CoordRef(const SharedPJ& pj);
 		CoordRef(const LasIO& las);
 
 		const std::string getPrettyWKT() const;
 
 		const std::string getCompleteWKT() const;
-		
+
 		const std::string getSingleLineWKT() const;
 
 		const std::string getShortName() const;
@@ -54,7 +52,6 @@ namespace lapis {
 		//A return without a value indicates that the CRS is angular, not linear
 		std::optional<LinearUnit> getXYLinearUnits() const;
 
-
 		//returns the Z units of the CRS
 		//If there's no vertical datum, it returns a Unit object which is unknown, but has the same convfactor as the horizontal units
 		const LinearUnit& getZUnits() const;
@@ -76,18 +73,18 @@ namespace lapis {
 		PJ* getPtr();
 		const PJ* getPtr() const;
 
-		ProjPJWrapper& getWrapper();
-		const ProjPJWrapper& getWrapper() const;
+		SharedPJ& getSharedPtr();
+		const SharedPJ& getSharedPtr() const;
 
 	private:
-		ProjPJWrapper _p;
+		SharedPJ _p;
 		LinearUnit _zUnits;
 
 		void _crsFromString(const std::string& s);
-		void _crsFromLasIO(const LasIO& las);
 		void _crsFromPrj(const std::string& s);
 		void _crsFromRaster(const std::string& s);
 		void _crsFromVector(const std::string& s);
+		void _crsFromLasIO(const LasIO& las);
 		LinearUnit _inferZUnits();
 	};
 

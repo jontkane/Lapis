@@ -93,11 +93,11 @@ namespace lapis {
 	void TaoHandler::_writeHighPointsAsShp(const Raster<taoid_t>& segments, const std::vector<TaoInfo>& highPoints, cell_t tile) const {
 		namespace fs = std::filesystem;
 
-		GDALRegisterWrapper::allRegister();
+		gdalAllRegisterThreadSafe();
 		fs::create_directories(taoDir());
 		fs::path filename = getFullTileFilename(taoDir(), _taoBasename, OutputUnitLabel::Unitless, tile, "shp");
 
-		GDALDatasetWrapper outshp("ESRI Shapefile", filename.string().c_str(), 0, 0, GDT_Unknown);
+		UniqueGdalDataset outshp = gdalCreateWrapper("ESRI Shapefile", filename.string().c_str(), 0, 0, GDT_Unknown);
 
 		OGRSpatialReference crs;
 		crs.importFromWkt(segments.crs().getCleanEPSG().getCompleteWKT().c_str());
@@ -127,7 +127,7 @@ namespace lapis {
 
 			taoid_t id = segments.atXYUnsafe(highPoint.x, highPoint.y).value();
 
-			OGRFeatureWrapper feature(layer);
+			UniqueOGRFeature feature = createFeatureWrapper(layer);
 			feature->SetField("ID", (int64_t)id);
 			feature->SetField("X", highPoint.x);
 			feature->SetField("Y", highPoint.y);
@@ -141,7 +141,7 @@ namespace lapis {
 			point.setY(highPoint.y);
 			feature->SetGeometry(&point);
 
-			layer->CreateFeature(feature.ptr);
+			layer->CreateFeature(feature.get());
 		}
 	}
 	void TaoHandler::_updateMap(const Raster<taoid_t>& segments, const std::vector<cell_t>& highPoints, const Extent& unbufferedExtent, cell_t tileidx)
@@ -150,9 +150,10 @@ namespace lapis {
 			std::scoped_lock<std::mutex> lock(_getter->globalMutex());
 			idMap.tileToLocalNames.try_emplace(tileidx, TaoIdMap::IDToCoord());
 		}
-		for (cell_t cell : highPoints) {
-			coord_t x = segments.xFromCellUnsafe(cell);
-			coord_t y = segments.yFromCellUnsafe(cell);
+		for (cell_t cellInTile : highPoints) {
+			coord_t x = segments.xFromCellUnsafe(cellInTile);
+			coord_t y = segments.yFromCellUnsafe(cellInTile);
+			cell_t cellFullAlign = RunParameters::singleton().csmAlign()->cellFromXYUnsafe(x, y);
 
 			//in theory, you could identify areas that belong only to this tile, and aren't even in the buffers of any other tiles
 			//this is easy in a normal case, but kind of annoying to account for edge cases
@@ -160,10 +161,10 @@ namespace lapis {
 
 			if (unbufferedExtent.contains(x, y)) { //this tao id is id that other tiles will have to match
 				std::scoped_lock<std::mutex> lock(_getter->globalMutex());
-				idMap.coordsToFinalName.try_emplace(TaoIdMap::XY{ x,y }, segments[cell].value());
+				idMap.cellToFinalName.try_emplace(cellFullAlign, segments[cellInTile].value());
 			}
 			else { //this tao id will have to change eventually
-				idMap.tileToLocalNames[tileidx].try_emplace(segments[cell].value(), TaoIdMap::XY{ x,y });
+				idMap.tileToLocalNames[tileidx].try_emplace(segments[cellInTile].value(), cellFullAlign);
 			}
 		}
 	}
@@ -184,7 +185,7 @@ namespace lapis {
 			return segments;
 		}
 
-		auto& localNameMap = idMap.tileToLocalNames.at(tile);
+		const TaoIdMap::IDToCoord& localNameMap = idMap.tileToLocalNames.at(tile);
 		for (cell_t cell = 0; cell < segments.ncell(); ++cell) {
 			auto v = segments[cell];
 			if (!v.has_value()) {
@@ -193,10 +194,10 @@ namespace lapis {
 			if (!localNameMap.contains(v.value())) {
 				continue;
 			}
-			if (!idMap.coordsToFinalName.contains(localNameMap.at(v.value()))) { //edge of the acquisition
+			if (!idMap.cellToFinalName.contains(localNameMap.at(v.value()))) { //edge of the acquisition
 				continue;
 			}
-			v.value() = idMap.coordsToFinalName.at(localNameMap.at(v.value()));
+			v.value() = idMap.cellToFinalName.at(localNameMap.at(v.value()));
 		}
 		return segments;
 	}

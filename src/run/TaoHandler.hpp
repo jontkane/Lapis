@@ -28,20 +28,9 @@ namespace lapis {
 
 	protected:
 		struct TaoIdMap {
-			struct XY { coord_t x, y; };
-			struct XYHasher {
-				std::size_t operator() (const XY& coord) const {
-					return (std::hash<coord_t>()(coord.x) >> 1) ^ (std::hash<coord_t>()(coord.y));
-				}
-			};
-			struct XYEqual {
-				bool operator() (const XY& lhs, const XY& rhs) const {
-					return lhs.x == rhs.x && lhs.y == rhs.y;
-				}
-			};
-			using IDToCoord = std::unordered_map<taoid_t, XY>;
+			using IDToCoord = std::unordered_map<taoid_t, cell_t>;
 			std::unordered_map<cell_t, IDToCoord> tileToLocalNames;
-			std::unordered_map<XY, taoid_t, XYHasher, XYEqual> coordsToFinalName;
+			std::unordered_map<cell_t, taoid_t> cellToFinalName;
 		};
 
 		TaoIdMap idMap;

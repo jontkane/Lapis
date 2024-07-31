@@ -36,16 +36,16 @@ namespace lapis {
 		}
 
 		if (!init) {
-			GDALDatasetWrapper wgd = rasterGDALWrapper(filename);
-			if (!wgd.isNull()) {
+			UniqueGdalDataset wgd = rasterGDALWrapper(filename);
+			if (wgd) {
 				extentInitFromGDALRaster(wgd, getGeoTrans(wgd, filename));
 				init = true;
 			}
 		}
 
 		if (!init) {
-			GDALDatasetWrapper wgd = vectorGDALWrapper(filename);
-			if (!wgd.isNull()) {
+			UniqueGdalDataset wgd = vectorGDALWrapper(filename);
+			if (wgd) {
 				OGREnvelope envelope{};
 				auto layer = wgd->GetLayer(0);
 				auto errcode = layer->GetExtent(&envelope);
@@ -58,9 +58,8 @@ namespace lapis {
 				_ymax = envelope.MaxY;
 
 				auto ogrspat = layer->GetSpatialRef();
-				GDALStringWrapper wkt{};
-				ogrspat->exportToWkt(&wkt);
-				_crs = CoordRef(std::string(wkt.ptr));
+				UniqueGdalString wkt = exportToWktWrapper(*ogrspat);
+				_crs = CoordRef(std::string(wkt.get()));
 
 				init = true;
 			}
@@ -153,7 +152,7 @@ namespace lapis {
 		}
 	}
 
-	std::array<double, 6> Extent::getGeoTrans(GDALDatasetWrapper& wgd, const std::string& errormsg) {
+	std::array<double, 6> Extent::getGeoTrans(UniqueGdalDataset& wgd, const std::string& errormsg) {
 		std::array<double, 6> gt{}; //xmin, xres, xshear, ymax, yshear, yres
 		auto errcode = wgd->GetGeoTransform(gt.data());
 		if (errcode != CE_None) {
@@ -162,7 +161,7 @@ namespace lapis {
 		return gt;
 	}
 
-	void Extent::extentInitFromGDALRaster(GDALDatasetWrapper& wgd, const std::array<double, 6>& geotrans) {
+	void Extent::extentInitFromGDALRaster(UniqueGdalDataset& wgd, const std::array<double, 6>& geotrans) {
 		//xmin, xres, xshear, ymax, yshear, yres
 		int ncol = wgd->GetRasterXSize();
 		int nrow = wgd->GetRasterYSize();

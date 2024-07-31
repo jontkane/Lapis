@@ -15,33 +15,32 @@ namespace lapis {
 		PJ* getPtr();
 		const PJ* getPtr() const;
 
-		ProjPJWrapper& getWrapper();
-		const ProjPJWrapper& getWrapper() const;
+		const SharedPJ& getSharedPtr() const;
 
 		//T should be a class with member doubles x and y for transformXY, and member doubles x, y, and z for transformXYZ
 		template<class T>
-		void transformXY(std::vector<T>& points, size_t startIdx = 0);
+		void transformXY(std::vector<T>& points, size_t startIdx = 0) const;
 
 		//This will reproject x/y and do unit conversion on z. It will never do unit conversion if either units are unknown
 		template<class T>
-		void transformXYZ(std::vector<T>& points, size_t startIdx = 0);
+		void transformXYZ(std::vector<T>& points, size_t startIdx = 0) const;
 
-		CoordXY transformSingleXY(coord_t x, coord_t y);
+		CoordXY transformSingleXY(coord_t x, coord_t y) const;
 
 	private:
-		ProjPJWrapper _tr;
+		SharedPJ _tr;
 		LinearUnitConverter _conv;
 		bool _needZConv;
 		bool _needXYConv;
 	};
 
 	template<class T>
-	inline void CoordTransform::transformXY(std::vector<T>& points, size_t startIdx) {
-		if (_tr.ptr() == nullptr) {
+	inline void CoordTransform::transformXY(std::vector<T>& points, size_t startIdx) const {
+		if (!_tr) {
 			return;
 		}
 		if (_needXYConv) {
-			proj_trans_generic(_tr.ptr(), PJ_FWD,
+			proj_trans_generic(_tr.get(), PJ_FWD,
 				&(points[startIdx].x), sizeof(T), points.size() - startIdx,
 				&(points[startIdx].y), sizeof(T), points.size() - startIdx,
 				nullptr, 0, 0,
@@ -50,7 +49,7 @@ namespace lapis {
 	}
 
 	template<class T>
-	inline void CoordTransform::transformXYZ(std::vector<T>& points, size_t startIdx) {
+	inline void CoordTransform::transformXYZ(std::vector<T>& points, size_t startIdx) const {
 		if (!points.size()) {
 			return;
 		}
