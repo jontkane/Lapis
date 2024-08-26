@@ -22,7 +22,7 @@ Lapis is currently in alpha, version 0.8. It should compile (if cmake cooperates
 
 # Getting Lapis
 
-The latest release of Lapis is version 0.8. You can get the compiled binary here: https://drive.google.com/file/d/1DQzt9T-Wjj_wjJUvUSA8pg-Lqn3l6RzW/view?usp=drive_link
+The latest release of Lapis is version 0.8. You can get the compiled binary here: https://drive.google.com/file/d/1Xwj_onaHxfa2IHGxD4F0BC7hxe-5zaJt/view?usp=drive_link
 
 Before running Lapis, you will need to install the Visual C++ Runtime Library, available here: https://aka.ms/vs/17/release/vc_redist.x64.exe
 
