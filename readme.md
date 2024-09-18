@@ -2,6 +2,10 @@
 
 Lapis is an open-source program optimized for processing aerial lidar for forestry applications. By focusing on the most common processing jobs, instead of on flexibility, Lapis is able to run quickly, while still maintaining as small a memory footprint as reasonably possible. Lapis is designed to produce useful output in almost any situation, even for users who have little understanding of lidar and who are unclear on what the data they're processing contains, while still containing enough customization options to satisfy most common use cases.
 
+View a video presentation on Lapis at:
+
+https://www.youtube.com/watch?v=MJ2JBvHFBek&ab_channel=LapisLidar
+
 # Current Status
 
 Lapis is currently in alpha, version 0.8. It should compile (if cmake cooperates), and has been verified to run on a handful of lidar acquisitions, but I'm sure there are plenty of corner cases that will still cause it to crash. Furthermore, it's far from feature-complete. The following broad features are planned but not yet implemented:
@@ -18,7 +22,7 @@ Lapis is currently in alpha, version 0.8. It should compile (if cmake cooperates
 
 # Getting Lapis
 
-The latest release of Lapis is version 0.8. You can get the compiled binary here: https://drive.google.com/file/d/1DQzt9T-Wjj_wjJUvUSA8pg-Lqn3l6RzW/view?usp=drive_link
+The latest release of Lapis is version 0.8. You can get the compiled binary here: https://drive.google.com/file/d/1Xwj_onaHxfa2IHGxD4F0BC7hxe-5zaJt/view?usp=drive_link
 
 Before running Lapis, you will need to install the Visual C++ Runtime Library, available here: https://aka.ms/vs/17/release/vc_redist.x64.exe
 
