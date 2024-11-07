@@ -62,30 +62,6 @@ namespace lapis {
 		}
 	}
 
-	TEST(CoordRefTest, zUnits) {
-		std::vector<CoordRef> source = {
-			""
-			, CoordRef("",linearUnitPresets::internationalFoot)
-			, "2927"
-			, "2927+5703"
-			, CoordRef("2927",linearUnitPresets::meter)
-			, "4269"
-		};
-		std::vector<LinearUnit> expected = {
-			linearUnitPresets::unknownLinear
-			, linearUnitPresets::internationalFoot
-			, linearUnitPresets::usSurveyFoot
-			, linearUnitPresets::meter
-			, linearUnitPresets::meter
-			, linearUnitPresets::unknownLinear
-		};
-
-		for (int i = 0; i < source.size(); ++i) {
-			const LinearUnit& z = source[i].getZUnits();
-			EXPECT_TRUE(z == expected[i]);
-		}
-	}
-
 	TEST(CoordRefTest, horizConsistent) {
 		CoordRef against{ "6340+5703" };
 		std::vector<CoordRef> source = {
@@ -106,33 +82,6 @@ namespace lapis {
 		for (int i = 0; i < source.size(); ++i) {
 			EXPECT_TRUE(against.isConsistentHoriz(source[i]) == expected[i]) << "Failed on test " + std::to_string(i);
 			EXPECT_TRUE(source[i].isConsistentHoriz(against) == expected[i]) << "Failed on test " + std::to_string(i);
-		}
-	}
-
-	TEST(CoordRefTest, vertConsistent) {
-		CoordRef against{ "6340+5703" };
-		std::vector<CoordRef> source = {
-			""
-			, "2927"
-			, "2927+5703"
-			, "4269"
-			, "6340+5702"
-			, CoordRef("6340",linearUnitPresets::meter)
-			, CoordRef("6340+5703",linearUnitPresets::internationalFoot)
-		};
-		std::vector<bool> expected = {
-			true
-			, false
-			, true
-			, true
-			, false
-			, true
-			, false
-		};
-
-		for (int i = 0; i < source.size(); ++i) {
-			EXPECT_TRUE(against.isConsistentZUnits(source[i]) == expected[i]) << "Failed on test " + std::to_string(i);
-			EXPECT_TRUE(source[i].isConsistentZUnits(against) == expected[i]) << "Failed on test " + std::to_string(i);
 		}
 	}
 

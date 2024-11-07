@@ -9,8 +9,8 @@ namespace lapis {
 
 		static void SetUpTestSuite() {
 			empty = CoordRef{ "" };
-			stateplane = CoordRef{ "2927" };
-			utm = CoordRef{ "32611" };
+			stateplane = CoordRef{ "2927", linearUnitPresets::usSurveyFoot };
+			utm = CoordRef{ "32611", linearUnitPresets::meter };
 		}
 
 		void SetUp() override {

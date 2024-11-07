@@ -271,4 +271,12 @@ namespace lapis {
 	{
 		return _names;
 	}
+	void TopoParameterSpoofer::setUseRadians(bool b)
+	{
+		_useRadians = b;
+	}
+	bool TopoParameterSpoofer::useRadians()
+	{
+		return _useRadians;
+	}
 }

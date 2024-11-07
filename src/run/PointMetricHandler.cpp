@@ -127,6 +127,9 @@ namespace lapis {
 				"");
 			addPointMetric("99thPercentile_CanopyHeight", &pmc::p99Canopy, oul::Default,
 				"");
+			addPointMetric("Mean_Intensity", &pmc::meanIntensity, oul::Unitless,
+				"The mean intensity of all points in the cell. "
+				"Useful for assessing at-a-glance whether intensity values are comparable across the entire area.");
 		}
 
 		if (_getter->doStratumMetrics()) {

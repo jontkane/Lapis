@@ -305,6 +305,11 @@ namespace lapis {
 			_crsFromPrj(s);
 			return;
 		}
+		if (ext == ".las" || ext == ".laz") {
+			LasIO l{ s };
+			_crsFromLasIO(l);
+			return;
+		}
 
 		_crsFromRaster(s);
 		if (isEmpty()) {

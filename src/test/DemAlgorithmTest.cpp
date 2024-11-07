@@ -11,8 +11,10 @@ namespace lapis {
 			_rasters.push_back(r);
 		}
 
-		const std::vector<Alignment>& demAligns() { return _aligns; }
 		Raster<coord_t> getDem(size_t n, const Extent& e) { return _rasters[n]; }
+		auto& demAligns() { return _aligns;	}
+		const Alignment& demAlign(size_t index, const CoordRef& crs) { return _aligns[index]; }
+		size_t nDem() const { return _aligns.size(); }
 
 	private:
 		std::vector<Alignment> _aligns;
@@ -21,13 +23,15 @@ namespace lapis {
 
 	TEST(DemAlgoTest, vendorrastertest) {
 
+		CoordRef epsg2927{ "2927",linearUnitPresets::usSurveyFoot };
+		CoordRef epsg2285{ "2285",linearUnitPresets::usSurveyFoot };
 
-		Raster<coord_t> demOne{ Alignment(Extent(0,5,0,5,"2927"),5,5)};
+		Raster<coord_t> demOne{ Alignment(Extent(0,5,0,5,epsg2927),5,5)};
 		for (cell_t cell = 0; cell < demOne.ncell(); ++cell) {
 			demOne[cell].has_value() = true;
 			demOne[cell].value() = 1;
 		}
-		Raster<coord_t> demTwo{ Alignment(Extent(0,10,0,10,"2927"),2,2)};
+		Raster<coord_t> demTwo{ Alignment(Extent(0,10,0,10,epsg2927),2,2)};
 		for (cell_t cell = 0; cell < demTwo.ncell(); ++cell) {
 			demTwo[cell].has_value() = true;
 			demTwo[cell].value() = 10;
@@ -41,8 +45,8 @@ namespace lapis {
 		VendorRaster<DemSpoofer> algo(&spoof);
 		algo.setMinMax(0, 100);
 
-		auto freshPoints = []()->LidarPointVector {
-			LidarPointVector lpv{ "2927" };
+		auto freshPoints = [&]()->LidarPointVector {
+			LidarPointVector lpv{ epsg2927 };
 			lpv.push_back({ 0.5,0.5,11,0,0 }); //normalizes to 10 in the fine raster and 1 in the coarse raster. expected: 10
 			lpv.push_back({ 7.5,7.5,11,0,0 }); //can't be normalized by the fine raster, normalizes to 1 in the coarse raster. expected: 1
 			lpv.push_back({ 0.5,0.5,102,0,0 }); //normalizes to 101 in the fine raster and 92 in the coarse raster. expected: filtered
@@ -53,7 +57,7 @@ namespace lapis {
 
 		LidarPointVector lpv = freshPoints();
 		
-		Extent e{ 0,15,0,15,"2927"};
+		Extent e{ 0,15,0,15,epsg2927 };
 
 		auto demApplier = algo.getApplier(e, e.crs());
 		Raster<coord_t> dem = *demApplier->getDem();
@@ -79,38 +83,6 @@ namespace lapis {
 		EXPECT_EQ(v.value(), 10);
 		v = dem.extract(10.5, 10.5, ExtractMethod::near);
 		EXPECT_FALSE(v.has_value());
-
-		//repojecting everything doesn't change the fundamental situation, and the results should be roughly the same.
-		lpv = freshPoints();
-		lpv.transform(CoordRef("2285"));
-		e = QuadExtent(e, CoordRef("2285")).outerExtent();
-		demApplier = algo.getApplier(e, e.crs());
-		dem = *demApplier->getDem();
-		demApplier->normalizePointVector(lpv);
-
-		EXPECT_NEAR(dem.xres(), 1, 0.1);
-		EXPECT_NEAR(dem.yres(), 1, 0.1);
-		EXPECT_LE(dem.xmin(), e.xmin());
-		EXPECT_GE(dem.xmax(), e.xmax());
-		EXPECT_LE(dem.ymin(), e.ymin());
-		EXPECT_GE(dem.ymax(), e.ymax());
-
-		CoordTransform transform{ "2927","2285" };
-		CoordXY xy = transform.transformSingleXY(2, 2);
-		v = dem.extract(xy.x, xy.y, ExtractMethod::near);
-		EXPECT_TRUE(v.has_value());
-		EXPECT_EQ(v.value(), 1);
-		xy = transform.transformSingleXY(9, 9);
-		v = dem.extract(xy.x, xy.y, ExtractMethod::near);
-		EXPECT_TRUE(v.has_value());
-		EXPECT_EQ(v.value(), 10);
-		xy = transform.transformSingleXY(10.5, 10.5);
-		v = dem.extract(xy.x, xy.y, ExtractMethod::near);
-		EXPECT_FALSE(v.has_value());
-
-		ASSERT_EQ(lpv.size(), 2);
-		EXPECT_NEAR(lpv[0].z, 10, 0.1);
-		EXPECT_NEAR(lpv[1].z, 1, 0.1);
 	}
 
 	TEST(DemAlgoTest, AlreadyNormalizedTest) {

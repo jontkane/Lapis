@@ -22,6 +22,7 @@ namespace lapis {
 		_canopySum = 0;
 		_canopyCount = 0;
 		_count = 0;
+		_totalIntensity = 0;
 	}
 
 	void PointMetricCalculator::meanCanopy(Raster<metric_t>& r, cell_t cell)
@@ -374,6 +375,17 @@ namespace lapis {
 	void PointMetricCalculator::p99Canopy(Raster<metric_t>& r, cell_t cell)
 	{
 		_quantileCanopy(r, cell, 0.99f);
+	}
+
+	void PointMetricCalculator::meanIntensity(Raster<metric_t>& r, cell_t cell)
+	{
+		if (_count) {
+			r[cell].has_value() = true;
+			r[cell].value() = (metric_t)_totalIntensity / (metric_t)_count;
+		}
+		else {
+			r[cell].has_value() = false;
+		}
 	}
 
 }

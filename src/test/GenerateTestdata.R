@@ -30,13 +30,15 @@ init = function(outputfolder) {
   Classification <<- c()
   Withheld_flag <<- c()
   ScanAngle <<- c()
+  Intensity <<- c()
 }
 
 addPoints = function(n, x = runif(n,0.5,99.5), y = runif(n,0.5,99.5),
                      z = rep(10,n),returnnumber=rep(1,n),
                      classification = sample(goodclasses,n,T),
                      withheld_flag = rep(F,n),
-                     scanangle = runif(n,-10,10)) {
+                     scanangle = runif(n,-10,10),
+                     intensity = runif(n,0,1000)) {
   X <<- c(X,x)
   Y <<- c(Y,y)
   Z <<- c(Z,z+as.numeric(extract(dem,vect(cbind(x,y)),method="bilinear")[,2]))
@@ -44,12 +46,14 @@ addPoints = function(n, x = runif(n,0.5,99.5), y = runif(n,0.5,99.5),
   Classification <<- c(Classification,classification)
   Withheld_flag <<- c(Withheld_flag,withheld_flag)
   ScanAngle <<- c(ScanAngle,scanangle)
+  Intensity <<- c(Intensity,intensity)
 }
 
 makeLasObject = function(crs) {
   ReturnNumber = as.integer(ReturnNumber)
   Classification = as.integer(Classification)
-  data = data.frame(X,Y,Z,ReturnNumber,Classification,Withheld_flag,ScanAngle)
+  Intensity = as.integer(Intensity)
+  data = data.frame(X,Y,Z,ReturnNumber,Classification,Withheld_flag,ScanAngle,Intensity)
   suppressWarnings(l <- LAS(data,header=list(`Version Major`=1,`Version Minor` = 4,
                                              `X offset`=0,`Y offset`=0,`Z offset`=0,
                                              `X scale factor`=0.01,`Y scale factor`=0.01,`Z scale factor`=0.01,
@@ -124,26 +128,26 @@ makePointMetricAndFilterTest = function() {
       ythis = runif(51,ycenter-4.9,ycenter+4.9)
       
       addPoints(51, xthis,ythis,0:50,
-                returnnumber=c(rep(1,length(0:20)),rep(2,length(21:50))))
+                returnnumber=c(rep(1,length(0:20)),rep(2,length(21:50))),intensity=seq(0,500,10))
     }
   }
   
   #adding points that should be filtered by a minht of -8 and maxht of 100
   xthis = runif(50,0,100)
   ythis = runif(50,0,100)
-  addPoints(50, xthis,ythis,rep(-10,50))
+  addPoints(50, xthis,ythis,rep(-10,50),intensity=rep(1000,50))
   
   zthis = as.numeric((110 + extract(dem,vect(cbind(xthis,ythis)),method="bilinear"))[,2])
-  addPoints(50, xthis,ythis,rep(110,50))
+  addPoints(50, xthis,ythis,rep(110,50),intensity=rep(1000,50))
   
   #adding points from filtered classes
-  addPoints(50, classification = sample(badclasses, 50, T))
+  addPoints(50, classification = sample(badclasses, 50, T),intensity=rep(1000,50))
   
   #adding withheld points
-  addPoints(50, withheld_flag = rep(T,50))
+  addPoints(50, withheld_flag = rep(T,50),intensity=rep(1000,50))
   
   #adding points that would be filtered by a max scan angle of 30
-  addPoints(50, scanangle = c(rep(-40,25),rep(40,25)))
+  addPoints(50, scanangle = c(rep(-40,25),rep(40,25)),intensity=rep(1000,50))
   
   l = makeLasObject("EPSG:32610+5703")
   

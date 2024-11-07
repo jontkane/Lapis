@@ -197,8 +197,8 @@ namespace lapis {
 			std::filesystem::path filename = th.getFullTileFilename(th.taoDir(), "TAOs", OutputUnitLabel::Unitless, tile, "shp");
 			EXPECT_TRUE(std::filesystem::exists(filename));
 
-			GDALDatasetWrapper highPoints = vectorGDALWrapper(filename.string());
-			ASSERT_FALSE(highPoints.isNull());
+			UniqueGdalDataset highPoints = vectorGDALWrapper(filename.string());
+			ASSERT_FALSE(highPoints.get() == nullptr);
 			OGRLayer* layer = highPoints->GetLayer(0);
 			OGRFeature* feature;
 			while ((feature = layer->GetNextFeature()) != nullptr) {

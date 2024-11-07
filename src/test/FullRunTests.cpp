@@ -83,6 +83,7 @@ namespace lapis {
 		testRaster(allReturns / "PointMetricsTest_Mean_CanopyHeight_Meters.tif", 26.);
 		testRaster(allReturns / "PointMetricsTest_StdDev_CanopyHeight_Meters.tif", 14.14);
 		testRaster(allReturns / "PointMetricsTest_TotalReturnCount.tif", 51);
+		testRaster(allReturns / "PointMetricsTest_Mean_Intensity.tif", 250);
 
 		fs::path arStrata = allReturns / "StratumMetrics";
 		std::vector<std::string> strataNames = { "LessThan0.5","0.5To5.5","5.5To10.5","GreaterThan10.5"};
@@ -117,6 +118,7 @@ testRaster(getPercentileName(firstReturns, pnames[i]), expectedPercentileFirstRe
 		testRaster(firstReturns / "PointMetricsTest_Mean_CanopyHeight_Meters.tif", 11.);
 		testRaster(firstReturns / "PointMetricsTest_StdDev_CanopyHeight_Meters.tif", 5.48);
 		testRaster(firstReturns / "PointMetricsTest_TotalReturnCount.tif", 21);
+		testRaster(firstReturns / "PointMetricsTest_Mean_Intensity.tif", 100);
 
 		fs::path frStrata = firstReturns / "StratumMetrics";
 
@@ -173,8 +175,8 @@ testRaster(getPercentileName(firstReturns, pnames[i]), expectedPercentileFirstRe
 			ASSERT_TRUE(fs::exists(expectedTaos));
 			std::set<std::pair<coord_t, coord_t>> expectedCoords;
 
-			GDALDatasetWrapper vect = vectorGDALWrapper(expectedTaos.string());
-			ASSERT_FALSE(vect.isNull());
+			UniqueGdalDataset vect = vectorGDALWrapper(expectedTaos.string());
+			ASSERT_FALSE(vect.get() == nullptr);
 			OGRLayer* layer = vect->GetLayer(0);
 			OGRFeature* feature;
 			while ((feature = layer->GetNextFeature()) != nullptr) {
@@ -194,7 +196,7 @@ testRaster(getPercentileName(firstReturns, pnames[i]), expectedPercentileFirstRe
 			std::vector<taoid_t> actualIds;
 
 			vect = vectorGDALWrapper(actualTaos.string());
-			ASSERT_FALSE(vect.isNull());
+			ASSERT_FALSE(vect.get() == nullptr);
 			layer = vect->GetLayer(0);
 			while ((feature = layer->GetNextFeature()) != nullptr) {
 				OGRPoint* geom = feature->GetGeometryRef()->toPoint();

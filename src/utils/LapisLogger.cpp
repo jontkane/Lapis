@@ -139,7 +139,9 @@ namespace lapis {
 		}
 
 		if (_mainProgressTimers.size()) {
-			_mainProgressTimers.back().value().stopTimer();
+			if (_mainProgressTimers.back().has_value()) {
+				_mainProgressTimers.back().value().stopTimer();
+			}
 		}
 		if (needTimer) {
 			_mainProgressTimers.emplace_back(std::in_place);

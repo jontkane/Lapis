@@ -37,6 +37,7 @@ namespace lapis {
 		void prepareParamsAllowDems(std::vector<std::string> args) {
 			args.push_back("--debug-no-alignment");
 			args.push_back("--debug-no-output");
+			args.push_back("--dem-units=m");
 			prepareParams(args);
 		}
 

@@ -7,14 +7,12 @@ namespace lapis {
 	public:
 		TopoHandlerProtectedAccess(ParamGetter* getter) : TopoHandler(getter) {}
 
-		Raster<coord_t>& elevNumerator() {
-			return _elevNumerator;
-		}
-		Raster<coord_t>& elevDenominator() {
-			return _elevDenominator;
-		}
 		std::vector<TopoMetric>& topoMetrics() {
 			return _topoMetrics;
+		}
+
+		Raster<coord_t> meanElev() {
+			return merger->meanElev();
 		}
 	};
 
@@ -24,9 +22,6 @@ namespace lapis {
 
 		TopoHandlerProtectedAccess th(&spoof);
 		th.prepareForRun();
-
-		EXPECT_TRUE(th.elevNumerator().isSameAlignment(*spoof.metricAlign()));
-		EXPECT_TRUE(th.elevDenominator().isSameAlignment(*spoof.metricAlign()));
 
 		EXPECT_GT(th.topoMetrics().size(), 0);
 	}
@@ -59,13 +54,18 @@ namespace lapis {
 		}
 
 		th.handleDem(sampleDem, 0);
+		Raster<coord_t> meanElev = th.meanElev();
+		ASSERT_TRUE(meanElev.consistentAlignment(expectedNum));
 
 		for (cell_t cell = 0; cell < expectedNum.ncell(); ++cell) {
-			EXPECT_EQ(expectedNum[cell].has_value(), th.elevNumerator()[cell].has_value());
-			EXPECT_EQ(expectedDenom[cell].has_value(), th.elevDenominator()[cell].has_value());
-			if (expectedNum[cell].has_value()) {
-				EXPECT_EQ(expectedNum[cell].value(), th.elevNumerator()[cell].value());
-				EXPECT_EQ(expectedDenom[cell].value(), th.elevDenominator()[cell].value());
+			if (expectedDenom[cell].has_value()) {
+				EXPECT_TRUE(meanElev[cell].has_value());
+				coord_t expectedValue = expectedNum[cell].value() / expectedDenom[cell].value();
+				EXPECT_DOUBLE_EQ(expectedValue, meanElev[cell].value());
+
+			}
+			else {
+				EXPECT_FALSE(meanElev[cell].has_value());
 			}
 		}
 	}

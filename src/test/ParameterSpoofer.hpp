@@ -178,11 +178,15 @@ namespace lapis {
 		const std::vector<coord_t>& topoWindows();
 		const std::vector<std::string>& topoWindowNames();
 
+		void setUseRadians(bool b);
+		bool useRadians() override;
+
 	private:
 		bool _doTopo = true;
 		Raster<coord_t> _elev;
 		std::vector<coord_t> _windows;
 		std::vector<std::string> _names;
+		bool _useRadians = false;
 	};
 
 #pragma warning(pop)

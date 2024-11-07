@@ -74,6 +74,8 @@ namespace lapis {
 				_hist.incrementBin(bin);
 			}
 
+			_totalIntensity += lp.intensity;
+
 			//because we're using return here as a control flow, the stratum logic has to go last even if we add more features to this function
 			if (!_strataCounts.size()) {
 				_strataCounts = std::vector<int>(_strataBreaks.size() + 1, 0);
@@ -120,6 +122,7 @@ namespace lapis {
 		void p85Canopy(Raster<metric_t>& r, cell_t cell);
 		void p90Canopy(Raster<metric_t>& r, cell_t cell);
 		void p99Canopy(Raster<metric_t>& r, cell_t cell);
+		void meanIntensity(Raster<metric_t>& r, cell_t cell);
 
 		void stratumCover(Raster<metric_t>& r, cell_t cell, size_t stratumIdx);
 		void stratumPercent(Raster<metric_t>& r, cell_t cell, size_t stratumIdx);
@@ -134,6 +137,8 @@ namespace lapis {
 		int _count = 0;
 		int _canopyCount = 0;
 		std::vector<int> _strataCounts;
+
+		intensity_t _totalIntensity = 0;
 
 		void _quantileCanopy(Raster<metric_t>& r, cell_t cell, metric_t q);
 
