@@ -9,6 +9,7 @@
 #include<chrono>
 #include<iostream>
 #include<fstream>
+#include<filesystem>
 
 namespace lapis {
 
@@ -37,6 +38,9 @@ namespace lapis {
 		void turnOffVerboseBenchmarking();
 
 		void setNThread(int nThread);
+
+		void setLogFile(const std::filesystem::path& fileName);
+		void closeLogFile();
 
 	private:
 		LapisLogger();
@@ -115,6 +119,8 @@ namespace lapis {
 		std::unordered_map<std::string, BenchmarkInfo> _verboseTimers;
 
 		void _renderVerboseBenchmarkWindow();
+
+		std::ofstream _logFile;
 	};
 }
 

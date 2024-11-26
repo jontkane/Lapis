@@ -116,7 +116,7 @@ namespace lapis {
 		_readBytes(&numChunks);
 
 		if (version != 0) {
-			throw InvalidLasFileException("Unsupported laz chunk type");
+			throw InvalidLasFileException("Unsupported laz chunk type. This is usually due to a corrupted file. Try re-downloading or re-copying it if possible.");
 		}
 
 		bool variable = vlrs.compressionInfo.chunk_size == lazperf::VariableChunkSize;

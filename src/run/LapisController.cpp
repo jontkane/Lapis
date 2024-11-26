@@ -14,6 +14,7 @@ if (_needAbort) { \
 	RunParameters::singleton().cleanAfterRun(); \
 	LapisLogger::getLogger().setProgress("Aborted",0,false); \
 	_isRunning = false; \
+	log.closeLogFile(); \
 	return false; \
 }
 #define LAPIS_CHECK_ABORT \
@@ -34,6 +35,10 @@ namespace lapis {
 		_isRunning = true;
 		LapisLogger& log = LapisLogger::getLogger();
 		RunParameters& rp = RunParameters::singleton();
+
+		std::filesystem::path outfolder = rp.outFolder();
+		std::filesystem::path logFile = outfolder / "processingLog.txt";
+		log.setLogFile(logFile);
 
 		try {
 			PJ* test_proj = proj_create(ProjContextByThread::get(), "EPSG:2927");
@@ -107,6 +112,7 @@ namespace lapis {
 			log.setProgress("Done!", 0, false);
 			_isRunning = false;
 
+			log.closeLogFile();
 			return true;
 		}
 		catch (std::exception e) {
@@ -114,6 +120,7 @@ namespace lapis {
 			log.logMessage("Please contact the developer at lapis-lidar@uw.edu for advice or to report this bug.");
 			_needAbort = true;
 			LAPIS_CHECK_ABORT_AND_DEALLOC;
+			log.closeLogFile();
 			return false;
 		}
 	}
