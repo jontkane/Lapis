@@ -558,7 +558,6 @@ namespace lapis {
 			}
 		}
 	}
-
 }
 
 #endif
