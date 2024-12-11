@@ -13,7 +13,7 @@ namespace lapis {
 
 	class CRSMismatchException : public LapisGisException {
 	public:
-		CRSMismatchException(const std::string& s = "") : LapisGisException("CRS do not match " + s) {}
+		CRSMismatchException(const std::string& s = "") : LapisGisException("CRS do not match: " + s) {}
 	};
 	class UnableToDeduceCRSException : public LapisGisException {
 	public:

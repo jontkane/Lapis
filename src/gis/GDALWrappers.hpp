@@ -28,6 +28,12 @@ namespace lapis {
 	using UniqueOGRFeature = std::unique_ptr<OGRFeature, void(*)(OGRFeature*)>;
 	UniqueOGRFeature createFeatureWrapper(OGRLayer* layer);
 
+	using UniqueOGRGeometry = std::unique_ptr<OGRGeometry, void(*)(OGRGeometry*)>;
+	UniqueOGRGeometry makeGeometryWrapper(OGRGeometry* geometry);
+	class CoordRef;
+	UniqueOGRGeometry createGeometryWrapperFromWkb(const void* wkb, size_t wkbSize, const CoordRef& crs, OGRwkbVariant variant = wkbVariantOldOgc);
+	UniqueOGRGeometry createGeometryWrapperFromWkt(const char* wkt, const CoordRef& crs);
+
 	//pass this to CPLSetErrorHandler to make GDAL shut up
 #pragma warning(push)
 #pragma warning(disable : 4100)
