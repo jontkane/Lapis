@@ -382,75 +382,40 @@ namespace lapis {
 
 		Raster<bool>& layout = *rp.layout();
 
-		fs::path layoutDir = rp.outFolder() / "Layout";
-		fs::path filename = layoutDir / "TileLayout.shp";
-		fs::create_directories(layoutDir);
+		VectorsAndAttributes<Polygon> tileLayout{ layout.crs() };
+		tileLayout.addStringField("Name", 13);
+		tileLayout.addIntegerField("ID");
+		tileLayout.addIntegerField("Column");
+		tileLayout.addIntegerField("Row");
 
-		gdalAllRegisterThreadSafe();
-
-		UniqueGdalDataset outshp = gdalCreateWrapper("ESRI Shapefile", filename.string().c_str(), 0, 0, GDT_Unknown);
-
-		OGRSpatialReference crs;
-		crs.importFromWkt(layout.crs().getCleanEPSG().getCompleteWKT().c_str());
-
-		OGRLayer* layer;
-		layer = outshp->CreateLayer("point_out", &crs, wkbPolygon, nullptr);
-
-		OGRFieldDefn nameField("Name", OFTString);
-		nameField.SetWidth(13);
-		layer->CreateField(&nameField);
-
-		OGRFieldDefn idField("ID", OFTInteger);
-		layer->CreateField(&idField);
-
-		OGRFieldDefn colField("Column", OFTInteger);
-		layer->CreateField(&colField);
-
-		OGRFieldDefn rowField("Row", OFTInteger);
-		layer->CreateField(&rowField);
-		for (cell_t cell = 0; cell < layout.ncell(); ++cell) {
+		coord_t xAdj = layout.xres() / 2;
+		coord_t yAdj = layout.yres() / 2;
+		for (cell_t cell : CellIterator(layout)) {
 			if (!layout.atCell(cell).has_value()) {
 				continue;
 			}
-			UniqueOGRFeature feature = createFeatureWrapper(layer);
-			feature->SetField("Name", rp.layoutTileName(cell).c_str());
-			feature->SetField("ID", cell);
-			feature->SetField("Column", layout.colFromCell(cell)+1);
-			feature->SetField("Row", layout.rowFromCell(cell)+1);
-			
-#pragma pack(push)
-#pragma pack(1)
-#pragma warning(push)
-#pragma warning(disable: 26495)
-			struct WkbRectangle {
-				const uint8_t endianness = 1;
-				const uint32_t type = 3;
-				const uint32_t numRings = 1;
-				const uint32_t numPoints = 5; //because the first point is repeated
-				struct Point {
-					double x, y;
-				};
-
-				Point points[5];
-			};
-#pragma warning(pop)
-#pragma pack(pop)
-
-			WkbRectangle tile;
 			coord_t xCenter = layout.xFromCell(cell);
 			coord_t yCenter = layout.yFromCell(cell);
-			tile.points[0].x = tile.points[3].x = tile.points[4].x = xCenter - layout.xres() / 2;
-			tile.points[1].x = tile.points[2].x = xCenter + layout.xres() / 2;
-			tile.points[0].y = tile.points[1].y = tile.points[4].y = yCenter + layout.yres() / 2;
-			tile.points[2].y = tile.points[3].y = yCenter - layout.yres() / 2;
+			std::list<CoordXY> outerRing;
+			outerRing.emplace_back(xCenter - xAdj, yCenter + yAdj);
+			outerRing.emplace_back(xCenter + xAdj, yCenter + yAdj);
+			outerRing.emplace_back(xCenter + xAdj, yCenter - yAdj);
+			outerRing.emplace_back(xCenter - xAdj, yCenter - yAdj);
+			Polygon rectangle(outerRing);
 
-			OGRGeometry* geom;
-			size_t consumed = 0;
-			OGRGeometryFactory::createFromWkb((const void*)&tile, &crs, &geom, sizeof(WkbRectangle), wkbVariantPostGIS1, consumed);
-
-			feature->SetGeometry(geom);
-			layer->CreateFeature(feature.get());
+			tileLayout.addGeometry(rectangle);
+			auto feature = tileLayout.back();
+			feature.setStringField("Name", rp.layoutTileName(cell));
+			feature.setNumericField("ID", cell);
+			feature.setNumericField("Column", layout.colFromCell(cell) + 1);
+			feature.setNumericField("Row", layout.rowFromCell(cell) + 1);
 		}
+
+		fs::path layoutDir = rp.outFolder() / "Layout";
+		fs::path filename = layoutDir / "TileLayout.shp";
+		fs::create_directories(layoutDir);
+		tileLayout.writeShapefile(filename);
+
 	}
 
 }

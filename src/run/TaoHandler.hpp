@@ -49,11 +49,18 @@ namespace lapis {
 
 		void _updateMap(const Raster<taoid_t>& segments, const std::vector<cell_t>& highPoints, const Extent& unbufferedExtent, cell_t tileidx);
 		Raster<taoid_t> _fixTaoIdsThread(cell_t tile) const;
-		void _writeHighPointsAsShp(const Raster<taoid_t>& segments, const std::vector<TaoInfo>& highPoints, cell_t tile) const;
+		void _writeIdLayers(const Raster<taoid_t>& bufferedSegments, cell_t tile) const;
 
-		std::string _taoBasename = "TAOs";
+		std::string _highPointBasename = "TAOs";
+		std::string _circleBasename = "Circles";
 		std::string _segmentsBasename = "Segments";
 		std::string _maxHeightBasename = "MaxHeight";
+
+		std::string _highPointFolderName = "Points";
+		std::string _circleFolderName = "Circles";
+		std::string _segmentRasterFolderName = "SegmentRasters";
+		std::string _segmentPolygonFolderName = "SegmentPolygons";
+		std::string _maxHeightFolderName = "MaxHeightRasters";
 	};
 }
 

@@ -1,42 +1,83 @@
 #include"vector.hpp"
 
 namespace lapis {
+
+    OGRPolygon Polygon::asGdal() const
+    {
+        OGRPolygon out{};
+
+        OGRLinearRing gdalOuterRing = _gdalCurveFromRing(_outerRing);
+        out.addRing(&gdalOuterRing);
+        for (const auto& innerRing : _innerRings) {
+            OGRLinearRing gdalInnerRing = _gdalCurveFromRing(innerRing);
+            out.addRing(&gdalInnerRing);
+        }
+        return out;
+    }
+    Polygon::Polygon(OGRGeometry* gdalGeometry)
+    {
+        OGRPolygon* gdalPolygon = dynamic_cast<OGRPolygon*>(gdalGeometry);
+        if (!gdalPolygon) {
+            throw std::invalid_argument("geometry is not a polygon");
+        }
+
+        auto stdListFromOGRLinearRing = [](const OGRLinearRing* ogr)->std::list<CoordXY> {
+            std::list<CoordXY> out;
+            for (const OGRPoint& point : *ogr) {
+                out.emplace_back(point.getX(), point.getY());
+            }
+            out.pop_back(); //gdal rings close themselves by duplicating the first point at the end
+            return out;
+        };
+
+        OGRLinearRing* outerRing = gdalPolygon->getExteriorRing();
+        _outerRing = stdListFromOGRLinearRing(outerRing);
+        int nInnerRing = gdalPolygon->getNumInteriorRings();
+        _innerRings.reserve(nInnerRing);
+        for (int i = 0; i < nInnerRing; ++i) {
+            _innerRings.emplace_back(stdListFromOGRLinearRing(gdalPolygon->getInteriorRing(i)));
+        }
+    }
+    OGRLinearRing Polygon::_gdalCurveFromRing(const std::list<CoordXY>& ring) const
+    {
+        
+        OGRLinearRing out{};
+        
+        auto addPoint = [&](const CoordXY& xy) {
+            OGRPoint point;
+            point.setX(xy.x);
+            point.setY(xy.y);
+            out.addPoint(&point);
+        };
+        for (const CoordXY& xy : ring) {
+            addPoint(xy);
+        }
+        addPoint(ring.front());
+        return out;
+    }
     Polygon::Polygon(const std::list<CoordXY>& outerRing) :_outerRing(outerRing) {}
     void Polygon::addInnerRing(const std::list<CoordXY>& innerRing)
     {
         _innerRings.push_back(innerRing);
     }
-    void Polygon::_appendToWkbNoHeader(std::vector<uint8_t>& wkb) const
+    OGRMultiPolygon MultiPolygon::asGdal() const
     {
-        uint32_t nRings = 1 + _innerRings.size();
-        _appendToWkb<uint32_t>(wkb, nRings);
-
-        _appendRingToWkb(wkb, _outerRing);
-        for (const auto& innerRing : _innerRings) {
-            _appendRingToWkb(wkb, innerRing);
-        }
-    }
-    void Polygon::_appendRingToWkb(std::vector<uint8_t>& wkb, const std::list<CoordXY>& ring)
-    {
-        auto appendPointToWkb = [&](CoordXY xy) {
-            _appendToWkb(wkb, (double)xy.x);
-            _appendToWkb(wkb, (double)xy.y);
-        };
-        for (const CoordXY& xy : ring) {
-            appendPointToWkb(xy);
-        }
-        appendPointToWkb(ring.front()); //closing the ring
-    }
-    UniqueOGRGeometry MultiPolygon::asGdal() const
-    {
-        std::vector<uint8_t> wkb;
-        _firstBytesOfWkb(wkb, _wkbFormatNumber);
-        uint32_t nPolygon = _polygons.size();
-        _appendToWkb<uint32_t>(wkb, nPolygon);
+        OGRMultiPolygon out{};
         for (const auto& polygon : _polygons) {
-            polygon._appendToWkbNoHeader(wkb);
+            OGRPolygon poly = polygon.asGdal();
+            out.addGeometry(&poly);
         }
-        return createGeometryWrapperFromWkb((void*)wkb.data(), _crs);
+        return out;
+    }
+    MultiPolygon::MultiPolygon(OGRGeometry* gdalGeometry)
+    {
+        OGRMultiPolygon* gdalMultiPolygon = dynamic_cast<OGRMultiPolygon*>(gdalGeometry);
+        if (!gdalMultiPolygon) {
+            throw std::invalid_argument("geometry is not a multipolygon");
+        }
+        for (OGRPolygon* gdalPolygon : *gdalMultiPolygon) {
+            _polygons.emplace_back(Polygon(gdalPolygon));
+        }
     }
     void MultiPolygon::addPolygon(const Polygon& polygon)
     {
@@ -89,7 +130,17 @@ namespace lapis {
     {
         _nrow = nrow;
         for (auto& keyValue : _fields) {
-            keyValue.second.values.resize(_nrow);
+            switch (keyValue.second.type) {
+            case FieldType::Integer:
+                keyValue.second.values.resize(_nrow, Variant((int64_t)0));
+                break;
+            case FieldType::Real:
+                keyValue.second.values.resize(_nrow, Variant((double)0.));
+                break;
+            case FieldType::String:
+                keyValue.second.values.resize(_nrow, Variant(FixedWidthString()));
+                break;
+            }
         }
     }
     void AttributeTable::addRow()
@@ -97,7 +148,7 @@ namespace lapis {
         _nrow++;
         resize(_nrow);
     }
-    size_t AttributeTable::nrow()
+    size_t AttributeTable::nrow() const
     {
         return _nrow;
     }
@@ -137,21 +188,19 @@ namespace lapis {
         }
         return std::get<double>(_fields.at(name).values.at(index));
     }
-    CoordRef& GisVector::crs()
+    OGRPoint Point::asGdal() const
     {
-        return _crs;
+        return OGRPoint(_x,_y);
     }
-    const CoordRef& GisVector::crs() const
+    Point::Point(OGRGeometry* gdalGeometry)
     {
-        return _crs;
+        OGRPoint* gdalPoint = dynamic_cast<OGRPoint*>(gdalGeometry);
+        if (!gdalPoint) {
+            throw std::invalid_argument("geometry is not a point");
+        }
+        _x = gdalPoint->getX();
+        _y = gdalPoint->getY();
     }
-    constexpr bool GisVector::isNativeLittleEndian()
-    {
-        return std::endian::native == std::endian::little;
-    }
-    void GisVector::_firstBytesOfWkb(std::vector<uint8_t>& wkb, uint32_t wkbFormatNumber)
-    {
-        _appendToWkb<uint8_t>(wkb, isNativeLittleEndian() ? (uint8_t)1 : (uint8_t)0);
-        _appendToWkb<uint32_t>(wkb, wkbFormatNumber);
-    }
+    Point::Point(coord_t x, coord_t y) : _x(x), _y(y) {}
+    Point::Point(CoordXY xy) : _x(xy.x), _y(xy.y) {}
 }

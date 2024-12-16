@@ -73,25 +73,4 @@ namespace lapis {
 			}
 		);
 	}
-	UniqueOGRGeometry makeGeometryWrapper(OGRGeometry* geometry)
-	{
-		return UniqueOGRGeometry(
-			geometry,
-			[](OGRGeometry* x) {
-				if (x) {
-					OGRGeometryFactory::destroyGeometry(x);
-				}
-			}
-		);
-	}
-	UniqueOGRGeometry createGeometryWrapperFromWkb(const void* wkb, size_t wkbSize, const CoordRef& crs, OGRwkbVariant variant)
-	{
-		OGRGeometry* geometry = nullptr;
-		OGRSpatialReference gdalCrs{ crs.getCompleteWKT().c_str() };
-		OGRErr error = OGRGeometryFactory::createFromWkb(wkb, &gdalCrs, &geometry, wkbSize, variant);
-		if (error != OGRERR_NONE) {
-			return makeGeometryWrapper(nullptr);
-		}
-		return makeGeometryWrapper(geometry);
-	}
 }

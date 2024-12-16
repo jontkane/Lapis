@@ -55,6 +55,9 @@ namespace lapis {
 		template<class T>
 		void writeRasterLogErrors(const std::filesystem::path& filename, Raster<T>& r) const;
 
+		template<class GEOMETRY>
+		void writeVectorLogErrors(const std::filesystem::path& filename, VectorsAndAttributes<GEOMETRY>& v) const;
+
 		template<class T>
 		Raster<T> getEmptyRasterFromTile(cell_t tile, const Alignment& a, coord_t minBufferMeters) const;
 
@@ -71,6 +74,21 @@ namespace lapis {
 
 		try {
 			r.writeRaster(filename.string());
+		}
+		catch (InvalidRasterFileException e) {
+			LapisLogger::getLogger().logWarning("Error writing " + filename.string());
+		}
+	}
+	template<class GEOMETRY>
+	inline void ProductHandler::writeVectorLogErrors(const std::filesystem::path& filename, VectorsAndAttributes<GEOMETRY>& v) const
+	{
+		namespace fs = std::filesystem;
+		LapisLogger& log = LapisLogger::getLogger();
+
+		fs::create_directories(filename.parent_path());
+
+		try {
+			v.writeShapefile(filename.string());
 		}
 		catch (InvalidRasterFileException e) {
 			LapisLogger::getLogger().logWarning("Error writing " + filename.string());

@@ -25,7 +25,7 @@ namespace lapis {
 
 		std::filesystem::create_directories(taoTempDir());
 
-		std::filesystem::path fileName = getFullTempFilename(taoTempDir(), _taoBasename, OutputUnitLabel::Unitless, tile, "tmp");
+		std::filesystem::path fileName = getFullTempFilename(taoTempDir(), _highPointBasename, OutputUnitLabel::Unitless, tile, "tmp");
 		std::ofstream ofs{ fileName,std::ios::binary };
 
 		if (!ofs) {
@@ -61,7 +61,7 @@ namespace lapis {
 		}
 	}
 	std::vector<TaoHandler::TaoInfo> TaoHandler::_readHighPointsFromArray(cell_t tile) const {
-		std::filesystem::path fileName = getFullTempFilename(taoTempDir(), _taoBasename, OutputUnitLabel::Unitless, tile, "tmp");
+		std::filesystem::path fileName = getFullTempFilename(taoTempDir(), _highPointBasename, OutputUnitLabel::Unitless, tile, "tmp");
 		std::ifstream ifs{ fileName,std::ios::binary };
 		if (!ifs) {
 			LapisLogger::getLogger().logWarning("Error reading from " + fileName.string());
@@ -89,60 +89,6 @@ namespace lapis {
 			out.emplace_back(x, y, height, area);
 		}
 		return out;
-	}
-	void TaoHandler::_writeHighPointsAsShp(const Raster<taoid_t>& segments, const std::vector<TaoInfo>& highPoints, cell_t tile) const {
-		namespace fs = std::filesystem;
-
-		gdalAllRegisterThreadSafe();
-		fs::create_directories(taoDir());
-		fs::path filename = getFullTileFilename(taoDir(), _taoBasename, OutputUnitLabel::Unitless, tile, "shp");
-
-		UniqueGdalDataset outshp = gdalCreateWrapper("ESRI Shapefile", filename.string().c_str(), 0, 0, GDT_Unknown);
-
-		OGRSpatialReference crs;
-		crs.importFromWkt(segments.crs().getCleanEPSG().getCompleteWKT().c_str());
-
-		OGRLayer* layer;
-		layer = outshp->CreateLayer("point_out", &crs, wkbPoint, nullptr);
-
-
-		OGRFieldDefn idField("ID", OFTInteger64);
-		layer->CreateField(&idField);
-		OGRFieldDefn xField("X", OFTReal);
-		layer->CreateField(&xField);
-		OGRFieldDefn yField("Y", OFTReal);
-		layer->CreateField(&yField);
-		OGRFieldDefn heightField("Height", OFTReal);
-		layer->CreateField(&heightField);
-		OGRFieldDefn areaField("Area", OFTReal);
-		layer->CreateField(&areaField);
-
-		OGRFieldDefn radiusField("Radius", OFTReal);
-		layer->CreateField(&radiusField);
-
-		for (const TaoInfo& highPoint : highPoints) {
-			if (!segments.contains(highPoint.x, highPoint.y)) {
-				continue;
-			}
-
-			taoid_t id = segments.atXYUnsafe(highPoint.x, highPoint.y).value();
-
-			UniqueOGRFeature feature = createFeatureWrapper(layer);
-			feature->SetField("ID", (int64_t)id);
-			feature->SetField("X", highPoint.x);
-			feature->SetField("Y", highPoint.y);
-			feature->SetField("Height", highPoint.height);
-			feature->SetField("Area", highPoint.area);
-
-			feature->SetField("Radius", std::sqrt(highPoint.area / M_PI));
-
-			OGRPoint point;
-			point.setX(highPoint.x);
-			point.setY(highPoint.y);
-			feature->SetGeometry(&point);
-
-			layer->CreateFeature(feature.get());
-		}
 	}
 	void TaoHandler::_updateMap(const Raster<taoid_t>& segments, const std::vector<cell_t>& highPoints, const Extent& unbufferedExtent, cell_t tileidx)
 	{
@@ -201,6 +147,94 @@ namespace lapis {
 		}
 		return segments;
 	}
+	void TaoHandler::_writeIdLayers(const Raster<taoid_t>& bufferedSegments, cell_t tile) const
+	{
+		namespace fs = std::filesystem;
+		gdalAllRegisterThreadSafe();
+		fs::create_directories(taoDir());
+
+		Extent unbufferedExtent = _getter->layout()->extentFromCell(tile);
+		Raster<taoid_t> unbufferedSegments = cropRaster(bufferedSegments, unbufferedExtent, SnapType::out);
+		writeRasterLogErrors(getFullTileFilename(taoDir() / _segmentRasterFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile), unbufferedSegments);
+
+		std::vector<TaoInfo> highPoints = _readHighPointsFromArray(tile);
+		VectorsAndAttributes<Point> highPointsVector{ bufferedSegments.crs() };
+		VectorsAndAttributes<Polygon> circleVector{ bufferedSegments.crs() };
+
+		auto addIntegerField = [&](const std::string& name) {
+			highPointsVector.addIntegerField(name);
+			circleVector.addIntegerField(name);
+		};
+		addIntegerField("ID");
+
+		auto addRealField = [&](const std::string& name) {
+			highPointsVector.addRealField(name);
+			circleVector.addRealField(name);
+		};
+		addRealField("X");
+		addRealField("Y");
+		addRealField("Height");
+		addRealField("Area");
+		addRealField("Radius");
+
+		for (const TaoInfo& highPoint : highPoints) {
+			if (!unbufferedExtent.contains(highPoint.x, highPoint.y)) {
+				continue;
+			}
+
+			highPointsVector.addGeometry(Point{ highPoint.x,highPoint.y });
+			auto highPointsFeature = highPointsVector.back();
+
+			coord_t radius = std::sqrt(highPoint.area / M_PI);
+			std::list<CoordXY> circleRing;
+			constexpr int nPoints = 64;
+			constexpr double baseAngle = 2. * M_PI / nPoints;
+			auto initSinTable = [&]()->std::array<coord_t, nPoints> {
+				std::array<coord_t, nPoints> out{};
+				for (size_t i = 0; i < nPoints; ++i) {
+					out[i] = std::sin(i * baseAngle);
+				}
+				return out;
+			};
+			auto initCosTable = [&]()->std::array<coord_t, nPoints> {
+				std::array<coord_t, nPoints> out{};
+				for (size_t i  = 0; i < nPoints; ++i) {
+					out[i] = std::cos(i * baseAngle);
+				}
+				return out;
+			};
+			static const std::array<coord_t, nPoints> sinTable = initSinTable();
+			static const std::array<coord_t, nPoints> cosTable = initCosTable();
+
+			for (int i = 0; i < nPoints; ++i) {
+				coord_t x = highPoint.x + radius * cosTable[i];
+				coord_t y = highPoint.y + radius * sinTable[i];
+				circleRing.emplace_back(x, y);
+			}
+			Polygon circlePoly{ circleRing };
+			circleVector.addGeometry(circlePoly);
+			auto circleFeature = circleVector.back();
+
+			auto setField = [&](const std::string& name, auto value) {
+				highPointsFeature.setNumericField<decltype(value)>(name, value);
+				circleFeature.setNumericField<decltype(value)>(name, value);
+			};
+			setField("ID", bufferedSegments.atXYUnsafe(highPoint.x, highPoint.y).value());
+			setField("X", highPoint.x);
+			setField("Y", highPoint.y);
+			setField("Height", highPoint.height);
+			setField("Area", highPoint.area);
+			setField("Radius", radius);
+		}
+
+		fs::path highPointFilename = getFullTileFilename(taoDir() / _highPointFolderName, _highPointBasename, OutputUnitLabel::Unitless, tile, "shp");
+		fs::path circleFilename = getFullTileFilename(taoDir() / _circleFolderName, _circleBasename, OutputUnitLabel::Unitless, tile, "shp");
+		writeVectorLogErrors(highPointFilename, highPointsVector);
+		writeVectorLogErrors(circleFilename, circleVector);
+
+		VectorsAndAttributes<MultiPolygon> segmentVectors = rasterToMultiPolygon(unbufferedSegments, highPointsVector.allAttributes().get());
+		segmentVectors.writeShapefile(getFullTileFilename(taoDir(), _segmentsBasename, OutputUnitLabel::Unitless, tile, "shp"));
+	}
 	TaoHandler::TaoHandler(ParamGetter* p) : ProductHandler(p)
 	{
 		_getter = p;
@@ -254,15 +288,14 @@ namespace lapis {
 
 		_writeHighPointsAsArray(highPoints, bufferedCsm, segments, unbufferedExtent, tile);
 
-		segments = cropRaster(segments, unbufferedExtent, SnapType::out);
 		maxHeight = cropRaster(maxHeight, unbufferedExtent, SnapType::out);
 
 		writeRasterLogErrors(getFullTileFilename(taoTempDir(), _segmentsBasename, OutputUnitLabel::Unitless, tile), segments);
-		writeRasterLogErrors(getFullTileFilename(taoDir(), _maxHeightBasename, OutputUnitLabel::Default, tile), maxHeight);
+		writeRasterLogErrors(getFullTileFilename(taoDir() / _maxHeightFolderName, _maxHeightBasename, OutputUnitLabel::Default, tile), maxHeight);
 	}
 	void TaoHandler::cleanup()
 	{
-		LapisLogger::getLogger().setProgress("Assigning Unique TAO IDs");
+		LapisLogger::getLogger().setProgress("Finalizing TAOs");
 		cell_t sofar = 0;
 		std::vector<std::thread> threads;
 		for (int i = 0; i < _getter->nThread(); ++i) {
@@ -282,9 +315,7 @@ namespace lapis {
 						if (!fixedSegments.hasAnyValue()) {
 							continue;
 						}
-						writeRasterLogErrors(getFullTileFilename(taoDir(), _segmentsBasename, OutputUnitLabel::Unitless, thisidx), fixedSegments);
-						std::vector<TaoInfo> highPoints = _readHighPointsFromArray(thisidx);
-						_writeHighPointsAsShp(fixedSegments, highPoints, thisidx);
+						_writeIdLayers(fixedSegments, thisidx);
 					}
 				}
 			));
@@ -313,7 +344,7 @@ namespace lapis {
 
 		pdf.writeSubsectionTitle("TAOs");
 		std::stringstream ss;
-		ss << "The TAOs themselves are stored in files with names like " << getFullTileFilename("", _taoBasename, OutputUnitLabel::Unitless, 0, "shp") << ". ";
+		ss << "The TAOs themselves are stored in files with names like " << getFullTileFilename("", _highPointBasename, OutputUnitLabel::Unitless, 0, "shp") << ". ";
 		ss << "These are point vector files, whose locations represent the TAOs identified by the identification algorithm. ";
 		ss << "There are six attributes in the attribute table. ID is a unique identifier for each TAO. X and Y are the coordinates of the TAO. ";
 		ss << "Height is the height of the TAO, measured from the canopy surface model, in " << pdf.strToLower(_getter->unitPlural()) << ". ";
@@ -325,9 +356,14 @@ namespace lapis {
 		ss.str("");
 		ss.clear();
 		ss << "The files with names like " << getFullTileFilename("", _segmentsBasename, OutputUnitLabel::Unitless, 0) << " ";
-		ss << "represent the division of the landscape into TAOs. The value of each pixel is 0 if that pixel does not belong to any TAO, ";
-		ss << "or matches the ID of the TAO it belongs to, if any. The files have the same resolution as the canoyp surface model.";
+		ss << "represent the division of the landscape into TAOs. There are two variants, raster and polygon. The raster variant assigns ";
+		ss << "each pixel's value to be the ID of the TAO it belongs to, or nodata if it doesn't belong to any TAO. ";
+		ss << "The rasters have the same resolution as the canopy surface model. The polygons represent the same data, converted into polygons,";
+		ss << "each TAO receiving a unique polygon.";
 		pdf.writeTextBlockWithWrap(ss.str());
+
+		pdf.writeSubsectionTitle("Circles");
+		ss.str("");
 
 		pdf.writeSubsectionTitle("Max Height");
 		ss.str("");

@@ -584,34 +584,32 @@ namespace lapis {
 			Vertex(rowcol_t row, rowcol_t col) : row(row), col(col) {}
 			bool operator==(const Vertex&) const = default;
 		};
-		constexpr bool CLOCKWISE = true;
-		constexpr bool COUNTERCLOCKWISE = false;
+		enum class Handedness {
+			rightHand,
+			leftHand
+		};
 		struct Arc {
 			std::list<Vertex> vertices;
 			std::shared_ptr<Arc> nextArc = nullptr;
-			bool clockwise;
-			Arc(Vertex firstVertex, bool clockwise) : clockwise(clockwise) {
+			Handedness handedness;
+			Arc(Vertex firstVertex, Handedness handedness) : handedness(handedness) {
 				vertices.push_back(firstVertex);
 			}
 		};
 
-		//one should be counterclockwise of two
-		//two will be added as the *next* arc after one, so this makes the ring as a whole go clockwise
-		auto connectArcs = [](std::shared_ptr<Arc> one, std::shared_ptr<Arc> two) {
-			assert(one->clockwise != two->clockwise && "arc connection error in polygonization");
-			assert(!(one->nextArc != nullptr || two->prevArc != nullptr) && "arc connection error in polygonization");
-
-			one->nextArc = two;
-		};
-
 		struct FullPolygonId {
 			T multiPolygonId; //the value in the raster; i.e, which multipolygon this will eventually belong to
-			int polygonId; //the specific polygon the cell belongs to. Only needs to be unique within a multiPolygonId, not globally unique
+			cell_t polygonId; //the specific polygon the cell belongs to. Only needs to be unique within a multiPolygonId, not globally unique
 			bool operator==(const FullPolygonId&) const = default;
 		};
+		struct PolygonIdHasher {
+			size_t operator()(const FullPolygonId& id) const {
+				return std::hash<T>()(id.multiPolygonId) ^ (std::hash<cell_t>()(id.polygonId) << 1);
+			}
+		};
 		struct TwoArms {
-			bool horizontalIsSolid; //i.e., does the cell above this one belong to the same polygon
-			bool verticalIsSolid; //i.e., does the cell to the left of this one belong to the same polygon
+			bool horizontalIsSolid = false; //i.e., does the cell above this one belong to the same polygon
+			bool verticalIsSolid = false; //i.e., does the cell to the left of this one belong to the same polygon
 
 			std::shared_ptr<Arc> horizontalArcOuter;
 			std::shared_ptr<Arc> horizontalArcInner;
@@ -627,7 +625,7 @@ namespace lapis {
 			std::shared_ptr<Arc> firstArc; //important because the first arc encoutnered will always be part of the outer ring
 			std::unordered_set<std::shared_ptr<Arc>> allArcs;
 		};
-		std::unordered_map<T, std::unordered_map<int, InProgressPolygon>> allPolygons;
+		std::unordered_map<T, std::unordered_map<cell_t, InProgressPolygon>> allPolygons;
 		auto addArcToPoly = [&allPolygons](std::shared_ptr<Arc> arc, FullPolygonId id) {
 			//the behavior of operator[] to default-construct the value if necessary is desirable here
 			InProgressPolygon& thisPoly = allPolygons[id.multiPolygonId][id.polygonId];
@@ -637,92 +635,105 @@ namespace lapis {
 			thisPoly.allArcs.insert(arc);
 		};
 
-
-
-		Raster<FullPolygonId> intermediateInfo{ (Alignment)r };
-
 		//first pass gets all the cells to have the correct polygon id, using union find
-		std::unordered_map<T, int> nextID; //records how many IDs have been used for the raster value so far, so when a new ID is needed, uniqueness can be assured
-		std::unordered_map<int, int> aliases; //in this object, the key needs to be replaced by the value in the final raster
-		for (rowcol_t row = 0; row < intermediateInfo.nrow(); ++row) {
-			for (rowcol_t col = 0; col < intermediateInfo.ncol(); ++col) {
+		struct UnionFindInfo {
+			cell_t parent;
+			cell_t size;
+		};
+		Raster<UnionFindInfo> unionFindRaster{ (Alignment)r }; //for use in the union-find algorithm
+		auto findAncestor = [&](cell_t cell)->cell_t {
+			std::list<cell_t> toChange{};
+			UnionFindInfo& current = unionFindRaster.atCellUnsafe(cell).value();
+			while (current.parent != cell) {
+				toChange.push_back(cell);
+				cell = current.parent;
+				current = unionFindRaster.atCellUnsafe(cell).value();
+			}
+			for (cell_t id : toChange) {
+				unionFindRaster.atCellUnsafe(id).value().parent = cell;
+			}
+			return cell;
+		};
+		auto patchUnion = [&](cell_t one, cell_t two) {
+			UnionFindInfo& parentOne = unionFindRaster.atCellUnsafe(findAncestor(one)).value();
+			UnionFindInfo& parentTwo = unionFindRaster.atCellUnsafe(findAncestor(two)).value();
+			if (parentOne.parent == parentTwo.parent) {
+				return;
+			}
+
+			if (parentOne.size >= parentTwo.size) {
+				parentTwo.parent = parentOne.parent;
+				parentOne.size = parentOne.size + parentTwo.size;
+			}
+			else {
+				parentOne.parent = two;
+				parentTwo.size = parentOne.size + parentTwo.size;
+			}
+		};
+		for (rowcol_t row = 0; row < r.nrow(); ++row) {
+			for (rowcol_t col = 0; col < r.ncol(); ++col) {
 				auto v = r.atRCUnsafe(row, col);
-				auto intermediateInfoCell = intermediateInfo.atRCUnsafe(row, col);
 				if (!v.has_value()) {
-					intermediateInfoCell.has_value() = false;
 					continue;
 				}
-				intermediateInfoCell.has_value() = true;
-				intermediateInfoCell.value().multiPolygonId = v.value();
-				if (!nextID.contains(v.value())) {
-					nextID.emplace(v.value(), 0);
-				}
-				int leftId = -1;
-				int aboveId = -1;
-				if (row > 0) {
-					auto vAbove = r.atRCUnsafe(row - 1, col);
-					if (vAbove.has_value()) {
-						aboveId = vAbove.value();
-					}
-				}
+				auto vUnionFind = unionFindRaster.atRCUnsafe(row, col);
+				vUnionFind.has_value() = true;
+				bool leftMatch = false;
+				bool aboveMatch = false;
 				if (col > 0) {
 					auto vLeft = r.atRCUnsafe(row, col - 1);
-					if (vLeft.has_value()) {
-						leftId = vLeft.value();
+					leftMatch = v.value() == vLeft.value();
+				}
+				if (row > 0) {
+					auto vAbove = r.atRCUnsafe(row - 1, col);
+					aboveMatch = v.value() == vAbove.value();
+				}
+				
+				if (!leftMatch && !aboveMatch) {
+					unionFindRaster.atRCUnsafe(row, col).value().parent = unionFindRaster.cellFromRowColUnsafe(row, col);
+					unionFindRaster.atRCUnsafe(row, col).value().size = 1;
+				}
+				else if (leftMatch) {
+					cell_t leftParent = findAncestor(unionFindRaster.cellFromRowColUnsafe(row, col - 1));
+					unionFindRaster.atCellUnsafe(leftParent).value().size++;
+					vUnionFind.value().parent = leftParent;
+
+					if (aboveMatch) { //both match
+						patchUnion(r.cellFromRowColUnsafe(row, col), r.cellFromRowColUnsafe(row - 1, col));
 					}
 				}
-				if (leftId == -1 && aboveId == -1) {
-					intermediateInfoCell.value().polygonId = nextID.at(v.value());
-					nextID.at(v.value())++;
-				}
-				else if (leftId != -1 && aboveId == -1) {
-					intermediateInfoCell.value().polygonId = leftId;
-				}
-				else if (leftId == -1 && aboveId != -1) {
-					intermediateInfoCell.value().polygonId = aboveId;
-				}
-				else {
-					intermediateInfoCell.value().polygonId = leftId;
-					int id = aboveId;
-					std::vector<int> toRedirect;
-					toRedirect.push_back(id);
-					while (aliases.contains(id)) {
-						id = aliases.at(id);
-						toRedirect.push_back(id);
-					}
-					for (int n : toRedirect) {
-						aliases.emplace(n, leftId);
-					}
+				else { //only above matches
+					cell_t aboveParent = findAncestor(unionFindRaster.cellFromRowColUnsafe(row - 1, col));
+					unionFindRaster.atCellUnsafe(aboveParent).value().size++;
+					vUnionFind.value().parent = aboveParent;
 				}
 			}
 		}
 
+		Raster<FullPolygonId> polygonIdRaster{ (Alignment)r };
 		//re-label everything based on aliases to ensure there's a single id per polygon
-		for (rowcol_t row = 0; row < intermediateInfo.nrow(); ++row) {
-			for (rowcol_t col = 0; col < intermediateInfo.ncol(); ++col) {
-				auto v = intermediateInfo.atRCUnsafe(row, col);
-				if (!v.has_value()) {
-					continue;
-				}
-				int id = v.value().polygonId;
-				while (aliases.contains(id)) {
-					id = aliases.at(id);
-				}
-				v.value().polygonId = id;
+		for (cell_t cell : CellIterator(polygonIdRaster)) {
+			auto v = r.atCellUnsafe(cell);
+			if (!v.has_value()) {
+				continue;
 			}
+			auto polygonId = polygonIdRaster.atCellUnsafe(cell);
+			polygonId.has_value() = true;
+			polygonId.value().multiPolygonId = v.value();
+			polygonId.value().polygonId = findAncestor(cell);
 		}
 
 		//finally, do some edge tracing
 		//with this algorithm, edges are identified to the left and above the current cell, so we need to go to the "virtual" cells below and to the right of the real data
-		std::vector<TwoArms> prevRow = std::vector<TwoArms>(intermediateInfo.ncol() + 1);
-		for (rowcol_t row = 0; row < intermediateInfo.nrow() + 1; ++row) {
-			std::vector<TwoArms> thisRow = std::vector<TwoArms>(intermediateInfo.ncol() + 1);
+		std::vector<TwoArms> prevRow = std::vector<TwoArms>(polygonIdRaster.ncol() + 1);
+		for (rowcol_t row = 0; row < polygonIdRaster.nrow() + 1; ++row) {
+			std::vector<TwoArms> thisRow = std::vector<TwoArms>(polygonIdRaster.ncol() + 1);
 
 			for (rowcol_t col = 0; col < thisRow.size(); ++col) {
 				TwoArms& thisArms = thisRow[col];
-				if (col < intermediateInfo.ncol() && row < intermediateInfo.nrow()) {
-					if (intermediateInfo.atRCUnsafe(row, col).has_value()) {
-						thisArms.thisPoly = intermediateInfo.atRCUnsafe(row, col).value();
+				if (col < polygonIdRaster.ncol() && row < polygonIdRaster.nrow()) {
+					if (polygonIdRaster.atRCUnsafe(row, col).has_value()) {
+						thisArms.thisPoly = polygonIdRaster.atRCUnsafe(row, col).value();
 					}
 				}
 
@@ -730,24 +741,37 @@ namespace lapis {
 				bool aboveVerticalSolid = false;
 				TwoArms* leftArms = nullptr;
 				TwoArms* aboveArms = nullptr;
-				if (col > 0) {
-					leftArms = &thisRow[col - 1];
-					thisArms.leftPoly = leftArms->thisPoly;
-					thisArms.verticalIsSolid = (thisArms.leftPoly != thisArms.thisPoly);
-					leftHorizontalSolid = leftArms->horizontalIsSolid;
-				}
-				else {
+				if (col == 0) {
 					thisArms.verticalIsSolid = true;
 				}
-				if (row > 0) {
-					aboveArms = &prevRow[col];
-					thisArms.abovePoly = aboveArms->thisPoly;
-					thisArms.horizontalIsSolid = (thisArms.abovePoly != thisArms.thisPoly);
-					aboveVerticalSolid = aboveArms->verticalIsSolid;
-				}
 				else {
+					leftArms = &thisRow[col - 1];
+					thisArms.leftPoly = leftArms->thisPoly;
+					leftHorizontalSolid = leftArms->horizontalIsSolid;
+					if (col == thisRow.size() - 1) {
+						thisArms.verticalIsSolid = true;
+					}
+					else {
+						thisArms.verticalIsSolid = (thisArms.leftPoly != thisArms.thisPoly);
+					}
+				}
+				
+
+				if (row == 0) {
 					thisArms.horizontalIsSolid = true;
 				}
+				else {
+					aboveArms = &prevRow[col];
+					thisArms.abovePoly = aboveArms->thisPoly;
+					aboveVerticalSolid = aboveArms->verticalIsSolid;
+					if (row == polygonIdRaster.nrow()) {
+						thisArms.horizontalIsSolid = true;
+					}
+					else {
+						thisArms.horizontalIsSolid = (thisArms.abovePoly != thisArms.thisPoly);
+					}
+				}
+				
 
 				constexpr uint8_t THIS_VERT_SOLID = 1 << 0;
 				constexpr uint8_t THIS_HORIZ_SOLID = 1 << 1;
@@ -762,10 +786,24 @@ namespace lapis {
 				Vertex currentVertex = Vertex(row, col);
 
 				//these are helper functions for common tasks in the below cases
+				auto connectArcsLeftFirst = [](std::shared_ptr<Arc> one, std::shared_ptr<Arc> two) {
+					assert(one->handedness != two->handedness);
+					std::shared_ptr<Arc> left = one->handedness == Handedness::leftHand ? one : two;
+					std::shared_ptr<Arc> right = one->handedness == Handedness::rightHand ? one : two;
+					assert(left->nextArc == nullptr);
+					left->nextArc = right;
+				};
+				auto connectArcsRightFirst = [](std::shared_ptr<Arc> one, std::shared_ptr<Arc> two) {
+					assert(one->handedness != two->handedness);
+					std::shared_ptr<Arc> left = one->handedness == Handedness::leftHand ? one : two;
+					std::shared_ptr<Arc> right = one->handedness == Handedness::rightHand ? one : two;
+					assert(right->nextArc == nullptr);
+					right->nextArc = left;
+				};
 				auto closeUpperLeftPolyInner = [&]() {
 					aboveArms->verticalArcOuter->vertices.push_back(currentVertex);
 					leftArms->horizontalArcOuter->vertices.push_back(currentVertex);
-					connectArcs(aboveArms->verticalArcOuter, leftArms->horizontalArcOuter);
+					connectArcsLeftFirst(aboveArms->verticalArcOuter, leftArms->horizontalArcOuter);
 				};
 				auto upperVertContinueCornerInner = [&]() {
 					aboveArms->verticalArcInner->vertices.push_back(currentVertex);
@@ -776,14 +814,13 @@ namespace lapis {
 					thisArms.verticalArcOuter = leftArms->horizontalArcInner;
 				};
 				auto makeNewArcsForInnerPoly = [&]() {
-					if (!thisArms.thisPoly.has_value()) {
-						return;
+					thisArms.verticalArcInner = std::make_shared<Arc>(currentVertex, Handedness::rightHand);
+					thisArms.horizontalArcInner = std::make_shared<Arc>(currentVertex, Handedness::leftHand);
+					connectArcsRightFirst(thisArms.verticalArcInner, thisArms.horizontalArcInner);
+					if (thisArms.thisPoly) {
+						addArcToPoly(thisArms.verticalArcInner, *thisArms.thisPoly);
+						addArcToPoly(thisArms.horizontalArcInner, *thisArms.thisPoly);
 					}
-					thisArms.verticalArcInner = std::make_shared<Arc>(currentVertex, COUNTERCLOCKWISE);
-					thisArms.horizontalArcInner = std::make_shared<Arc>(currentVertex, CLOCKWISE);
-					connectArcs(thisArms.verticalArcInner, thisArms.horizontalArcInner);
-					addArcToPoly(thisArms.verticalArcInner, *thisArms.thisPoly);
-					addArcToPoly(thisArms.horizontalArcInner, *thisArms.thisPoly);
 				};
 				auto continueOuterHoriz = [&]() {
 					thisArms.horizontalArcOuter = leftArms->horizontalArcOuter;
@@ -792,16 +829,15 @@ namespace lapis {
 					thisArms.verticalArcOuter = aboveArms->verticalArcOuter;
 				};
 				auto makeNewArcsForOuterPoly = [&]() {
-					if (!thisArms.leftPoly.has_value()) {
-						return;
+					thisArms.verticalArcOuter = std::make_shared<Arc>(currentVertex, Handedness::leftHand);
+					thisArms.horizontalArcOuter = std::make_shared<Arc>(currentVertex, Handedness::rightHand);
+					connectArcsRightFirst(thisArms.verticalArcOuter, thisArms.horizontalArcOuter);
+					if (thisArms.leftPoly) {
+						addArcToPoly(thisArms.verticalArcOuter, *thisArms.leftPoly);
 					}
-					assert(thisArms.upperPoly.has_value()); //in cases where this is called, the upper and left poly should be the same
-					assert(thisArms.upperPoly.value() == thisArms.leftPoly.value());
-					thisArms.verticalArcOuter = std::make_shared<Arc>(currentVertex, COUNTERCLOCKWISE);
-					thisArms.horizontalArcOuter = std::make_shared<Arc>(currentVertex, CLOCKWISE);
-					connectArcs(thisArms.verticalArcOuter, thisArms.horizontalArcOuter);
-					addArcToPoly(thisArms.verticalArcOuter, *thisArms.leftPoly);
-					addArcToPoly(thisArms.horizontalArcOuter, *thisArms.leftPoly);
+					if (thisArms.abovePoly) {
+						addArcToPoly(thisArms.horizontalArcOuter, *thisArms.leftPoly);
+					}
 				};
 				auto continueInnerVert = [&]() {
 					thisArms.verticalArcInner = aboveArms->verticalArcInner;
@@ -820,7 +856,7 @@ namespace lapis {
 				auto closeUpperLeftPolyOuter = [&]() {
 					aboveArms->verticalArcInner->vertices.push_back(currentVertex);
 					leftArms->horizontalArcInner->vertices.push_back(currentVertex);
-					connectArcs(aboveArms->verticalArcInner, leftArms->horizontalArcInner);
+					connectArcsLeftFirst(aboveArms->verticalArcInner, leftArms->horizontalArcInner);
 				};
 
 				//these cases are pulled from the paper cited above
@@ -876,6 +912,7 @@ namespace lapis {
 				case (THIS_HORIZ_SOLID | UPPER_VERT_SOLID): //case k
 					upperVertContinueCornerInner();
 					upperVertContinueCornerOuter();
+					break;
 				case (THIS_HORIZ_SOLID): //case l
 					assert(false);
 					throw std::runtime_error("impossible case in polygonization");
@@ -896,79 +933,104 @@ namespace lapis {
 					//no action necessary
 					break;
 				}
-
-				prevRow = std::move(thisRow);
 			}
+			prevRow = std::move(thisRow);
 		}
 		prevRow.clear();
 
-
 		//finalize the polygons
-
-		VectorsAndAttributes<MultiPolygon> outShp;
-
-
-		auto formRing = [](std::shared_ptr<Arc> startArc, bool clockwise,
+		auto formRing = [](std::shared_ptr<Arc> startArc,
 			InProgressPolygon& inProgressPoly, const Alignment& a)->std::list<CoordXY> {
 
 				std::shared_ptr currentArc = startArc;
 				std::list<Vertex> ringRowCol;
 				do {
 					assert(currentArc->nextArc != nullptr);
-					if (currentArc->clockwise != CLOCKWISE) {
+					if (currentArc->handedness != Handedness::leftHand) {
 						currentArc->vertices.reverse();
 					}
-					currentArc->vertices.pop_back();
+					currentArc->vertices.pop_front();
 					inProgressPoly.allArcs.erase(currentArc);
 					ringRowCol.splice(ringRowCol.end(), currentArc->vertices);
 					currentArc = currentArc->nextArc;
 				} while (currentArc != startArc);
 
-				if (clockwise != CLOCKWISE) {
-					ringRowCol.reverse();
-				}
 				std::list<CoordXY> ringXY;
 				coord_t xAdj = a.xres() / 2.;
 				coord_t yAdj = a.yres() / 2.;
 				for (const Vertex& v : ringRowCol) {
 					//it's important to keep these calls as the unsafe version;
 					//we need the property that they produce a sensible answer even outside the bounds of the alignment
-					coord_t x = a.xFromColUnsafe(v.col) + xAdj;
-					coord_t y = a.yFromRowUnsafe(v.row) - yAdj;
+					coord_t x = a.xFromColUnsafe(v.col) - xAdj;
+					coord_t y = a.yFromRowUnsafe(v.row) + yAdj;
 					ringXY.push_back(CoordXY(x, y));
 				}
 				return ringXY;
 		};
-
+		auto formMultiPoly = [&](T id)->MultiPolygon {
+			MultiPolygon thisMultiPoly{};
+			for (auto& polyKeyValue : allPolygons.at(id)) {
+				Polygon thisPoly{};
+				InProgressPolygon& inProgressPoly = polyKeyValue.second;
+				while (inProgressPoly.allArcs.size()) {
+					if (inProgressPoly.firstArc) {
+						std::list<CoordXY> outerRing = formRing(inProgressPoly.firstArc, inProgressPoly, r);
+						inProgressPoly.firstArc = nullptr;
+						thisPoly = Polygon(outerRing);
+					}
+					else {
+						std::list<CoordXY> innerRing = formRing(*inProgressPoly.allArcs.begin(), inProgressPoly, r);
+						thisPoly.addInnerRing(innerRing);
+					}
+				}
+				thisMultiPoly.addPolygon(thisPoly);
+			}
+			return thisMultiPoly;
+		};
+		VectorsAndAttributes<MultiPolygon> outShp{ r.crs() };
 		if (!attributes) {
 			outShp.addNumericField<T>("ID");
 			for (auto& multiPolyKeyValue : allPolygons) {
-				MultiPolygon thisMultiPoly{};
-				for (auto& polyKeyValue : multiPolyKeyValue.second) {
-					Polygon thisPoly{};
-					InProgressPolygon& inProgressPoly = polyKeyValue.second;
-					while (inProgressPoly.allArcs.size()) {
-						if (inProgressPoly.firstArc) {
-							std::list<CoordXY> outerRing = formRing(inProgressPoly.firstArc, COUNTERCLOCKWISE, inProgressPoly, r);
-							inProgressPoly.firstArc = nullptr;
-							thisPoly = Polygon(outerRing);
-						}
-						else {
-							std::list<CoordXY> innerRing = formRing(*inProgressPoly.allArcs.begin(), CLOCKWISE, inProgressPoly, r);
-							thisPoly.addInnerRing(innerRing);
-						}
-					}
-					thisMultiPoly.addPolygon(thisPoly);
-				}
+				MultiPolygon thisMultiPoly = formMultiPoly(multiPolyKeyValue.first);
 				outShp.addGeometry(thisMultiPoly);
 				outShp.back().setNumericField<T>("ID", multiPolyKeyValue.first);
 			}
-			return outShp;
 		}
 		else {
-			//placeholder
-			return outShp;
+			const std::vector<std::string>& allFieldNames = attributes->getAllFieldNames();
+			for (const std::string& name : allFieldNames) {
+				switch (attributes->getFieldType(name)) {
+				case FieldType::String:
+					outShp.addStringField(name, attributes->getStringFieldWidth(name));
+					break;
+				case FieldType::Real:
+					outShp.addRealField(name);
+					break;
+				case FieldType::Integer:
+					outShp.addIntegerField(name);
+					break;
+				}
+			}
+			for (size_t i = 0; i < attributes->nrow(); ++i) {
+				T multiPolyId = attributes->getNumericField<T>(i, "ID");
+				MultiPolygon thisMultiPoly = formMultiPoly(multiPolyId);
+				outShp.addGeometry(thisMultiPoly);
+				for (const std::string& name : allFieldNames) {
+					switch (outShp.getFieldType(name)) {
+					case FieldType::String:
+						outShp.setStringField(i, name, attributes->getStringField(i, name));
+						break;
+					case FieldType::Real:
+						outShp.setRealField(i, name, attributes->getRealField(i, name));
+						break;
+					case FieldType::Integer:
+						outShp.setIntegerField(i, name, attributes->getIntegerField(i, name));
+						break;
+					}
+				}
+			}
 		}
+		return outShp;
 	}
 }
 

@@ -5,53 +5,52 @@
 
 namespace lapis {
 
-	class GisVector {
+	class Point {
 	public:
-		virtual UniqueOGRGeometry asGdal() const = 0;
-		CoordRef& crs();
-		const CoordRef& crs() const;
-	protected:
-		CoordRef _crs;
+		constexpr static OGRwkbGeometryType gdalGeometryType = wkbPoint;
+		OGRPoint asGdal() const;
 
-		static constexpr bool isNativeLittleEndian();
-		
-		template<class T>
-		static void _appendToWkb(std::vector<uint8_t>& wkb, T value);
-
-		static void _firstBytesOfWkb(std::vector<uint8_t>& wkb, uint32_t wkbFormatNumber);
+		Point() = default;
+		Point(OGRGeometry* gdalGeometry);
+		Point(coord_t x, coord_t y);
+		Point(CoordXY xy);
+	private:
+		coord_t _x;
+		coord_t _y;
 	};
 
-	class Polygon : public GisVector {
-		friend class MultiPoylgon;
+	class Polygon {
 	public:
 
 		constexpr static OGRwkbGeometryType gdalGeometryType = wkbPolygon;
-		UniqueOGRGeometry asGdal() const override;
+		OGRPolygon asGdal() const;
 
 		Polygon() = default;
+		Polygon(OGRGeometry* gdalGeometry);
 
 		//in these functions, do *not* duplicate the first vertex
 		//the outer ring should be listed in counterclockwise order, and inner rings in clockwise order
 		Polygon(const std::list<CoordXY>& outerRing);
+
 		void addInnerRing(const std::list<CoordXY>& innerRing);
 	private:
 		std::list<CoordXY> _outerRing;
 		std::vector<std::list<CoordXY>> _innerRings;
-		void _appendToWkbNoHeader(std::vector<uint8_t>& wkb) const;
-		static void _appendRingToWkb(std::vector<uint8_t>& wkb, const std::list<CoordXY>& ring);
-		static constexpr uint32_t _wkbFormatNumber = 3;
+
+		OGRLinearRing _gdalCurveFromRing(const std::list<CoordXY>& ring) const;
 	};
 
-	class MultiPolygon : public GisVector {
+	class MultiPolygon {
 	public:
 		constexpr static OGRwkbGeometryType gdalGeometryType = wkbMultiPolygon;
-		UniqueOGRGeometry asGdal() const override;
+		OGRMultiPolygon asGdal() const;
 
 		MultiPolygon() = default;
+		MultiPolygon(OGRGeometry* gdalGeometry);
+
 		void addPolygon(const Polygon& polygon);
 	private:
 		std::vector<Polygon> _polygons;
-		static constexpr uint32_t _wkbFormatNumber = 6;
 	};
 
 	enum class FieldType {
@@ -71,7 +70,7 @@ namespace lapis {
 		void resize(size_t nrow);
 		void addRow();
 
-		size_t nrow();
+		size_t nrow() const;
 
 		std::vector<std::string> getAllFieldNames() const;
 		FieldType getFieldType(const std::string& name) const;
@@ -105,7 +104,7 @@ namespace lapis {
 			std::vector<Variant> values;
 		};
 
-		size_t _nrow;
+		size_t _nrow = 0;
 		std::unordered_map<std::string, Field> _fields;
 		std::vector<std::string> _fieldNamesInOrder;
 	};
@@ -142,7 +141,8 @@ namespace lapis {
 	template<class GEOMETRY>
 	class VectorsAndAttributes {
 	public:
-		VectorsAndAttributes() = default;
+		VectorsAndAttributes();
+		explicit VectorsAndAttributes(const CoordRef& crs);
 		VectorsAndAttributes(const std::string& filename);
 
 		void writeShapefile(const std::filesystem::path& filename);
@@ -175,8 +175,10 @@ namespace lapis {
 		SingleGeometryWithAttributes<GEOMETRY> front();
 		SingleGeometryWithAttributes<GEOMETRY> back();
 
-		CoordRef& crs();
+		const std::shared_ptr<AttributeTable> allAttributes() const;
+
 		const CoordRef& crs() const;
+		CoordRef& crs();
 
 		class iterator {
 		public:
@@ -232,13 +234,18 @@ namespace lapis {
 	}
 
 	template<class GEOMETRY>
-	inline CoordRef& VectorsAndAttributes<GEOMETRY>::crs()
+	inline const std::shared_ptr<AttributeTable> VectorsAndAttributes<GEOMETRY>::allAttributes() const
 	{
-		return _crs;
+		return _attributes;
 	}
 
 	template<class GEOMETRY>
 	inline const CoordRef& VectorsAndAttributes<GEOMETRY>::crs() const
+	{
+		return _crs;
+	}
+	template<class GEOMETRY>
+	inline CoordRef& VectorsAndAttributes<GEOMETRY>::crs()
 	{
 		return _crs;
 	}
@@ -315,10 +322,10 @@ namespace lapis {
 	inline T AttributeTable::getNumericField(size_t index, const std::string& name) const
 	{
 		if constexpr (std::is_integral<T>()) {
-			return getIntegerField(index, name, value);
+			return (T)getIntegerField(index, name);
 		}
 		else if constexpr (std::is_floating_point<T>()) {
-			return getRealField(index, name, value);
+			return (T)getRealField(index, name);
 		}
 		else {
 			[] <bool flag = false>()
@@ -347,6 +354,78 @@ namespace lapis {
 	}
 
 	template<class GEOMETRY>
+	inline VectorsAndAttributes<GEOMETRY>::VectorsAndAttributes() : _crs(), _geometry(), _attributes(std::make_shared<AttributeTable>())
+	{
+	}
+
+	template<class GEOMETRY>
+	inline VectorsAndAttributes<GEOMETRY>::VectorsAndAttributes(const CoordRef& crs) : 
+		_crs(crs), _geometry(), _attributes(std::make_shared<AttributeTable>())
+	{
+	}
+
+	template<class GEOMETRY>
+	inline VectorsAndAttributes<GEOMETRY>::VectorsAndAttributes(const std::string& filename) : 
+		_attributes(std::make_shared<AttributeTable>())
+	{
+		gdalAllRegisterThreadSafe();
+		UniqueGdalDataset shp = vectorGDALWrapper(filename);
+		if (!shp) {
+			return;
+		}
+		OGRLayer* layer = shp->GetLayer(0);
+		if (layer->GetGeomType() != GEOMETRY::gdalGeometryType) {
+			throw InvalidVectorFileException(filename + " is not the expected geometry type");
+		}
+		bool initFields = false;
+		for (const OGRFeatureUniquePtr& feature : layer) {
+			if (!initFields) {
+				for (int i = 0; i < feature->GetFieldCount(); ++i) {
+					OGRFieldDefn* field = feature->GetFieldDefnRef(i);
+					switch (field->GetType()) {
+					case OFTInteger:
+					case OFTInteger64:
+						addIntegerField(field->GetNameRef());
+						break;
+					case OFTReal:
+						addRealField(field->GetNameRef());
+						break;
+					case OFTString:
+						addStringField(field->GetNameRef(), field->GetWidth());
+						break;
+					default:
+						throw std::runtime_error("unimplemented field type when reading shapefile");
+					}
+				}
+				initFields = true;
+			}
+			OGRGeometry* gdalGeometry = feature->GetGeometryRef();
+			GEOMETRY myGeometry{ gdalGeometry };
+			addGeometry(myGeometry);
+			for (int i = 0; i < feature->GetFieldCount(); ++i) {
+				OGRFieldDefn* field = feature->GetFieldDefnRef(i);
+				switch (field->GetType()) {
+				case OFTInteger:
+				case OFTInteger64:
+					setIntegerField(_geometry.size() - 1, field->GetNameRef(), feature->GetFieldAsInteger64(field->GetNameRef()));
+					break;
+				case OFTReal:
+					setRealField(_geometry.size() - 1, field->GetNameRef(), feature->GetFieldAsDouble(field->GetNameRef()));
+					break;
+				case OFTString:
+					setStringField(_geometry.size() - 1, field->GetNameRef(), feature->GetFieldAsString(field->GetNameRef()));
+					break;
+				default:
+					throw std::runtime_error("unimplemented field type when reading shapefile");
+				}
+			}
+		}
+		OGRSpatialReference* osr = layer->GetSpatialRef();
+		SharedPJ pj = sharedPJFromOSR(*osr);
+		_crs = CoordRef(pj);
+	}
+
+	template<class GEOMETRY>
 	inline void VectorsAndAttributes<GEOMETRY>::writeShapefile(const std::filesystem::path& filename)
 	{
 		gdalAllRegisterThreadSafe();
@@ -357,15 +436,19 @@ namespace lapis {
 		OGRLayer* layer = outshp->CreateLayer("layer", &crs, GEOMETRY::gdalGeometryType, nullptr);
 
 		for (const auto& fieldName : getAllFieldNames()) {
+			OGRFieldDefn newField = OGRFieldDefn(fieldName.c_str(), OFTString);
 			switch(getFieldType(fieldName)) {
 			case FieldType::String:
-				OGRFieldDefn(fieldName.c_str(), OFTString);
+				newField.SetType(OFTString);
+				layer->CreateField(&newField);
 				break;
 			case FieldType::Real:
-				OGRFieldDefn(fieldName.c_str(), OFTReal);
+				newField.SetType(OFTReal);
+				layer->CreateField(&newField);
 				break;
 			case FieldType::Integer:
-				OGRFieldDefn(fieldName.c_str(), OFTInteger64);
+				newField.SetType(OFTInteger64);
+				layer->CreateField(&newField);
 				break;
 			}
 		}
@@ -385,7 +468,7 @@ namespace lapis {
 				}
 			}
 			auto geometry = feature.getGeometry().asGdal();
-			gdalFeature->SetGeometry(geometry.get());
+			gdalFeature->SetGeometry(&geometry);
 			layer->CreateFeature(gdalFeature.get());
 		}
 	}
@@ -556,13 +639,6 @@ namespace lapis {
 	inline void SingleGeometryWithAttributes<GEOMETRY>::setNumericField(const std::string& name, T value)
 	{
 		_fullAttributeTable->setNumericField<T>(_attributeIndex, name, value);
-	}
-
-	template<class T>
-	inline void GisVector::_appendToWkb(std::vector<uint8_t>& wkb, T value)
-	{
-		uint8_t* bytes = reinterpret_cast<uint8_t*>(&value);
-		wkb.insert(wkb.end(), bytes, bytes + sizeof(T));
 	}
 
 }
