@@ -38,6 +38,22 @@ namespace lapis {
             _innerRings.emplace_back(stdListFromOGRLinearRing(gdalPolygon->getInteriorRing(i)));
         }
     }
+    Polygon::Polygon(const Extent& e)
+    {
+        _outerRing.emplace_back(e.xmin(), e.ymax());
+        _outerRing.emplace_back(e.xmin(), e.ymin());
+        _outerRing.emplace_back(e.xmax(), e.ymin());
+        _outerRing.emplace_back(e.xmax(), e.ymax());
+    }
+    Polygon::Polygon(const QuadExtent& q)
+    {
+        //this list is clockwise, so we need to reverse it
+        const CoordXYVector& coords = q.coords();
+
+        for (int i = (int)(coords.size() - 1); i >= 0; --i) {
+            _outerRing.emplace_back(coords[i]);
+        }
+    }
     OGRLinearRing Polygon::_gdalCurveFromRing(const std::list<CoordXY>& ring) const
     {
         

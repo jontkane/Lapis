@@ -233,7 +233,7 @@ namespace lapis {
 		writeVectorLogErrors(circleFilename, circleVector);
 
 		VectorsAndAttributes<MultiPolygon> segmentVectors = rasterToMultiPolygon(unbufferedSegments, highPointsVector.allAttributes().get());
-		segmentVectors.writeShapefile(getFullTileFilename(taoDir(), _segmentsBasename, OutputUnitLabel::Unitless, tile, "shp"));
+		segmentVectors.writeShapefile(getFullTileFilename(taoDir() / _segmentPolygonFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile, "shp"));
 	}
 	TaoHandler::TaoHandler(ParamGetter* p) : ProductHandler(p)
 	{

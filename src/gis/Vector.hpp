@@ -27,6 +27,8 @@ namespace lapis {
 
 		Polygon() = default;
 		Polygon(OGRGeometry* gdalGeometry);
+		Polygon(const Extent& e);
+		Polygon(const QuadExtent& q);
 
 		//in these functions, do *not* duplicate the first vertex
 		//the outer ring should be listed in counterclockwise order, and inner rings in clockwise order

@@ -49,6 +49,8 @@ namespace lapis {
 		std::optional<Raster<coord_t>> getDem(size_t n, const Extent& e);
 		size_t nDem() const;
 
+		std::shared_ptr<VectorsAndAttributes<Polygon>> demFileLayout();
+
 		//this function is used to expand an elevation raster calculated using whatever algorithm by background DEMs
 		//The output is a raster which matched the alignment of the input raster, with an extent at least as large as desired
 		//The values in the places where unbuffered has values will not be altered, but where unbuffered is NoData, the values will be filled in, where possible,
@@ -86,6 +88,7 @@ namespace lapis {
 		};
 
 		std::vector<DemFileAlignment> _demFileAligns;
+		std::shared_ptr<VectorsAndAttributes<Polygon>> _demLayout;
 		std::unordered_map<CoordRef, std::vector<std::unique_ptr<Alignment>>, CoordRefHasher, CoordRefComparator> _alignsByCrs;
 		void _addCrsToMap(const CoordRef& crs);
 

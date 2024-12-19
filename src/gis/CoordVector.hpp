@@ -37,6 +37,9 @@ namespace lapis {
 		//this is done *in place*. If you don't have ownership of the object, you should use the oop equivalent defined below
 		void transform(const CoordRef& newcrs);
 
+		//as above, but uses a pre-constructed transform object. No checking is done to see if this operation makes sense.
+		void transformWithoutChecking(const CoordTransform& transform);
+
 		void push_back(const T& t);
 		template<class... Args>
 		void emplace_back(Args&&... args) {
@@ -61,7 +64,7 @@ namespace lapis {
 	protected:
 		std::vector<T> _points;
 
-		virtual void _transform(CoordTransform& tr, size_t startIdx);
+		virtual void _transform(const CoordTransform& tr, size_t startIdx);
 	};
 
 	template<class T>
@@ -79,7 +82,7 @@ namespace lapis {
 		}
 
 	protected:
-		void _transform(CoordTransform& tr, size_t startIdx) override;
+		void _transform(const CoordTransform& tr, size_t startIdx) override;
 	};
 
 	using CoordXYVector = CoordVector2D<CoordXY>;
@@ -147,6 +150,13 @@ namespace lapis {
 	}
 
 	template<class T>
+	inline void CoordVector2D<T>::transformWithoutChecking(const CoordTransform& transform)
+	{
+		_transform(transform, 0);
+		crs = transform.dst();
+	}
+
+	template<class T>
 	inline void CoordVector2D<T>::push_back(const T& t) {
 		_points.push_back(t);
 	}
@@ -196,7 +206,7 @@ namespace lapis {
 	}
 
 	template<class T>
-	void CoordVector2D<T>::_transform(CoordTransform& tr, size_t startIdx) {
+	void CoordVector2D<T>::_transform(const CoordTransform& tr, size_t startIdx) {
 		tr.transformXY<T>(_points, startIdx);
 	}
 
@@ -211,7 +221,7 @@ namespace lapis {
 	}
 
 	template<class T>
-	void CoordVector3D<T>::_transform(CoordTransform& tr, size_t startIdx) {
+	void CoordVector3D<T>::_transform(const CoordTransform& tr, size_t startIdx) {
 		tr.transformXYZ<T>(this->_points, startIdx); //will someone please tell me why I get a red squiggly if I don't put this-> here
 	}
 

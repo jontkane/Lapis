@@ -154,6 +154,8 @@ namespace lapis {
 		std::set<DemFileAlignment> fileAligns;
 		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
 		std::optional<LinearUnit> lasUnits;
+		//constructing the transforms is a significant amount of type, so going through the effort to cache them is worth it
+		std::unordered_map<CoordRef, CoordTransform, CoordRefHasher, CoordRefComparator> transforms;
 
 		switch (_demAlgo.currentSelection()) {
 		case DemAlgo::DONTNORMALIZE:
@@ -209,6 +211,16 @@ namespace lapis {
 				_demFileAligns.push_back(d);
 			}
 			_algorithm = std::make_unique<VendorRaster<DemParameter>>(this);
+
+			_demLayout = std::make_shared<VectorsAndAttributes<Polygon>>(rp.userCrsSpecification());
+			_demLayout->addStringField("Filename", 255);
+			for (const auto& fileAlign : fileAligns) {
+				if (!transforms.contains(fileAlign.align.crs())) {
+					transforms.emplace(fileAlign.align.crs(), CoordTransform(fileAlign.align.crs(), rp.userCrsSpecification()));
+				}
+				_demLayout->addGeometry(Polygon(QuadExtent((Extent)fileAlign.align, transforms.at(fileAlign.align.crs()))));
+				_demLayout->back().setStringField("Filename", fileAlign.file.string());
+			}
 			break;
 		default:
 			log.logError("Invalid DEM algorithm value");
@@ -292,6 +304,10 @@ namespace lapis {
 	size_t DemParameter::nDem() const
 	{
 		return _demFileAligns.size();
+	}
+	std::shared_ptr<VectorsAndAttributes<Polygon>> DemParameter::demFileLayout()
+	{
+		return _demLayout;
 	}
 	Raster<coord_t> DemParameter::bufferElevation(const Raster<coord_t>& unbuffered, const Extent& desired)
 	{

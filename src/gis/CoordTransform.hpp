@@ -9,7 +9,7 @@
 namespace lapis {
 	class CoordTransform {
 	public:
-		CoordTransform() : _tr(nullptr), _conv(), _needZConv(false), _needXYConv(false) {}
+		CoordTransform() : _tr(nullptr), _conv(), _needZConv(false), _needXYConv(false), _src(), _dst() {}
 		CoordTransform(const CoordRef& src, const CoordRef& dst);
 
 		PJ* getPtr();
@@ -27,11 +27,16 @@ namespace lapis {
 
 		CoordXY transformSingleXY(coord_t x, coord_t y) const;
 
+		const CoordRef& src() const;
+		const CoordRef& dst() const;
+
 	private:
 		SharedPJ _tr;
 		LinearUnitConverter _conv;
 		bool _needZConv;
 		bool _needXYConv;
+		CoordRef _src;
+		CoordRef _dst;
 	};
 
 	template<class T>

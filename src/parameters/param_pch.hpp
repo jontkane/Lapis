@@ -28,6 +28,7 @@
 #include"../gis/Unit.hpp"
 #include"../gis/LasReader.hpp"
 #include"../gis/LasFilter.hpp"
+#include"../gis/Vector.hpp"
 #include"../utils/LapisLogger.hpp"
 #include"../utils/LapisOSSpecific.hpp"
 

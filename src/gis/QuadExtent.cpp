@@ -19,6 +19,12 @@ namespace lapis {
 		_coords.transform(crs);
 		_initOuter();
 	}
+	QuadExtent::QuadExtent(const Extent& e, const CoordTransform& transform) : _coords(4, e.crs())
+	{
+		_copyFromExtent(e);
+		_coords.transformWithoutChecking(transform);
+		_initOuter();
+	}
 	void QuadExtent::transform(const CoordRef& crs) {
 		_coords.transform(crs);
 	}
@@ -74,6 +80,11 @@ namespace lapis {
 	Extent QuadExtent::outerExtent() const
 	{
 		return _outerExtent;
+	}
+
+	const CoordXYVector& QuadExtent::coords() const
+	{
+		return _coords;
 	}
 
 	void QuadExtent::_copyFromExtent(const Extent& e) {

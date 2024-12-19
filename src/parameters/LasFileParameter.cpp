@@ -102,12 +102,24 @@ namespace lapis {
 		std::vector<LasFileExtent> fileExtentVector;
 		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
 
+		_lasLayout = std::make_shared<VectorsAndAttributes<Polygon>>(outCrs);
+		_lasLayout->addStringField("Filename", 255);
+		std::unordered_map<CoordRef, CoordTransform, CoordRefHasher, CoordRefComparator> transforms;
+
 		for (const LasFileExtent& l : s) {
 			const CoordRef& crs = l.ext.crs();
+			if (!transforms.contains(crs)) {
+				transforms.emplace(crs, CoordTransform(crs, rp.userCrsSpecification()));
+			}
 			countByCRS.try_emplace(crs, 0);
 			countByCRS[crs]++;
-			LasExtent e = { QuadExtent(l.ext, outCrs).outerExtent(), l.ext.nPoints() };
+			QuadExtent q{ l.ext, transforms.at(crs) };
+			LasExtent e = { q.outerExtent(), l.ext.nPoints() };
 			fileExtentVector.emplace_back(l.file, e);
+
+			Polygon poly{ q };
+			_lasLayout->addGeometry(poly);
+			_lasLayout->back().setStringField("Filename", l.file.string());
 		}
 		std::sort(fileExtentVector.begin(), fileExtentVector.end());
 		log.logMessage(std::to_string(fileExtentVector.size()) + " Las Files Found");
@@ -203,6 +215,11 @@ namespace lapis {
 			}
 		}
 		return out;
+	}
+
+	std::shared_ptr<VectorsAndAttributes<Polygon>> LasFileParameter::lasFileLayout()
+	{
+		return _lasLayout;
 	}
 
 	void LasFileParameter::_renderAdvancedOptions()

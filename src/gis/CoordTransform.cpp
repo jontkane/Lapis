@@ -3,7 +3,7 @@
 
 
 namespace lapis{
-	CoordTransform::CoordTransform(const CoordRef& src, const CoordRef& dst) {
+	CoordTransform::CoordTransform(const CoordRef& src, const CoordRef& dst) : _src(src), _dst(dst) {
 		_conv = LinearUnitConverter(src.getZUnits(), dst.getZUnits());
 		_needZConv = !src.isConsistentZUnits(dst);
 		_needXYConv = !src.isConsistentHoriz(dst);
@@ -33,5 +33,13 @@ namespace lapis{
 			nullptr, 0, 0,
 			nullptr, 0, 0);
 		return { x,y };
+	}
+	const CoordRef& CoordTransform::src() const
+	{
+		return _src;
+	}
+	const CoordRef& CoordTransform::dst() const
+	{
+		return _dst;
 	}
 }

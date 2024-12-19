@@ -29,7 +29,7 @@ namespace lapis {
 		}
 		std::sort(sortableValues.begin(), sortableValues.end(), [](auto& a, auto& b) {return a.value > b.value; });
 
-		Raster<bool> masked{ (Alignment)csm }; //this raster's values will be true for pixels which don't qualify as high points because they're too close to another high points
+		Raster<bool> masked{ (Alignment)csm }; //this raster's values will be true for pixels which don't qualify as high points because they're too close to another high point
 
 		struct RelativePosition {
 			rowcol_t x, y;

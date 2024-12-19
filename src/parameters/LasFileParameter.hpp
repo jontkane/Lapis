@@ -5,6 +5,7 @@
 #include"Parameter.hpp"
 
 namespace lapis {
+
 	class LasFileParameter : public Parameter {
 	public:
 
@@ -35,6 +36,8 @@ namespace lapis {
 
 		std::optional<LinearUnit> lasZUnits();
 
+		std::shared_ptr<VectorsAndAttributes<Polygon>> lasFileLayout();
+
 	private:
 		FileSpecifierSet _specifiers{ "Las","las",
 		"Specify input point cloud (las/laz) files in one of three ways:\n"
@@ -49,6 +52,7 @@ namespace lapis {
 		std::vector<std::string> _lasFileNames;
 		std::vector<Extent> _lasExtents;
 		Extent _fullExtent;
+		std::shared_ptr<VectorsAndAttributes<Polygon>> _lasLayout;
 
 		struct LasFileExtent {
 			std::filesystem::path file;

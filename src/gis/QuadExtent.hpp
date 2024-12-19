@@ -20,6 +20,10 @@ namespace lapis {
 
 		QuadExtent(const Extent& e, const CoordRef& crs);
 
+		//applies the transform to the extent, without checking whether this transformation makes sense
+		//use with caution, but allows you to use the same transform over and over without re-constructing
+		QuadExtent(const Extent& e, const CoordTransform& transform);
+
 		void transform(const CoordRef& crs);
 
 		const CoordRef& crs() const;
@@ -63,6 +67,9 @@ namespace lapis {
 
 		//returns the extent object corresponding to the minimal bounding orthogonal rectangle of this quadrilateral
 		Extent outerExtent() const;
+
+		//starts in the lower left corner and goes clockwise
+		const CoordXYVector& coords() const;
 
 private:
 		CoordXYVector _coords;

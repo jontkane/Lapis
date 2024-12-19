@@ -416,6 +416,16 @@ namespace lapis {
 		fs::create_directories(layoutDir);
 		tileLayout.writeShapefile(filename);
 
+		using LayoutPoly = std::shared_ptr<VectorsAndAttributes<Polygon>>;
+		LayoutPoly las = rp.lasFileLayout();
+		if (las) {
+			las->writeShapefile(layoutDir / "LasFileLayout.shp");
+		}
+		LayoutPoly dem = rp.demFileLayout();
+		if (dem) {
+			dem->writeShapefile(layoutDir / "DemFileLayout.shp");
+		}
+
 	}
 
 }

@@ -145,6 +145,16 @@ namespace lapis {
 			"_Row" + insertZeroes(layout()->rowFromCell(tile) + 1, layout()->nrow());
 	}
 
+	std::shared_ptr<VectorsAndAttributes<Polygon>> RunParameters::lasFileLayout()
+	{
+		return getParam<LasFileParameter>().lasFileLayout();
+	}
+
+	std::shared_ptr<VectorsAndAttributes<Polygon>> RunParameters::demFileLayout()
+	{
+		return getParam<DemParameter>().demFileLayout();
+	}
+
 	std::mutex& RunParameters::cellMutex(cell_t cell)
 	{
 		return (*_cellMuts)[cell % _cellMutCount];
