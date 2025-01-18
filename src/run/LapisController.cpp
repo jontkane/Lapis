@@ -40,7 +40,9 @@ namespace lapis {
 		std::filesystem::path logFile = outfolder / "processingLog.txt";
 		log.setLogFile(logFile);
 
+#if LAPIS_HANDLE_ERRORS
 		try {
+#endif
 			PJ* test_proj = proj_create(ProjContextByThread::get(), "EPSG:2927");
 			if (test_proj == nullptr) {
 				log.logError("proj.db not loaded");
@@ -114,6 +116,7 @@ namespace lapis {
 
 			log.closeLogFile();
 			return true;
+#if LAPIS_HANDLE_ERRORS
 		}
 		catch (std::exception e) {
 			log.logError("Fatal error: " + std::string(e.what()));
@@ -123,6 +126,7 @@ namespace lapis {
 			log.closeLogFile();
 			return false;
 		}
+#endif
 	}
 
 	bool LapisController::isRunning() const
@@ -315,13 +319,19 @@ namespace lapis {
 		}
 		LAPIS_CHECK_ABORT;
 
-		Raster<coord_t> croppedDem = cropRaster(*pointGetter->getDem(), projectedExtent, SnapType::near);
-
 		for (auto& handler : _handlers()) {
 			if (handler->doThisProduct()) {
 				if (totalPoints > 0) {
 					handler->finishLasFile(projectedExtent, n);
 				}
+			}
+		}
+
+		std::shared_ptr<Raster<coord_t>> uncroppedDem = pointGetter->getDem();
+
+		if (uncroppedDem) {
+			Raster<coord_t> croppedDem = cropRaster(*uncroppedDem, projectedExtent, SnapType::near);
+			for (auto& handler : _handlers()) {
 				handler->handleDem(croppedDem, n);
 			}
 		}
@@ -396,7 +406,8 @@ namespace lapis {
 			}
 			coord_t xCenter = layout.xFromCell(cell);
 			coord_t yCenter = layout.yFromCell(cell);
-			std::list<CoordXY> outerRing;
+			std::vector<CoordXY> outerRing;
+			outerRing.reserve(4);
 			outerRing.emplace_back(xCenter - xAdj, yCenter + yAdj);
 			outerRing.emplace_back(xCenter + xAdj, yCenter + yAdj);
 			outerRing.emplace_back(xCenter + xAdj, yCenter - yAdj);

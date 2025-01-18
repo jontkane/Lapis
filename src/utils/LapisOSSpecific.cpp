@@ -11,7 +11,6 @@ namespace lapis {
 			copied = GetModuleFileNameA(0, pathBuf.data(), (int)pathBuf.size());
 		} while (copied >= pathBuf.size());
 		pathBuf.resize(copied);
-
 		return std::string(pathBuf.begin(), pathBuf.end());
 #else
 		static_assert(false, "Please implement executableFilePath() for this OS");

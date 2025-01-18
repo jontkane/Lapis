@@ -51,8 +51,11 @@ namespace lapis {
 					thisidx = sofar;
 					++sofar;
 				}
+#if LAPIS_HANDLE_ERRORS
 				try {
+#endif
 					func(thisidx);
+#if LAPIS_HANDLE_ERRORS
 				}
 				catch (std::exception e) {
 					LapisLogger& log = LapisLogger::getLogger();
@@ -61,6 +64,7 @@ namespace lapis {
 					_needAbort = true;
 					return;
 				}
+#endif
 			}
 		}
 

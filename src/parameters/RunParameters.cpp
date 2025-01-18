@@ -279,6 +279,10 @@ namespace lapis {
 	{
 		return getParam<NameParameter>().name();
 	}
+	bool RunParameters::vectorizeSegments()
+	{
+		return getParam<TaoParameter>().vectorizeSegments();
+	}
 
 	void RunParameters::describeParameters(MetadataPdf& pdf)
 	{
@@ -399,6 +403,10 @@ namespace lapis {
 
 			if (vmFull.count("ini-file")) {
 				for (auto& ini : vmFull.at("ini-file").as<std::vector<std::string>>()) {
+					if (!std::filesystem::exists(ini)) {
+						LapisLogger::getLogger().logError(ini + " does not seem to exist.");
+						return ParseResults::invalidOpts;
+					}
 					po::store(po::parse_config_file(ini.c_str(), iniOptions), vmFull);
 					po::notify(vmFull);
 				}

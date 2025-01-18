@@ -30,6 +30,9 @@ namespace lapis {
 		_mindist.addHelpText("If two TAOs are very close to each other, it may represent an error rather than two separate trees. "
 			"If this is set to a value greater than 0, then if two TAOs are too close, the shorter one will be removed.");
 
+		_vectorizeSegments.addHelpText("If this box is checked, vectorized polygons will be produced corresponding to the boundary of each TAO.\n"
+			"This opption is fairly slow and may increase the memory requirements of the run.");
+
 	}
 	void TaoParameter::addToCmd(BoostOptDesc& visible,
 		BoostOptDesc& hidden) {
@@ -61,6 +64,7 @@ namespace lapis {
 
 		_idAlgo.renderGui();
 		_segAlgo.renderGui();
+		_vectorizeSegments.renderGui();
 
 		_mindist.renderGui();
 
@@ -169,6 +173,10 @@ namespace lapis {
 	{
 		prepareForRun();
 		return _segmentAlgorithm.get();
+	}
+	bool TaoParameter::vectorizeSegments()
+	{
+		return _vectorizeSegments.currentState();
 	}
 	int TaoParameter::IdAlgoDecider::operator()(const std::string& s) const
 	{

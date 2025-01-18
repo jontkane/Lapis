@@ -49,6 +49,7 @@ namespace lapis {
 
 		TaoIdAlgorithm* taoIdAlgo();
 		TaoSegmentAlgorithm* taoSegAlgo();
+		bool vectorizeSegments();
 
 	private:
 
@@ -73,6 +74,8 @@ namespace lapis {
 		RadioSelect<SegAlgoDecider, SegAlgo::SegAlgo> _segAlgo{ "Canopy Segmentation Algorithm:","seg-algo" };
 		std::unique_ptr<TaoSegmentAlgorithm> _segmentAlgorithm;
 		RadioBoolean _sameMinHt{ "tao-same-min-ht","Same as Point Metric Canopy Cutoff","Other:" };
+
+		CheckBox _vectorizeSegments{ "Produce Polygons" ,"vectorize-segments" };
 
 		bool _runPrepared = false;
 	};

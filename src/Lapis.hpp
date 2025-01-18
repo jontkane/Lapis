@@ -91,7 +91,6 @@ namespace lapis {
 	}
 
 	int lapisMain(int argc, char* argv[]) {
-		setProjDataDirectory(argv[0]);
 		std::vector<std::string> args;
 		for (int i = 1; i < argc; ++i) { //starting from 1 to skip the exe location, to match the WinMain entry
 			args.push_back(std::string(argv[i]));

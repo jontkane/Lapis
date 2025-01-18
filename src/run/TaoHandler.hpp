@@ -49,7 +49,7 @@ namespace lapis {
 
 		void _updateMap(const Raster<taoid_t>& segments, const std::vector<cell_t>& highPoints, const Extent& unbufferedExtent, cell_t tileidx);
 		Raster<taoid_t> _fixTaoIdsThread(cell_t tile) const;
-		void _writeIdLayers(const Raster<taoid_t>& bufferedSegments, cell_t tile) const;
+		void _writeIdLayers(cell_t tile) const;
 
 		std::string _highPointBasename = "TAOs";
 		std::string _circleBasename = "Circles";

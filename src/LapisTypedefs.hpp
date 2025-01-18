@@ -3,7 +3,9 @@
 #define lp_lapistypedefs_h
 
 #define LAPIS_VERSION_MAJOR 0
-#define LAPIS_VERSION_MINOR 7
+#define LAPIS_VERSION_MINOR 9
+
+#define LAPIS_HANDLE_ERRORS true
 
 namespace lapis {
 

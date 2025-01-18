@@ -32,14 +32,14 @@ namespace lapis {
 
 		//in these functions, do *not* duplicate the first vertex
 		//the outer ring should be listed in counterclockwise order, and inner rings in clockwise order
-		Polygon(const std::list<CoordXY>& outerRing);
+		Polygon(const std::vector<CoordXY>& outerRing);
 
-		void addInnerRing(const std::list<CoordXY>& innerRing);
+		void addInnerRing(const std::vector<CoordXY>& innerRing);
 	private:
-		std::list<CoordXY> _outerRing;
-		std::vector<std::list<CoordXY>> _innerRings;
+		std::vector<CoordXY> _outerRing;
+		std::vector<std::vector<CoordXY>> _innerRings;
 
-		OGRLinearRing _gdalCurveFromRing(const std::list<CoordXY>& ring) const;
+		OGRLinearRing _gdalCurveFromRing(const std::vector<CoordXY>& ring) const;
 	};
 
 	class MultiPolygon {

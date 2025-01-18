@@ -83,6 +83,7 @@ namespace lapis {
 
 		TaoIdAlgorithm* taoIdAlgorithm();
 		TaoSegmentAlgorithm* taoSegAlgorithm();
+		bool vectorizeSegments();
 
 		Raster<coord_t> bufferedElev(const Raster<coord_t>& unbufferedElev);
 		const std::vector<coord_t>& topoWindows();

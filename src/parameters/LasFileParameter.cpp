@@ -109,7 +109,7 @@ namespace lapis {
 		for (const LasFileExtent& l : s) {
 			const CoordRef& crs = l.ext.crs();
 			if (!transforms.contains(crs)) {
-				transforms.emplace(crs, CoordTransform(crs, rp.userCrsSpecification()));
+				transforms.emplace(crs, CoordTransform(crs, outCrs));
 			}
 			countByCRS.try_emplace(crs, 0);
 			countByCRS[crs]++;

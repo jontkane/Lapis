@@ -21,8 +21,9 @@ namespace lapis {
             throw std::invalid_argument("geometry is not a polygon");
         }
 
-        auto stdListFromOGRLinearRing = [](const OGRLinearRing* ogr)->std::list<CoordXY> {
-            std::list<CoordXY> out;
+        auto stdVectorFromOGRLinearRing = [](const OGRLinearRing* ogr)->std::vector<CoordXY> {
+            std::vector<CoordXY> out;
+            out.reserve(ogr->getNumPoints());
             for (const OGRPoint& point : *ogr) {
                 out.emplace_back(point.getX(), point.getY());
             }
@@ -31,11 +32,11 @@ namespace lapis {
         };
 
         OGRLinearRing* outerRing = gdalPolygon->getExteriorRing();
-        _outerRing = stdListFromOGRLinearRing(outerRing);
+        _outerRing = stdVectorFromOGRLinearRing(outerRing);
         int nInnerRing = gdalPolygon->getNumInteriorRings();
         _innerRings.reserve(nInnerRing);
         for (int i = 0; i < nInnerRing; ++i) {
-            _innerRings.emplace_back(stdListFromOGRLinearRing(gdalPolygon->getInteriorRing(i)));
+            _innerRings.emplace_back(stdVectorFromOGRLinearRing(gdalPolygon->getInteriorRing(i)));
         }
     }
     Polygon::Polygon(const Extent& e)
@@ -54,7 +55,7 @@ namespace lapis {
             _outerRing.emplace_back(coords[i]);
         }
     }
-    OGRLinearRing Polygon::_gdalCurveFromRing(const std::list<CoordXY>& ring) const
+    OGRLinearRing Polygon::_gdalCurveFromRing(const std::vector<CoordXY>& ring) const
     {
         
         OGRLinearRing out{};
@@ -71,8 +72,8 @@ namespace lapis {
         addPoint(ring.front());
         return out;
     }
-    Polygon::Polygon(const std::list<CoordXY>& outerRing) :_outerRing(outerRing) {}
-    void Polygon::addInnerRing(const std::list<CoordXY>& innerRing)
+    Polygon::Polygon(const std::vector<CoordXY>& outerRing) :_outerRing(outerRing) {}
+    void Polygon::addInnerRing(const std::vector<CoordXY>& innerRing)
     {
         _innerRings.push_back(innerRing);
     }

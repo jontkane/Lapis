@@ -147,19 +147,22 @@ namespace lapis {
 		}
 		return segments;
 	}
-	void TaoHandler::_writeIdLayers(const Raster<taoid_t>& bufferedSegments, cell_t tile) const
+	void TaoHandler::_writeIdLayers(cell_t tile) const
 	{
 		namespace fs = std::filesystem;
 		gdalAllRegisterThreadSafe();
 		fs::create_directories(taoDir());
 
+		Raster<taoid_t> segments = _fixTaoIdsThread(tile); //currently buffered
+		if (!segments.hasAnyValue()) {
+			return;
+		}
+
 		Extent unbufferedExtent = _getter->layout()->extentFromCell(tile);
-		Raster<taoid_t> unbufferedSegments = cropRaster(bufferedSegments, unbufferedExtent, SnapType::out);
-		writeRasterLogErrors(getFullTileFilename(taoDir() / _segmentRasterFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile), unbufferedSegments);
 
 		std::vector<TaoInfo> highPoints = _readHighPointsFromArray(tile);
-		VectorsAndAttributes<Point> highPointsVector{ bufferedSegments.crs() };
-		VectorsAndAttributes<Polygon> circleVector{ bufferedSegments.crs() };
+		VectorsAndAttributes<Point> highPointsVector{ segments.crs() };
+		VectorsAndAttributes<Polygon> circleVector{segments.crs()};
 
 		auto addIntegerField = [&](const std::string& name) {
 			highPointsVector.addIntegerField(name);
@@ -186,7 +189,6 @@ namespace lapis {
 			auto highPointsFeature = highPointsVector.back();
 
 			coord_t radius = std::sqrt(highPoint.area / M_PI);
-			std::list<CoordXY> circleRing;
 			constexpr int nPoints = 64;
 			constexpr double baseAngle = 2. * M_PI / nPoints;
 			auto initSinTable = [&]()->std::array<coord_t, nPoints> {
@@ -206,6 +208,8 @@ namespace lapis {
 			static const std::array<coord_t, nPoints> sinTable = initSinTable();
 			static const std::array<coord_t, nPoints> cosTable = initCosTable();
 
+			std::vector<CoordXY> circleRing;
+			circleRing.reserve(nPoints);
 			for (int i = 0; i < nPoints; ++i) {
 				coord_t x = highPoint.x + radius * cosTable[i];
 				coord_t y = highPoint.y + radius * sinTable[i];
@@ -219,7 +223,7 @@ namespace lapis {
 				highPointsFeature.setNumericField<decltype(value)>(name, value);
 				circleFeature.setNumericField<decltype(value)>(name, value);
 			};
-			setField("ID", bufferedSegments.atXYUnsafe(highPoint.x, highPoint.y).value());
+			setField("ID", segments.atXYUnsafe(highPoint.x, highPoint.y).value());
 			setField("X", highPoint.x);
 			setField("Y", highPoint.y);
 			setField("Height", highPoint.height);
@@ -231,9 +235,15 @@ namespace lapis {
 		fs::path circleFilename = getFullTileFilename(taoDir() / _circleFolderName, _circleBasename, OutputUnitLabel::Unitless, tile, "shp");
 		writeVectorLogErrors(highPointFilename, highPointsVector);
 		writeVectorLogErrors(circleFilename, circleVector);
+		circleVector = VectorsAndAttributes<Polygon>{}; //destructing early to save a bit of memory
 
-		VectorsAndAttributes<MultiPolygon> segmentVectors = rasterToMultiPolygon(unbufferedSegments, highPointsVector.allAttributes().get());
-		segmentVectors.writeShapefile(getFullTileFilename(taoDir() / _segmentPolygonFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile, "shp"));
+		if (RunParameters::singleton().vectorizeSegments()) {
+			VectorsAndAttributes<MultiPolygon> segmentsVector = rasterToMultiPolygonForTaos(segments, highPointsVector.allAttributes().get());
+			writeVectorLogErrors(getFullTileFilename(taoDir() / _segmentPolygonFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile, "shp"), segmentsVector);
+		}
+
+		segments = cropRaster(segments, unbufferedExtent, SnapType::out);
+		writeRasterLogErrors(getFullTileFilename(taoDir() / _segmentRasterFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile), segments);
 	}
 	TaoHandler::TaoHandler(ParamGetter* p) : ProductHandler(p)
 	{
@@ -311,11 +321,7 @@ namespace lapis {
 							thisidx = sofar;
 							++sofar;
 						}
-						Raster<taoid_t> fixedSegments = _fixTaoIdsThread(thisidx);
-						if (!fixedSegments.hasAnyValue()) {
-							continue;
-						}
-						_writeIdLayers(fixedSegments, thisidx);
+						_writeIdLayers(thisidx);
 					}
 				}
 			));
