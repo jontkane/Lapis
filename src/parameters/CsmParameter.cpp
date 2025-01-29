@@ -152,6 +152,10 @@ namespace lapis {
 	{
 		return _doMetrics.currentState();
 	}
+	coord_t CsmParameter::csmCellSize() const
+	{
+		return _cellsize.getValueLogErrors();
+	}
 	CsmAlgorithm* CsmParameter::csmAlgorithm()
 	{
 		prepareForRun();

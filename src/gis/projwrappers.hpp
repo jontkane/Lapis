@@ -38,6 +38,8 @@ namespace lapis {
 		int* _confidence;
 		PJ_OBJ_LIST* _obj;
 	};
+
+	void setProjDirectory(const std::string& path, PJ_CONTEXT* context);
 }
 
 #endif

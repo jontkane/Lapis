@@ -1,6 +1,7 @@
 #include"gis_pch.hpp"
 #include"projwrappers.hpp"
 #include"GDALWrappers.hpp"
+#include"..\utils\LapisOSSpecific.hpp"
 
 namespace lapis {
 	PJ_CONTEXT* ProjContextByThread::get()
@@ -8,6 +9,7 @@ namespace lapis {
 		std::thread::id thisthread = std::this_thread::get_id();
 		if (!_ctxs.count(thisthread)) {
 			_ctxs[thisthread] = getNewPJContext();
+			setProjDirectory(executableFilePath(), _ctxs[thisthread].get());
 		}
 		return _ctxs[thisthread].get();
 	}
@@ -57,6 +59,19 @@ namespace lapis {
 	{
 		UniqueGdalString wgs = exportToWktWrapper(osr);
 		return projCreateWrapper(wgs.get());
+	}
+	void setProjDirectory(const std::string& path, PJ_CONTEXT* context)
+	{
+		namespace fs = std::filesystem;
+		std::string folder;
+		if (!fs::is_directory(path)) {
+			folder = fs::path(path).parent_path().string();
+		}
+		else {
+			folder = path;
+		}
+		char* data = folder.data();
+		proj_context_set_search_paths(context, 1, &data);
 	}
 	PJIdentifyWrapper::PJIdentifyWrapper(const SharedPJ& p, const std::string& auth) : _obj(nullptr), _confidence(nullptr)
 	{

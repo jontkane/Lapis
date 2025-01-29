@@ -29,15 +29,6 @@ namespace lapis {
 		LapisController::replaceHandlerWithMod<HANDLER>(newBehavior);
 	}
 
-	void setProjDataDirectory(const char* exeName) {
-		std::string parent = std::filesystem::path(exeName).parent_path().string();
-		char* cStr = new char[parent.size() + 1];
-		strncpy_s(cStr,parent.size() + 1, parent.c_str(), parent.size());
-		proj_context_set_search_paths(nullptr, 1, &cStr);
-
-		delete[] cStr;
-	}
-
 	int lapisUnifiedMain(std::vector<std::string> args) {
 		if (!args.size()) {
 			args.push_back("--help");
@@ -50,7 +41,6 @@ namespace lapis {
 		CPLSetErrorHandler(silenceGDALErrors);
 		proj_log_level(ProjContextByThread::get(), PJ_LOG_NONE);
 #endif
-		setProjDataDirectory(executableFilePath().c_str());
 
 		RunParameters& rp = RunParameters::singleton();
 		rp.resetObject();

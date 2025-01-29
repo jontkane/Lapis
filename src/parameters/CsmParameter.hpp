@@ -33,6 +33,8 @@ namespace lapis {
 		std::shared_ptr<Alignment> csmAlign();
 		bool doCsmMetrics() const;
 
+		coord_t csmCellSize() const;
+
 		CsmAlgorithm* csmAlgorithm();
 		CsmPostProcessor* csmPostProcessor();
 

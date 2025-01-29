@@ -1,6 +1,7 @@
 #include"param_pch.hpp"
 #include"FineIntParameter.hpp"
 #include"RunParameters.hpp"
+#include"CsmParameter.hpp"
 
 namespace lapis {
 
@@ -144,5 +145,17 @@ namespace lapis {
 			return std::numeric_limits<coord_t>::lowest();
 		}
 		return _sameCutoff.currentState() ? RunParameters::singleton().canopyCutoff() : _cutoff.getValueLogErrors();
+	}
+	coord_t FineIntParameter::fineIntCellSize() const
+	{
+		RunParameters& rp = RunParameters::singleton();
+		coord_t cellsize = 1;
+		if (_sameCellsize.currentState()) {
+			rp.getParam<CsmParameter>().csmCellSize();
+		}
+		else {
+			cellsize = _cellsize.getValueLogErrors();
+		}
+		return cellsize;
 	}
 }

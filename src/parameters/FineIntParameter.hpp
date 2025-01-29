@@ -30,6 +30,7 @@ namespace lapis {
 
 		std::shared_ptr<Alignment> fineIntAlign();
 		coord_t fineIntCutoff() const;
+		coord_t fineIntCellSize() const;
 
 	private:
 		Title _title{ "Fine-Scale Intensity Options" };
