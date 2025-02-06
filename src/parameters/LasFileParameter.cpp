@@ -83,7 +83,10 @@ namespace lapis {
 		log.setProgress("Identifying LAS Files");
 
 		std::set<LasFileExtent> s = _specifiers.getFiles<LasOpener,LasFileExtent>(LasOpener(_crs.cachedCrs(),_unit.currentSelection()));
-		for (auto& las : s) {
+		auto it = s.begin();
+		while (it != s.end()) {
+			auto& las = *it;
+			++it;
 			if (!rp.overlapsAoI(las.ext)) {
 				s.erase(las);
 			}

@@ -41,7 +41,7 @@ namespace lapis {
 		CPLSetErrorHandler(silenceGDALErrors);
 		proj_log_level(ProjContextByThread::get(), PJ_LOG_NONE);
 #endif
-
+		setProjDirectory(executableFilePath(), nullptr);
 		RunParameters& rp = RunParameters::singleton();
 		rp.resetObject();
 		using pr = RunParameters::ParseResults;
