@@ -49,6 +49,9 @@ namespace lapis {
 
 		_idAlgo.printToIni(o);
 		_segAlgo.printToIni(o);
+
+
+		_vectorizeSegments.printToIni(o);
 		return o;
 	}
 	ParamCategory TaoParameter::getCategory() const {
