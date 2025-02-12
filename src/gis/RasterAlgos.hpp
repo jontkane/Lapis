@@ -590,7 +590,7 @@ namespace lapis {
 		};
 		struct Arc {
 			std::list<Vertex> vertices;
-			std::shared_ptr<Arc> nextArc = nullptr;
+			std::weak_ptr<Arc> nextArc;
 			Handedness handedness;
 			Arc(Vertex firstVertex, Handedness handedness) : handedness(handedness) {
 				vertices.push_back(firstVertex);
@@ -718,11 +718,10 @@ namespace lapis {
 			valueByFinalRow[keyValue.second].push_back(keyValue.first);
 		}
 
-
 		auto formRing = [](std::shared_ptr<Arc> startArc,
 			InProgressPolygon& inProgressPoly, const Alignment& a)->std::vector<CoordXY> {
 
-				std::shared_ptr currentArc = startArc;
+				std::shared_ptr<Arc> currentArc = startArc;
 				std::list<Vertex> ringRowCol;
 				do {
 					assert(currentArc->nextArc != nullptr);
@@ -732,7 +731,7 @@ namespace lapis {
 					currentArc->vertices.pop_front();
 					inProgressPoly.allArcs.erase(currentArc);
 					ringRowCol.splice(ringRowCol.end(), currentArc->vertices);
-					currentArc = currentArc->nextArc;
+					currentArc = currentArc->nextArc.lock();
 				} while (currentArc != startArc);
 
 				std::vector<CoordXY> ringXY;
@@ -1012,32 +1011,30 @@ namespace lapis {
 				continue;
 			}
 			for (T value : valueByFinalRow[row - 1]) {
-				if (attributes && !attributeRows.contains(value)) {
-					allPolygons.erase(value);
-					continue;
-				}
-				MultiPolygon thisMultiPoly = formMultiPoly(value);
-				allPolygons.erase(value);
-				outShp.addGeometry(thisMultiPoly);
-				if (!attributes) {
-					outShp.back().setNumericField<T>("ID", value);
-				}
-				else {
-					size_t attributeRow = attributeRows.at(value);
-					for (const std::string& name : attributes->getAllFieldNames()) {
-						switch (outShp.getFieldType(name)) {
-						case FieldType::String:
-							outShp.back().setStringField(name, attributes->getStringField(attributeRow, name));
-							break;
-						case FieldType::Real:
-							outShp.back().setRealField(name, attributes->getRealField(attributeRow, name));
-							break;
-						case FieldType::Integer:
-							outShp.back().setIntegerField(name, attributes->getIntegerField(attributeRow, name));
-							break;
+				if (!attributes || attributeRows.contains(value)) {
+					MultiPolygon thisMultiPoly = formMultiPoly(value);
+					outShp.addGeometry(thisMultiPoly);
+					if (!attributes) {
+						outShp.back().setNumericField<T>("ID", value);
+					}
+					else {
+						size_t attributeRow = attributeRows.at(value);
+						for (const std::string& name : attributes->getAllFieldNames()) {
+							switch (outShp.getFieldType(name)) {
+							case FieldType::String:
+								outShp.back().setStringField(name, attributes->getStringField(attributeRow, name));
+								break;
+							case FieldType::Real:
+								outShp.back().setRealField(name, attributes->getRealField(attributeRow, name));
+								break;
+							case FieldType::Integer:
+								outShp.back().setIntegerField(name, attributes->getIntegerField(attributeRow, name));
+								break;
+							}
 						}
 					}
 				}
+				allPolygons.erase(value);
 			}
 		}
 
