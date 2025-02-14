@@ -31,7 +31,7 @@ namespace lapis {
 			"If this is set to a value greater than 0, then if two TAOs are too close, the shorter one will be removed.");
 
 		_vectorizeSegments.addHelpText("If this box is checked, vectorized polygons will be produced corresponding to the boundary of each TAO.\n"
-			"This opption is fairly slow and may increase the memory requirements of the run.");
+			"This option is fairly slow and may increase the memory requirements of the run.");
 
 	}
 	void TaoParameter::addToCmd(BoostOptDesc& visible,
