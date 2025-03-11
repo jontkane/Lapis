@@ -154,8 +154,6 @@ namespace lapis {
 		std::set<DemFileAlignment> fileAligns;
 		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
 		std::optional<LinearUnit> lasUnits;
-		//constructing the transforms is a significant amount of type, so going through the effort to cache them is worth it
-		std::unordered_map<CoordRef, CoordTransform, CoordRefHasher, CoordRefComparator> transforms;
 
 		switch (_demAlgo.currentSelection()) {
 		case DemAlgo::DONTNORMALIZE:
@@ -180,7 +178,6 @@ namespace lapis {
 				}
 				_demUnitsCache = lasUnits.value();
 			}
-
 
 			fileAligns = _specifiers.getFiles<DemOpener, DemFileAlignment>(DemOpener(_crs.cachedCrs(),_demUnitsCache));
 			for (auto& dem : fileAligns) {
@@ -211,16 +208,6 @@ namespace lapis {
 				_demFileAligns.push_back(d);
 			}
 			_algorithm = std::make_unique<VendorRaster<DemParameter>>(this);
-
-			_demLayout = std::make_shared<VectorsAndAttributes<Polygon>>(rp.userCrsSpecification());
-			_demLayout->addStringField("Filename", 255);
-			for (const auto& fileAlign : fileAligns) {
-				if (!transforms.contains(fileAlign.align.crs())) {
-					transforms.emplace(fileAlign.align.crs(), CoordTransform(fileAlign.align.crs(), rp.userCrsSpecification()));
-				}
-				_demLayout->addGeometry(Polygon(QuadExtent((Extent)fileAlign.align, transforms.at(fileAlign.align.crs()))));
-				_demLayout->back().setStringField("Filename", fileAlign.file.string());
-			}
 			break;
 		default:
 			log.logError("Invalid DEM algorithm value");
@@ -228,7 +215,6 @@ namespace lapis {
 		}
 
 		if (_demFileAligns.size()) {
-
 			auto demSort = [](const DemFileAlignment& a, const DemFileAlignment& b) {
 				if (a.align.crs().isConsistentHoriz(b.align.crs())) {
 					return (a.align.xres() * a.align.yres()) < (b.align.xres() * b.align.yres());
@@ -239,7 +225,6 @@ namespace lapis {
 				}
 			};
 			std::sort(_demFileAligns.begin(), _demFileAligns.end(), demSort);
-
 		}
 
 		_runPrepared = true;
@@ -307,6 +292,27 @@ namespace lapis {
 	}
 	std::shared_ptr<VectorsAndAttributes<Polygon>> DemParameter::demFileLayout()
 	{
+		RunParameters& rp = RunParameters::singleton();
+
+		if (_demAlgo.currentSelection() != DemAlgo::VENDORRASTER) {
+			return nullptr;
+		}
+		if (_demLayout) {
+			return _demLayout;
+		}
+
+		//constructing the transforms is a significant amount of time, so going through the effort to cache them is worth it
+		std::unordered_map<CoordRef, CoordTransform, CoordRefHasher, CoordRefComparator> transforms;
+
+		_demLayout = std::make_shared<VectorsAndAttributes<Polygon>>(rp.outputCrs());
+		_demLayout->addStringField("Filename", 255);
+		for (const auto& fileAlign : _demFileAligns) {
+			if (!transforms.contains(fileAlign.align.crs())) {
+				transforms.emplace(fileAlign.align.crs(), CoordTransform(fileAlign.align.crs(), rp.outputCrs()));
+			}
+			_demLayout->addGeometry(Polygon(QuadExtent((Extent)fileAlign.align, transforms.at(fileAlign.align.crs()))));
+			_demLayout->back().setStringField("Filename", fileAlign.file.string());
+		}
 		return _demLayout;
 	}
 	Raster<coord_t> DemParameter::bufferElevation(const Raster<coord_t>& unbuffered, const Extent& desired)
