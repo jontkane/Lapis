@@ -48,8 +48,8 @@ namespace lapis {
 		//returns true if the extents touch at all, even at a single point
 		bool touches(const Extent& e) const;
 
-		//this version of the functions do no sanity checking on CRS. Not unsafe in the sense that they might cause a crash, but unsafe in the sense that they might
-		//allow bugs to escape detection. However, they are much faster
+		//this version of the function does no sanity checking on CRS. Not unsafe in the sense that they might cause a crash, but unsafe in the sense that it might
+		//allow bugs to escape detection. However, it is much faster
 		bool overlapsUnsafe(const Extent& e) const;
 
 		//returns true if the specified point is contained in the extent (edge counts)
