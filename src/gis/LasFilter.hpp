@@ -3,6 +3,7 @@
 #define lp_lasheader_h
 
 #include"CurrentLasPoint.hpp"
+#include"Vector.hpp"
 
 namespace lapis {
 
@@ -39,45 +40,29 @@ namespace lapis {
 	//Note that this class only has access to un-normalized Z values. It cannot filter by height, only by elevation.
 	class LasFilter {
 	public:
-		LasFilter() {
-			priority = lasfilterpriority::mid;
-		}
+		LasFilter();
 		virtual bool isFiltered(const CurrentLasPoint& p) = 0;
 		lasfilterpriority priority;
 	};
 
 	class LasFilterFirstReturns : public LasFilter {
 	public:
-		LasFilterFirstReturns() {
-			priority = lasfilterpriority::high;
-		}
-		bool isFiltered(const CurrentLasPoint& p) override {
-			return p.returnNumber() != 1;
-		}
+		LasFilterFirstReturns();
+		bool isFiltered(const CurrentLasPoint& p) override;
 	};
 
 	class LasFilterOnlyReturns : public LasFilter {
 	public:
-		LasFilterOnlyReturns() {
-			priority = lasfilterpriority::high;
-		}
-		bool isFiltered(const CurrentLasPoint& p) override {
-			return p.numberOfReturns() != 1;
-		}
+		LasFilterOnlyReturns();
+		bool isFiltered(const CurrentLasPoint& p) override;
 	};
 
 	class LasFilterClassWhitelist : public LasFilter {
 	public:
-		LasFilterClassWhitelist(const std::unordered_set<std::uint8_t>& whitelist) : whitelist(whitelist) {
-			priority = lasfilterpriority::mid;
-		}
-		bool isFiltered(const CurrentLasPoint& p) override {
-			return !whitelist.contains(p.classification());
-		}
+		LasFilterClassWhitelist(const std::unordered_set<std::uint8_t>& whitelist);
+		bool isFiltered(const CurrentLasPoint& p) override;
 
-		const std::unordered_set<std::uint8_t>& getSet() const {
-			return whitelist;
-		}
+		const std::unordered_set<std::uint8_t>& getSet() const;
 
 	private:
 		std::unordered_set<std::uint8_t> whitelist;
@@ -85,16 +70,10 @@ namespace lapis {
 
 	class LasFilterClassBlacklist : public LasFilter {
 	public:
-		LasFilterClassBlacklist(const std::unordered_set<std::uint8_t>& blacklist) : blacklist(blacklist) {
-			priority = lasfilterpriority::low;
-		}
-		bool isFiltered(const CurrentLasPoint& p) override {
-			return blacklist.contains(p.classification());
-		}
+		LasFilterClassBlacklist(const std::unordered_set<std::uint8_t>& blacklist);
+		bool isFiltered(const CurrentLasPoint& p) override;
 
-		const std::unordered_set<std::uint8_t>& getSet() const {
-			return blacklist;
-		}
+		const std::unordered_set<std::uint8_t>& getSet() const;
 
 	private:
 		std::unordered_set<std::uint8_t> blacklist;
@@ -102,48 +81,48 @@ namespace lapis {
 
 	class LasFilterWithheld : public LasFilter {
 	public:
-		LasFilterWithheld() {
-			priority = lasfilterpriority::high;
-		}
-		bool isFiltered(const CurrentLasPoint& p) override {
-			return p.withheld();
-		}
+		LasFilterWithheld();
+		bool isFiltered(const CurrentLasPoint& p) override;
 	};
 
 	class LasFilterMaxScanAngle : public LasFilter {
 	public:
-		LasFilterMaxScanAngle(double maxscan) : maxscan(maxscan) {
-			priority = lasfilterpriority::mid;
-		}
-		bool isFiltered(const CurrentLasPoint& p) override {
-			return std::abs(p.scanAngle()) > maxscan;
-		}
+		LasFilterMaxScanAngle(double maxscan);
+		bool isFiltered(const CurrentLasPoint& p) override;
 	private:
 		double maxscan;
 	};
 
 	class LasFilterAlwaysFail : public LasFilter {
 	public:
-		LasFilterAlwaysFail() {
-			priority = lasfilterpriority::high;
-		}
-		bool isFiltered(const CurrentLasPoint& p) override {
-			return true;
-		}
+		LasFilterAlwaysFail();
+		bool isFiltered(const CurrentLasPoint& p) override;
 	};
 
 	//this filter assumes that the extent matches the LasReader's crs
 	class LasFilterExtent : public LasFilter {
 	public:
-		LasFilterExtent(const Extent& e): _e(e) {
-			priority = lasfilterpriority::mid;
-		}
-		bool isFiltered(const CurrentLasPoint& p) override {
-			return !(_e.contains(p.x(), p.y()));
-		}
+		LasFilterExtent(const Extent& e);
+		bool isFiltered(const CurrentLasPoint& p) override;
 	private:
 		Extent _e;
 	};
+
+	class LasFilterPolygon : public LasFilter {
+	public:
+		LasFilterPolygon(const VectorsAndAttributes<Polygon>& polygons);
+		LasFilterPolygon(const VectorsAndAttributes<MultiPolygon>& polygons);
+		bool isFiltered(const CurrentLasPoint& p) override;
+	private:
+		std::vector<Polygon> _polygons;
+		CoordRef _crs;
+
+		std::shared_mutex _mut;
+		std::unordered_map<const CurrentLasPoint*, PolygonOverlap> _overlaps;
+		std::unordered_map<const CurrentLasPoint*, CoordTransform> _transforms;
+		void _updateMaps(const CurrentLasPoint& p);
+	};
+
 }
 
 #endif

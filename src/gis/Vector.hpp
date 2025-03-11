@@ -7,22 +7,29 @@ namespace lapis {
 
 	class Point {
 	public:
-		constexpr static OGRwkbGeometryType gdalGeometryType = wkbPoint;
 		OGRPoint asGdal() const;
 
 		Point() = default;
 		Point(OGRGeometry* gdalGeometry);
 		Point(coord_t x, coord_t y);
 		Point(CoordXY xy);
+
+		static const std::unordered_set<OGRwkbGeometryType>& gdalGeometryTypes();
+		static OGRwkbGeometryType primaryGdalGeometryType();
 	private:
 		coord_t _x;
 		coord_t _y;
 	};
 
+	enum class PolygonOverlap {
+		NoOverlap,
+		PartialOverlap,
+		InputContainsThis,
+		InputContainedByThis
+	};
+
 	class Polygon {
 	public:
-
-		constexpr static OGRwkbGeometryType gdalGeometryType = wkbPolygon;
 		OGRPolygon asGdal() const;
 
 		Polygon() = default;
@@ -35,22 +42,41 @@ namespace lapis {
 		Polygon(const std::vector<CoordXY>& outerRing);
 
 		void addInnerRing(const std::vector<CoordXY>& innerRing);
+
+
+		//Polygons do not contain CRS info, so these are assumed to be the same CRS as the polygon
+		bool pointInPolygon(coord_t x, coord_t y) const;
+		PolygonOverlap extentOverlaps(const Extent& e) const;
+
+
+		static const std::unordered_set<OGRwkbGeometryType>& gdalGeometryTypes();
+		static OGRwkbGeometryType primaryGdalGeometryType();
+
 	private:
 		std::vector<CoordXY> _outerRing;
 		std::vector<std::vector<CoordXY>> _innerRings;
 
 		OGRLinearRing _gdalCurveFromRing(const std::vector<CoordXY>& ring) const;
+
+		bool _pointInRing(coord_t x, coord_t y, const std::vector<CoordXY>& ring) const;
+		PolygonOverlap _extentOverlapsRing(const Extent& e, const std::vector<CoordXY>& ring) const;
+
+
 	};
 
 	class MultiPolygon {
 	public:
-		constexpr static OGRwkbGeometryType gdalGeometryType = wkbMultiPolygon;
 		OGRMultiPolygon asGdal() const;
 
 		MultiPolygon() = default;
 		MultiPolygon(OGRGeometry* gdalGeometry);
 
 		void addPolygon(const Polygon& polygon);
+
+		static const std::unordered_set<OGRwkbGeometryType>& gdalGeometryTypes();
+		static OGRwkbGeometryType primaryGdalGeometryType();
+
+		const std::vector<Polygon>& polygons() const;
 	private:
 		std::vector<Polygon> _polygons;
 	};
@@ -173,6 +199,8 @@ namespace lapis {
 
 		const GEOMETRY& getGeometry(size_t index) const;
 		void addGeometry(const GEOMETRY& g);
+		size_t nFeatures() const;
+
 		SingleGeometryWithAttributes<GEOMETRY> getFeature(size_t index);
 		SingleGeometryWithAttributes<GEOMETRY> front();
 		SingleGeometryWithAttributes<GEOMETRY> back();
@@ -215,6 +243,12 @@ namespace lapis {
 	{
 		_geometry.push_back(g);
 		_attributes->addRow();
+	}
+
+	template<class GEOMETRY>
+	inline size_t VectorsAndAttributes<GEOMETRY>::nFeatures() const
+	{
+		return _geometry.size();
 	}
 
 	template<class GEOMETRY>
@@ -376,7 +410,7 @@ namespace lapis {
 			return;
 		}
 		OGRLayer* layer = shp->GetLayer(0);
-		if (layer->GetGeomType() != GEOMETRY::gdalGeometryType) {
+		if (!GEOMETRY::gdalGeometryTypes().contains(layer->GetGeomType())) {
 			throw InvalidVectorFileException(filename + " is not the expected geometry type");
 		}
 		bool initFields = false;
@@ -435,7 +469,7 @@ namespace lapis {
 		OGRSpatialReference crs;
 		crs.importFromWkt(_crs.getCleanEPSG().getCompleteWKT().c_str());
 
-		OGRLayer* layer = outshp->CreateLayer("layer", &crs, GEOMETRY::gdalGeometryType, nullptr);
+		OGRLayer* layer = outshp->CreateLayer("layer", &crs, GEOMETRY::primaryGdalGeometryType(), nullptr);
 
 		for (const auto& fieldName : getAllFieldNames()) {
 			OGRFieldDefn newField = OGRFieldDefn(fieldName.c_str(), OFTString);

@@ -17,6 +17,7 @@
 #include<mutex>
 #include<cassert>
 #include<filesystem>
+#include<shared_mutex>
 
 //lazperf
 #pragma warning (push)

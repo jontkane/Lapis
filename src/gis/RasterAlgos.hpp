@@ -724,7 +724,7 @@ namespace lapis {
 				std::shared_ptr<Arc> currentArc = startArc;
 				std::list<Vertex> ringRowCol;
 				do {
-					assert(currentArc->nextArc != nullptr);
+					assert(!currentArc->nextArc.expired());
 					if (currentArc->handedness != Handedness::leftHand) {
 						currentArc->vertices.reverse();
 					}
@@ -862,14 +862,14 @@ namespace lapis {
 					assert(one->handedness != two->handedness);
 					std::shared_ptr<Arc> left = one->handedness == Handedness::leftHand ? one : two;
 					std::shared_ptr<Arc> right = one->handedness == Handedness::rightHand ? one : two;
-					assert(left->nextArc == nullptr);
+					assert(left->nextArc.expired());
 					left->nextArc = right;
 					};
 				auto connectArcsRightFirst = [](std::shared_ptr<Arc> one, std::shared_ptr<Arc> two) {
 					assert(one->handedness != two->handedness);
 					std::shared_ptr<Arc> left = one->handedness == Handedness::leftHand ? one : two;
 					std::shared_ptr<Arc> right = one->handedness == Handedness::rightHand ? one : two;
-					assert(right->nextArc == nullptr);
+					assert(right->nextArc.expired());
 					right->nextArc = left;
 					};
 				auto closeUpperLeftPolyInner = [&]() {
