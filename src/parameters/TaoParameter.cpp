@@ -21,8 +21,8 @@ namespace lapis {
 		_sameMinHt.setState(true);
 
 		_idAlgo.addHelpText("The algorithm for identifying trees. Only the 'high points' algorithm is supported currently.\n\n"
-			"High Points: This is a CSM-based algorith. A CSM pixel is considered a candidate for being the stem of a tree if it's higher than all 8 of its neighbors.\n"
-			"It is good for trees such as conifers with a well-defined tops.");
+			"High Points: This is a CSM-based algorithm. A CSM pixel is considered a candidate for being the stem of a tree if it's higher than all 8 of its neighbors.\n"
+			"It is good for trees such as conifers with well-defined tops.");
 		_segAlgo.addHelpText("The algorithm for segmenting the canopy between the identified trees. Only the watershed algorith is supported currently.\n\n"
 			"Watershed: expand each identified tree downwards from the center until it would have to go upwards again.\n"
 			"The watershed algorithm requires no parameterization");
@@ -31,7 +31,7 @@ namespace lapis {
 			"If this is set to a value greater than 0, then if two TAOs are too close, the shorter one will be removed.");
 
 		_vectorizeSegments.addHelpText("If this box is checked, vectorized polygons will be produced corresponding to the boundary of each TAO.\n"
-			"This opption is fairly slow and may increase the memory requirements of the run.");
+			"This option is fairly slow and may increase the memory requirements of the run.");
 
 	}
 	void TaoParameter::addToCmd(BoostOptDesc& visible,
