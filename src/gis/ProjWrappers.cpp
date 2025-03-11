@@ -8,10 +8,10 @@ namespace lapis {
 	{
 		std::thread::id thisthread = std::this_thread::get_id();
 		if (!_ctxs.count(thisthread)) {
-			_ctxs[thisthread] = getNewPJContext();
-			setProjDirectory(executableFilePath(), _ctxs[thisthread].get());
+			_ctxs.emplace(thisthread, getNewPJContext());
+			setProjDirectory(executableFilePath(), _ctxs.at(thisthread).get());
 		}
-		return _ctxs[thisthread].get();
+		return _ctxs.at(thisthread).get();
 	}
 	SharedPJ makeSharedPJ(PJ* pj)
 	{

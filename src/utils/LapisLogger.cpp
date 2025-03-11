@@ -201,14 +201,17 @@ namespace lapis {
 	}
 	void LapisLogger::beginVerboseBenchmarkTimer(const std::string& what)
 	{
+		std::scoped_lock lock{ *_mut };
 		_verboseTimers[what].beginOnThisThread();
 	}
 	void LapisLogger::pauseVerboseBenchmarkTimer(const std::string& what)
 	{
+		std::scoped_lock lock{ *_mut };
 		_verboseTimers[what].pauseOnThisThread();
 	}
 	void LapisLogger::endVerboseBenchmarkTimer(const std::string& what)
 	{
+		std::scoped_lock lock{ *_mut };
 		_verboseTimers[what].endOnThisThread();
 	}
 	void LapisLogger::turnOnVerboseBenchmarking()
@@ -341,6 +344,8 @@ namespace lapis {
 	}
 	void LapisLogger::BenchmarkInfo::beginOnThisThread()
 	{
+		static std::mutex mut;
+		std::scoped_lock<std::mutex> lock{ mut };
 		auto thread = std::this_thread::get_id();
 		if (activeTimers.contains(thread)) {
 			//paused
@@ -355,6 +360,8 @@ namespace lapis {
 	}
 	void LapisLogger::BenchmarkInfo::endOnThisThread()
 	{
+		static std::mutex mut;
+		std::scoped_lock<std::mutex> lock{ mut };
 		auto thread = std::this_thread::get_id();
 		
 		if (!activeTimers.contains(thread)) {
@@ -373,6 +380,8 @@ namespace lapis {
 	}
 	void LapisLogger::BenchmarkInfo::pauseOnThisThread()
 	{
+		static std::mutex mut;
+		std::scoped_lock<std::mutex> lock{ mut };
 		auto thread = std::this_thread::get_id();
 		if (!activeTimers.contains(thread)) {
 			//this branch happens for the initial batch of increments, which will all have a start time the same as the global start
