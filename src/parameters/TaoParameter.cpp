@@ -40,6 +40,7 @@ namespace lapis {
 		_mindist.addToCmd(visible, hidden);
 		_idAlgo.addToCmd(visible, hidden);
 		_segAlgo.addToCmd(visible, hidden);
+		_vectorizeSegments.addToCmd(visible, hidden);
 	}
 	std::ostream& TaoParameter::printToIni(std::ostream& o) {
 		if (!_sameMinHt.currentState()) {
@@ -93,6 +94,7 @@ namespace lapis {
 		_mindist.importFromBoost();
 		_idAlgo.importFromBoost();
 		_segAlgo.importFromBoost();
+		_vectorizeSegments.importFromBoost();
 	}
 	void TaoParameter::updateUnits() {
 		_minht.updateUnits();
