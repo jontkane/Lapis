@@ -1,5 +1,5 @@
 #include"test_pch.hpp"
-#include"..\gis\RasterAlgos.hpp"
+#include<RasterAlgos.hpp>
 
 namespace lapis {
 

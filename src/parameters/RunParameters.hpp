@@ -59,8 +59,8 @@ namespace lapis {
 		std::shared_ptr<Raster<bool>> layout();
 		std::string layoutTileName(cell_t tile);
 
-		std::shared_ptr<VectorsAndAttributes<Polygon>> lasFileLayout();
-		std::shared_ptr<VectorsAndAttributes<Polygon>> demFileLayout();
+		std::shared_ptr<VectorDataset<Polygon>> lasFileLayout();
+		std::shared_ptr<VectorDataset<Polygon>> demFileLayout();
 
 		std::mutex& cellMutex(cell_t cell);
 		std::mutex& globalMutex();

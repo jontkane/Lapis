@@ -23,14 +23,17 @@
 
 #include <GLFW/glfw3.h>
 
-#include"../LapisTypedefs.hpp"
-#include"../gis/raster.hpp"
-#include"../gis/Unit.hpp"
-#include"../gis/LasReader.hpp"
-#include"../gis/LasFilter.hpp"
-#include"../gis/Vector.hpp"
+#include<Raster.hpp>
+#include<Unit.hpp>
+#include<LasReader.hpp>
+#include<LasFilter.hpp>
+#include<Vector.hpp>
+#include<CropView.hpp>
+
+#include"../LapisTypeDefs.hpp"
 #include"../utils/LapisLogger.hpp"
 #include"../utils/LapisOSSpecific.hpp"
+#include"../algorithms/AllDemAlgorithms.hpp"
 
 #include<nfd.hpp>
 

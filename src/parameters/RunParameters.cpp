@@ -145,12 +145,12 @@ namespace lapis {
 			"_Row" + insertZeroes(layout()->rowFromCell(tile) + 1, layout()->nrow());
 	}
 
-	std::shared_ptr<VectorsAndAttributes<Polygon>> RunParameters::lasFileLayout()
+	std::shared_ptr<VectorDataset<Polygon>> RunParameters::lasFileLayout()
 	{
 		return getParam<LasFileParameter>().lasFileLayout();
 	}
 
-	std::shared_ptr<VectorsAndAttributes<Polygon>> RunParameters::demFileLayout()
+	std::shared_ptr<VectorDataset<Polygon>> RunParameters::demFileLayout()
 	{
 		return getParam<DemParameter>().demFileLayout();
 	}

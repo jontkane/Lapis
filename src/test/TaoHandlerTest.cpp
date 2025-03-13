@@ -126,7 +126,7 @@ namespace lapis {
 		GenerateIdByTile idGen{ spoof.layout()->ncell(),testTile };
 		Raster<taoid_t> fullSegments = spoof.taoSegAlgorithm()->segment(fullCsm, expectedHighPoints, idGen);
 
-		Raster<taoid_t> expectedSegments = cropRaster(fullSegments, tileExtent, SnapType::out);
+		Raster<taoid_t> expectedSegments = fullSegments;
 		std::filesystem::path segmentsFile = th.getFullTileFilename(th.taoTempDir(), "Segments", OutputUnitLabel::Unitless, testTile);
 		Raster<taoid_t> actualSegments = Raster<taoid_t>(segmentsFile.string());
 		ASSERT_TRUE(expectedSegments.isSameAlignment(actualSegments));
@@ -138,12 +138,17 @@ namespace lapis {
 			}
 		}
 
-		std::filesystem::path maxHeightFile = th.getFullTileFilename(th.taoDir(), "MaxHeight", OutputUnitLabel::Default, testTile);
+		std::filesystem::path maxHeightFile = th.getFullTileFilename(th.taoDir() / "MaxHeightRasters", "MaxHeight", OutputUnitLabel::Default, testTile);
 
 		Raster<csm_t> actualMaxHeight = Raster<csm_t>(maxHeightFile.string());
-		ASSERT_TRUE(actualMaxHeight.isSameAlignment(actualSegments));
+		Alignment expectedAlign = cropAlignment(fullSegments, tileExtent, SnapType::out);
+		ASSERT_TRUE(actualMaxHeight.isSameAlignment(expectedAlign));
 
 		std::unordered_map<taoid_t, csm_t> heightBySegment;
+
+		//due to changes in the flow of segmentation, the temporary segments file and final max height file no longer have the same extent
+		//this test uses the temporary segments file to save time. This crop corrects for this issue.
+		actualSegments = cropRaster(actualSegments, tileExtent, SnapType::out);
 
 		for (cell_t cell = 0; cell < actualMaxHeight.ncell(); ++cell) {
 			EXPECT_TRUE(actualSegments[cell].has_value() == actualMaxHeight[cell].has_value());
@@ -194,7 +199,7 @@ namespace lapis {
 		std::unordered_set<taoid_t> finalIDs;
 
 		for (cell_t tile = 0; tile < spoof.layout()->ncell(); ++tile) {
-			std::filesystem::path filename = th.getFullTileFilename(th.taoDir(), "TAOs", OutputUnitLabel::Unitless, tile, "shp");
+			std::filesystem::path filename = th.getFullTileFilename(th.taoDir() / "Points", "TAOs", OutputUnitLabel::Unitless, tile, "shp");
 			EXPECT_TRUE(std::filesystem::exists(filename));
 
 			UniqueGdalDataset highPoints = vectorGDALWrapper(filename.string());
@@ -214,7 +219,7 @@ namespace lapis {
 		}
 
 		for (cell_t tile = 0; tile < spoof.layout()->ncell(); ++tile) {
-			std::filesystem::path filename = th.getFullTileFilename(th.taoDir(), "Segments", OutputUnitLabel::Unitless, tile);
+			std::filesystem::path filename = th.getFullTileFilename(th.taoDir() / "SegmentRasters", "Segments", OutputUnitLabel::Unitless, tile);
 			ASSERT_TRUE(std::filesystem::exists(filename));
 
 			Raster<taoid_t> segments{ filename.string() };

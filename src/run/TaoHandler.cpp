@@ -161,8 +161,8 @@ namespace lapis {
 		Extent unbufferedExtent = _getter->layout()->extentFromCell(tile);
 
 		std::vector<TaoInfo> highPoints = _readHighPointsFromArray(tile);
-		VectorsAndAttributes<Point> highPointsVector{ segments.crs() };
-		VectorsAndAttributes<Polygon> circleVector{segments.crs()};
+		VectorDataset<Point> highPointsVector{ segments.crs() };
+		VectorDataset<Polygon> circleVector{segments.crs()};
 
 		auto addIntegerField = [&](const std::string& name) {
 			highPointsVector.addIntegerField(name);
@@ -235,10 +235,10 @@ namespace lapis {
 		fs::path circleFilename = getFullTileFilename(taoDir() / _circleFolderName, _circleBasename, OutputUnitLabel::Unitless, tile, "shp");
 		writeVectorLogErrors(highPointFilename, highPointsVector);
 		writeVectorLogErrors(circleFilename, circleVector);
-		circleVector = VectorsAndAttributes<Polygon>{}; //destructing early to save a bit of memory
+		circleVector = VectorDataset<Polygon>{}; //destructing early to save a bit of memory
 
 		if (RunParameters::singleton().vectorizeSegments()) {
-			VectorsAndAttributes<MultiPolygon> segmentsVector = rasterToMultiPolygonForTaos(segments, highPointsVector.allAttributes().get());
+			VectorDataset<MultiPolygon> segmentsVector = rasterToMultiPolygonForTaos(segments, &highPointsVector);
 			writeVectorLogErrors(getFullTileFilename(taoDir() / _segmentPolygonFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile, "shp"), segmentsVector);
 		}
 

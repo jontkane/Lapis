@@ -6,7 +6,9 @@
 #include<queue>
 #include<ranges>
 
-#include"..\gis\Raster.hpp"
-#include"..\gis\LasReader.hpp"
+#include<Raster.hpp>
+#include<LasReader.hpp>
+
+#include"../LapisTypedefs.hpp"
 
 #endif

@@ -332,7 +332,9 @@ namespace lapis {
 		if (uncroppedDem) {
 			Raster<coord_t> croppedDem = cropRaster(*uncroppedDem, projectedExtent, SnapType::near);
 			for (auto& handler : _handlers()) {
-				handler->handleDem(croppedDem, n);
+				if (handler->doThisProduct()) {
+					handler->handleDem(croppedDem, n);
+				}
 			}
 		}
 
@@ -392,7 +394,7 @@ namespace lapis {
 
 		Raster<bool>& layout = *rp.layout();
 
-		VectorsAndAttributes<Polygon> tileLayout{ layout.crs() };
+		VectorDataset<Polygon> tileLayout{ layout.crs() };
 		tileLayout.addStringField("Name", 13);
 		tileLayout.addIntegerField("ID");
 		tileLayout.addIntegerField("Column");
@@ -427,7 +429,7 @@ namespace lapis {
 		fs::create_directories(layoutDir);
 		tileLayout.writeShapefile(filename);
 
-		using LayoutPoly = std::shared_ptr<VectorsAndAttributes<Polygon>>;
+		using LayoutPoly = std::shared_ptr<VectorDataset<Polygon>>;
 		LayoutPoly las = rp.lasFileLayout();
 		if (las) {
 			las->writeShapefile(layoutDir / "LasFileLayout.shp");

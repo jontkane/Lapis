@@ -19,9 +19,9 @@
 #include <nfd.hpp>
 
 //lapis_gis
-#include"../gis/Unit.hpp"
-#include"../gis/LasReader.hpp"
-#include"../gis/RasterAlgos.hpp"
+#include<Unit.hpp>
+#include<LasReader.hpp>
+#include<RasterAlgos.hpp>
 
 //harupdf
 #include<hpdf.h>

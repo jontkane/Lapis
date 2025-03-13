@@ -1,8 +1,6 @@
 #include"param_pch.hpp"
 #include"DemParameter.hpp"
 #include"RunParameters.hpp"
-#include"..\algorithms\AllDemAlgorithms.hpp"
-#include"..\gis\CropView.hpp"
 
 namespace lapis {
 
@@ -290,7 +288,7 @@ namespace lapis {
 	{
 		return _demFileAligns.size();
 	}
-	std::shared_ptr<VectorsAndAttributes<Polygon>> DemParameter::demFileLayout()
+	std::shared_ptr<VectorDataset<Polygon>> DemParameter::demFileLayout()
 	{
 		RunParameters& rp = RunParameters::singleton();
 
@@ -304,7 +302,7 @@ namespace lapis {
 		//constructing the transforms is a significant amount of time, so going through the effort to cache them is worth it
 		std::unordered_map<CoordRef, CoordTransform, CoordRefHasher, CoordRefComparator> transforms;
 
-		_demLayout = std::make_shared<VectorsAndAttributes<Polygon>>(rp.outputCrs());
+		_demLayout = std::make_shared<VectorDataset<Polygon>>(rp.outputCrs());
 		_demLayout->addStringField("Filename", 255);
 		for (const auto& fileAlign : _demFileAligns) {
 			if (!transforms.contains(fileAlign.align.crs())) {

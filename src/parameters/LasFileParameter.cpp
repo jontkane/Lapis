@@ -105,7 +105,7 @@ namespace lapis {
 		std::vector<LasFileExtent> fileExtentVector;
 		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
 
-		_lasLayout = std::make_shared<VectorsAndAttributes<Polygon>>(outCrs);
+		_lasLayout = std::make_shared<VectorDataset<Polygon>>(outCrs);
 		_lasLayout->addStringField("Filename", 255);
 		std::unordered_map<CoordRef, CoordTransform, CoordRefHasher, CoordRefComparator> transforms;
 
@@ -220,7 +220,7 @@ namespace lapis {
 		return out;
 	}
 
-	std::shared_ptr<VectorsAndAttributes<Polygon>> LasFileParameter::lasFileLayout()
+	std::shared_ptr<VectorDataset<Polygon>> LasFileParameter::lasFileLayout()
 	{
 		return _lasLayout;
 	}

@@ -4,3 +4,6 @@
 [submodule "src/nativefiledialog-extended"]
 	path = src/nativefiledialog-extended
 	url = https://github.com/btzy/nativefiledialog-extended.git
+[submodule "src/gis"]
+	path = src/gis
+	url = https://github.com/jontkane/LapisGis.git

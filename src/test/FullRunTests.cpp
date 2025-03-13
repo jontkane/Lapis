@@ -190,6 +190,7 @@ testRaster(getPercentileName(firstReturns, pnames[i]), expectedPercentileFirstRe
 			fs::path actualTaos = LAPISTESTDATA;
 			actualTaos /= "CSMTestOutput";
 			actualTaos /= "TreeApproximateObjects";
+			actualTaos /= "Points";
 			actualTaos /= name + "_TAOs_Col1_Row1.shp";
 			ASSERT_TRUE(fs::exists(actualTaos));
 			std::vector<std::pair<coord_t, coord_t>> actualCoords;
@@ -219,6 +220,7 @@ testRaster(getPercentileName(firstReturns, pnames[i]), expectedPercentileFirstRe
 			fs::path actualSegsName = LAPISTESTDATA;
 			actualSegsName /= "CSMTestOutput";
 			actualSegsName /= "TreeApproximateObjects";
+			actualSegsName /= "SegmentRasters";
 			actualSegsName /= name + "_Segments_Col1_Row1.tif";
 			Raster<taoid_t> actualSegments{ actualSegsName.string() };
 
