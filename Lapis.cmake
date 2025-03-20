@@ -51,17 +51,16 @@ add_subdirectory(${LAPIS_DIR}/src/nativefiledialog-extended nfd)
 
 
 set(LAPIS_EXTERNAL_INCLUDES
-	${LAPISGIS_EXTERNAL_INCLUDES}
+	${LAPISGIS_INCLUDES}
 	${Boost_INCLUDE_DIRS}
 	${glfw_INCLUDE_DIRS}
 	${OpenGL_INCLUDE_DIRS}
 	${LIBHARU_INCLUDE_DIRS}
 	${LAPIS_DIR}/src/nativefiledialog-extended/src/include
-	${LAPIS_GIS_DIR}/src
 	)
 
 set(LAPIS_EXTERNAL_LINKS
-	${LAPISGIS_EXTERNAL_LINKS}
+	${LAPISGIS_LINKS}
 	${Boost_LIBRARIES}
 	glfw
 	OpenGL::GL
@@ -70,7 +69,6 @@ set(LAPIS_EXTERNAL_LINKS
 	)
 
 set(LAPIS_INTERNAL_LINKS
-	Lapis_gis
 	Lapis_algorithms
 	Lapis_params
 	Lapis_run
