@@ -7,3 +7,6 @@
 [submodule "src/gis"]
 	path = src/gis
 	url = https://github.com/jontkane/LapisGis.git
+[submodule "lapisgis"]
+	path = src/gis
+	url = https://github.com/jontkane/lapisgis.git
