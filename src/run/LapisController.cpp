@@ -427,16 +427,27 @@ namespace lapis {
 		fs::path layoutDir = rp.outFolder() / "Layout";
 		fs::path filename = layoutDir / "TileLayout.shp";
 		fs::create_directories(layoutDir);
-		tileLayout.writeShapefile(filename);
+
+
+		auto tryWriteShapefile = [&](const VectorDataset<Polygon>& polygon, const fs::path& path) {
+			try {
+				polygon.writeShapefile(path);
+			}
+			catch (...) {
+				LapisLogger::getLogger().logError("Could not write " + path.string());
+			}
+			};
+
+		tryWriteShapefile(tileLayout, filename);
 
 		using LayoutPoly = std::shared_ptr<VectorDataset<Polygon>>;
 		LayoutPoly las = rp.lasFileLayout();
 		if (las) {
-			las->writeShapefile(layoutDir / "LasFileLayout.shp");
+            tryWriteShapefile(*las, layoutDir / "LasFileLayout.shp");
 		}
 		LayoutPoly dem = rp.demFileLayout();
 		if (dem) {
-			dem->writeShapefile(layoutDir / "DemFileLayout.shp");
+            tryWriteShapefile(*dem, layoutDir / "DemFileLayout.shp");
 		}
 
 	}
