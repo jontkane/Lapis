@@ -2,11 +2,11 @@
 #include"PointMetricHandler.hpp"
 #include"PointMetricCalculator.hpp"
 #include"LapisController.hpp"
-#include"..\parameters\RunParameters.hpp"
+#include"..\parameters\LapisParameters.hpp"
 
 namespace lapis {
 
-	size_t PointMetricHandler::handlerRegisteredIndex = LapisController::registerHandler(new PointMetricHandler(&RunParameters::singleton()));
+	size_t PointMetricHandler::handlerRegisteredIndex = LapisController::registerHandler(new PointMetricHandler(&LapisParameters::singleton()));
 	void PointMetricHandler::reset()
 	{
 		*this = PointMetricHandler(_getter);

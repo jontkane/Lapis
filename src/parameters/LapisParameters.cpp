@@ -1,5 +1,5 @@
 #include"param_pch.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 #include"AllParameters.hpp"
 #include"LapisGui.hpp"
 #include"..\utils\LapisOSSpecific.hpp"
@@ -7,40 +7,40 @@
 namespace lapis {
 
 
-	RunParameters& RunParameters::singleton()
+	LapisParameters& LapisParameters::singleton()
 	{
-		static RunParameters d;
+		static LapisParameters d;
 		return d;
 	}
-	size_t RunParameters::registerParameter(Parameter* param)
+	size_t LapisParameters::registerParameter(Parameter* param)
 	{
 		_params.emplace_back(param);
 		return _params.size() - 1;
 	}
-	RunParameters::RunParameters()
+	LapisParameters::LapisParameters()
 	{
 	}
-	void RunParameters::setPrevUnits(const LinearUnit& u)
+	void LapisParameters::setPrevUnits(const LinearUnit& u)
 	{
 		_prevUnits = u;
 	}
-	const LinearUnit& RunParameters::outUnits() 
+	const LinearUnit& LapisParameters::outUnits() 
 	{
 		return getParam<OutUnitParameter>().unit();
 	}
-	const LinearUnit& RunParameters::prevUnits() 
+	const LinearUnit& LapisParameters::prevUnits() 
 	{
 		return _prevUnits;
 	}
-	const std::string& RunParameters::unitSingular() 
+	const std::string& LapisParameters::unitSingular() 
 	{
 		return getParam<OutUnitParameter>().unitSingularName();
 	}
-	const std::string& RunParameters::unitPlural() 
+	const std::string& LapisParameters::unitPlural() 
 	{
 		return getParam<OutUnitParameter>().unitPluralName();
 	}
-	void RunParameters::importBoostAndUpdateUnits()
+	void LapisParameters::importBoostAndUpdateUnits()
 	{
 		//this slightly odd way of ordering things is to ensure that only parameters
 		//that weren't specified in the same ini file that changed the units get converted
@@ -50,13 +50,13 @@ namespace lapis {
 			_params[i]->importFromBoost();
 		}
 	}
-	void RunParameters::updateUnits() {
+	void LapisParameters::updateUnits() {
 		for (size_t i = 0; i < _params.size(); ++i) {
 			_params[i]->updateUnits();
 		}
 		setPrevUnits(outUnits());
 	}
-	bool RunParameters::prepareForRun()
+	bool LapisParameters::prepareForRun()
 	{
 		for (size_t i = 0; i < _params.size(); ++i) {
 			if (!_params[i]->prepareForRun()) {
@@ -83,14 +83,14 @@ namespace lapis {
 
 		return true;
 	}
-	void RunParameters::cleanAfterRun()
+	void LapisParameters::cleanAfterRun()
 	{
 		for (size_t i = 0; i < _params.size(); ++i) {
 			_params[i]->cleanAfterRun();
 		}
 		_cellMuts.reset();
 	}
-	void RunParameters::resetObject() {
+	void LapisParameters::resetObject() {
 
 		_prevUnits = linearUnitPresets::meter;
 		_cellMuts.reset();
@@ -101,38 +101,38 @@ namespace lapis {
 		_pdf.reset();
 	}
 
-	const Extent& RunParameters::fullExtent()
+	const Extent& LapisParameters::fullExtent()
 	{
 		return getParam<LasFileParameter>().getFullExtent();
 	}
 
-	const CoordRef& RunParameters::userCrsSpecification() 
+	const CoordRef& LapisParameters::userCrsSpecification() 
 	{
 		return getParam<AlignmentParameter>().getCurrentOutCrs();
 	}
 
-	const CoordRef& RunParameters::outputCrs()
+	const CoordRef& LapisParameters::outputCrs()
 	{
 		return metricAlign()->crs();
 	}
 
-	const std::shared_ptr<Alignment> RunParameters::metricAlign()
+	const std::shared_ptr<Alignment> LapisParameters::metricAlign()
 	{
 		return getParam<AlignmentParameter>().metricAlign();
 	}
-	const std::shared_ptr<Alignment> RunParameters::csmAlign()
+	const std::shared_ptr<Alignment> LapisParameters::csmAlign()
 	{
 		return getParam<CsmParameter>().csmAlign();
 	}
-	const std::shared_ptr<Alignment> RunParameters::fineIntAlign() {
+	const std::shared_ptr<Alignment> LapisParameters::fineIntAlign() {
 		return getParam<FineIntParameter>().fineIntAlign();
 	}
-	std::shared_ptr<Raster<bool>> RunParameters::layout()
+	std::shared_ptr<Raster<bool>> LapisParameters::layout()
 	{
 		return _layout;
 	}
 
-	std::string RunParameters::layoutTileName(cell_t tile)
+	std::string LapisParameters::layoutTileName(cell_t tile)
 	{
 		auto insertZeroes = [](int value, int maxvalue)->std::string
 		{
@@ -145,58 +145,58 @@ namespace lapis {
 			"_Row" + insertZeroes(layout()->rowFromCell(tile) + 1, layout()->nrow());
 	}
 
-	std::shared_ptr<VectorDataset<Polygon>> RunParameters::lasFileLayout()
+	std::shared_ptr<VectorDataset<Polygon>> LapisParameters::lasFileLayout()
 	{
 		return getParam<LasFileParameter>().lasFileLayout();
 	}
 
-	std::shared_ptr<VectorDataset<Polygon>> RunParameters::demFileLayout()
+	std::shared_ptr<VectorDataset<Polygon>> LapisParameters::demFileLayout()
 	{
 		return getParam<DemParameter>().demFileLayout();
 	}
 
-	std::mutex& RunParameters::cellMutex(cell_t cell)
+	std::mutex& LapisParameters::cellMutex(cell_t cell)
 	{
 		return (*_cellMuts)[cell % _cellMutCount];
 	}
-	std::mutex& RunParameters::globalMutex()
+	std::mutex& LapisParameters::globalMutex()
 	{
 		return _globalMut;
 	}
 
 
-	const std::vector<std::shared_ptr<LasFilter>>& RunParameters::filters()
+	const std::vector<std::shared_ptr<LasFilter>>& LapisParameters::filters()
 	{
 		return getParam<FilterParameter>().filters();
 	}
-	coord_t RunParameters::minHt() 
+	coord_t LapisParameters::minHt() 
 	{
 		return getParam<FilterParameter>().minht();
 	}
-	coord_t RunParameters::maxHt() 
+	coord_t LapisParameters::maxHt() 
 	{
 		return getParam<FilterParameter>().maxht();
 	}
-	bool RunParameters::overlapsAoI(const Extent& e)
+	bool LapisParameters::overlapsAoI(const Extent& e)
 	{
 		return getParam<AoIParameter>().overlapsAoI(e);
 	}
 
-	CsmAlgorithm* RunParameters::csmAlgorithm()
+	CsmAlgorithm* LapisParameters::csmAlgorithm()
 	{
 		return getParam<CsmParameter>().csmAlgorithm();
 	}
 
-	CsmPostProcessor* RunParameters::csmPostProcessAlgorithm()
+	CsmPostProcessor* LapisParameters::csmPostProcessAlgorithm()
 	{
 		return getParam<CsmParameter>().csmPostProcessor();
 	}
 
-	const std::vector<Extent>& RunParameters::lasExtents()
+	const std::vector<Extent>& LapisParameters::lasExtents()
 	{
 		return getParam<LasFileParameter>().sortedLasExtents();
 	}
-	LasReader RunParameters::getLas(size_t i)
+	LasReader LapisParameters::getLas(size_t i)
 	{
 		auto l = getParam<LasFileParameter>().getLas(i);
 		for (auto& filter : filters()) {
@@ -205,50 +205,50 @@ namespace lapis {
 		getParam<AoIParameter>().addFilter(l);
 		return l;
 	}
-	std::optional<LinearUnit> RunParameters::lasZUnits()
+	std::optional<LinearUnit> LapisParameters::lasZUnits()
 	{
 		return getParam<LasFileParameter>().lasZUnits();
 	}
-	std::unique_ptr<DemAlgoApplier> RunParameters::demAlgorithm(LasReader&& l)
+	std::unique_ptr<DemAlgoApplier> LapisParameters::demAlgorithm(LasReader&& l)
 	{
 		auto x = getParam<DemParameter>().demAlgorithm();
 		x->setMinMax(minHt(), maxHt());
 		return x->getApplier(std::move(l), metricAlign()->crs());
 	}
-	int RunParameters::nThread() 
+	int LapisParameters::nThread() 
 	{
 		return getParam<ComputerParameter>().nThread();
 	}
-	coord_t RunParameters::binSize()
+	coord_t LapisParameters::binSize()
 	{
 		return linearUnitPresets::meter.convertOneFromThis(0.01, outUnits());
 	}
-	size_t RunParameters::tileFileSize() 
+	size_t LapisParameters::tileFileSize() 
 	{
 		return 250ll * 1024 * 1024; //250 MB
 	}
-	coord_t RunParameters::canopyCutoff() 
+	coord_t LapisParameters::canopyCutoff() 
 	{
 		return getParam<PointMetricParameter>().canopyCutoff();
 	}
-	const std::vector<coord_t>& RunParameters::strataBreaks() 
+	const std::vector<coord_t>& LapisParameters::strataBreaks() 
 	{
 		static std::vector<coord_t> empty;
 		return doStratumMetrics() ? getParam<PointMetricParameter>().strata() : empty;
 	}
-	const std::vector<std::string>& RunParameters::strataNames()
+	const std::vector<std::string>& LapisParameters::strataNames()
 	{
 		return getParam<PointMetricParameter>().strataNames();
 	}
-	TaoIdAlgorithm* RunParameters::taoIdAlgorithm()
+	TaoIdAlgorithm* LapisParameters::taoIdAlgorithm()
 	{
 		return getParam<TaoParameter>().taoIdAlgo();
 	}
-	TaoSegmentAlgorithm* RunParameters::taoSegAlgorithm()
+	TaoSegmentAlgorithm* LapisParameters::taoSegAlgorithm()
 	{
 		return getParam<TaoParameter>().taoSegAlgo();
 	}
-	Raster<coord_t> RunParameters::bufferedElev(const Raster<coord_t>& unbufferedElev)
+	Raster<coord_t> LapisParameters::bufferedElev(const Raster<coord_t>& unbufferedElev)
 	{
 		if (!topoWindows().size()) {
 			return unbufferedElev;
@@ -259,96 +259,96 @@ namespace lapis {
 
 		return getParam<DemParameter>().bufferElevation(unbufferedElev, desiredExtent);
 	}
-	const std::vector<coord_t>& RunParameters::topoWindows()
+	const std::vector<coord_t>& LapisParameters::topoWindows()
 	{
 		return getParam<TopoParameter>().topoWindows();
 	}
-	const std::vector<std::string>& RunParameters::topoWindowNames()
+	const std::vector<std::string>& LapisParameters::topoWindowNames()
 	{
 		return getParam<TopoParameter>().topoWindowNames();
 	}
-	bool RunParameters::useRadians()
+	bool LapisParameters::useRadians()
 	{
 		return getParam<TopoParameter>().useRadians();
 	}
-	const std::filesystem::path& RunParameters::outFolder()
+	const std::filesystem::path& LapisParameters::outFolder()
 	{
 		return getParam<OutputParameter>().path();
 	}
-	const std::string& RunParameters::name()
+	const std::string& LapisParameters::name()
 	{
 		return getParam<NameParameter>().name();
 	}
-	bool RunParameters::vectorizeSegments()
+	bool LapisParameters::vectorizeSegments()
 	{
 		return getParam<TaoParameter>().vectorizeSegments();
 	}
 
-	void RunParameters::describeParameters(MetadataPdf& pdf)
+	void LapisParameters::describeParameters(MetadataPdf& pdf)
 	{
 		getParam<FilterParameter>().describeInPdf(pdf);
 		getParam<AlignmentParameter>().describeInPdf(pdf);
 		getParam<DemParameter>().demAlgorithm()->describeInPdf(pdf);
 	}
 
-	coord_t RunParameters::fineIntCanopyCutoff() {
+	coord_t LapisParameters::fineIntCanopyCutoff() {
 		return getParam<FineIntParameter>().fineIntCutoff();
 	}
 
-	bool RunParameters::doPointMetrics() {
+	bool LapisParameters::doPointMetrics() {
 		return getParam<WhichProductsParameter>().doPointMetrics();
 	}
-	bool RunParameters::doFirstReturnMetrics()
+	bool LapisParameters::doFirstReturnMetrics()
 	{
 		return getParam<PointMetricParameter>().doFirstReturns();
 	}
-	bool RunParameters::doAllReturnMetrics()
+	bool LapisParameters::doAllReturnMetrics()
 	{
 		return getParam<PointMetricParameter>().doAllReturns();
 	}
-	bool RunParameters::doAdvancedPointMetrics()
+	bool LapisParameters::doAdvancedPointMetrics()
 	{
 		return getParam<PointMetricParameter>().doAdvancedPointMetrics();
 	}
-	bool RunParameters::doCsm()
+	bool LapisParameters::doCsm()
 	{
 		return getParam<WhichProductsParameter>().doCsm();
 	}
-	bool RunParameters::doCsmMetrics()
+	bool LapisParameters::doCsmMetrics()
 	{
 		return getParam<CsmParameter>().doCsmMetrics();
 	}
-	bool RunParameters::doTaos()
+	bool LapisParameters::doTaos()
 	{
 		return doCsm() && getParam<WhichProductsParameter>().doTao();
 	}
-	bool RunParameters::doFineInt()
+	bool LapisParameters::doFineInt()
 	{
 		return getParam<WhichProductsParameter>().doFineInt();
 	}
-	bool RunParameters::doTopo()
+	bool LapisParameters::doTopo()
 	{
 		return getParam<WhichProductsParameter>().doTopo();
 	}
-	bool RunParameters::doStratumMetrics()
+	bool LapisParameters::doStratumMetrics()
 	{
 		return getParam<PointMetricParameter>().doStratumMetrics();
 	}
 
-	bool RunParameters::isDebugNoAlign()
+	bool LapisParameters::isDebugNoAlign()
 	{
 		return getParam<AlignmentParameter>().isDebug();
 	}
-	bool RunParameters::isDebugNoOutput()
+	bool LapisParameters::isDebugNoOutput()
 	{
 		return getParam<OutputParameter>().isDebugNoOutput();
 	}
-	bool RunParameters::isAnyDebug()
+	bool LapisParameters::isAnyDebug()
 	{
 		return isDebugNoAlign() || isDebugNoOutput();
 	}
 
-	RunParameters::ParseResults RunParameters::parseArgs(const std::vector<std::string>& args)
+	LapisParameters::ParseResults LapisParameters::parseArgs(const std::vector<std::string>& args)
 	{
 		namespace po = boost::program_options;
 		try {
@@ -435,7 +435,7 @@ namespace lapis {
 		importBoostAndUpdateUnits();
 		return ParseResults::validOpts;
 	}
-	RunParameters::ParseResults RunParameters::parseIni(const std::string& path)
+	LapisParameters::ParseResults LapisParameters::parseIni(const std::string& path)
 	{
 		namespace po = boost::program_options;
 		try {
@@ -465,7 +465,7 @@ namespace lapis {
 			return ParseResults::invalidOpts;
 		}
 	}
-	std::ostream& RunParameters::writeOptions(std::ostream& out, ParamCategory cat) const
+	std::ostream& LapisParameters::writeOptions(std::ostream& out, ParamCategory cat) const
 	{
 		switch (cat) {
 		case ParamCategory::computer:

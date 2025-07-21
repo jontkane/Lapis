@@ -1,11 +1,11 @@
 #include"param_pch.hpp"
 #include"FilterParameter.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 
 
 namespace lapis {
 
-	size_t FilterParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new FilterParameter());
+	size_t FilterParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new FilterParameter());
 	void FilterParameter::reset()
 	{
 		*this = FilterParameter();
@@ -135,7 +135,7 @@ namespace lapis {
 	}
 	void FilterParameter::_outlierPdf(MetadataPdf& pdf)
 	{
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		pdf.writeSubsectionTitle("Outlier Filter");
 		std::stringstream outlier;

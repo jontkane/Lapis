@@ -1,12 +1,12 @@
 #include"param_pch.hpp"
 #include"TaoParameter.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 #include"..\algorithms\AllTaoIdAlgorithms.hpp"
 #include"..\algorithms\AllTaoSegmentAlgorithms.hpp"
 
 namespace lapis {
 
-	size_t TaoParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new TaoParameter());
+	size_t TaoParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new TaoParameter());
 	void TaoParameter::reset()
 	{
 		*this = TaoParameter();
@@ -59,7 +59,7 @@ namespace lapis {
 		return ParamCategory::process;
 	}
 	void TaoParameter::renderGui() {
-		if (!RunParameters::singleton().doCsm()) {
+		if (!LapisParameters::singleton().doCsm()) {
 			ImGui::Text("Tree identification requires a CSM");
 			return;
 		}
@@ -106,7 +106,7 @@ namespace lapis {
 			return true;
 		}
 
-		if (!RunParameters::singleton().doTaos()) {
+		if (!LapisParameters::singleton().doTaos()) {
 			_runPrepared = true;
 			return true;
 		}
@@ -130,7 +130,7 @@ namespace lapis {
 			return false;
 		}
 
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 		//any scenario where this wouldn't have a value should be caught earlier in the code
 		LinearUnit outXYUnits = rp.outputCrs().getXYLinearUnits().value();
 		LinearUnit userXYUnits = rp.outUnits();
@@ -163,7 +163,7 @@ namespace lapis {
 	}
 	coord_t TaoParameter::minTaoHt() const
 	{
-		return _sameMinHt.currentState() ? RunParameters::singleton().canopyCutoff() : _minht.getValueLogErrors();
+		return _sameMinHt.currentState() ? LapisParameters::singleton().canopyCutoff() : _minht.getValueLogErrors();
 	}
 	coord_t TaoParameter::minTaoDist() const
 	{

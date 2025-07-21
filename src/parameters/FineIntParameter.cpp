@@ -1,11 +1,11 @@
 #include"param_pch.hpp"
 #include"FineIntParameter.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 #include"CsmParameter.hpp"
 
 namespace lapis {
 
-	size_t FineIntParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new FineIntParameter());
+	size_t FineIntParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new FineIntParameter());
 	void FineIntParameter::reset()
 	{
 		*this = FineIntParameter();
@@ -91,7 +91,7 @@ namespace lapis {
 			return true;
 		}
 		LapisLogger& log = LapisLogger::getLogger();
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		if (!rp.doFineInt()) {
 			_runPrepared = true;
@@ -144,11 +144,11 @@ namespace lapis {
 		if (!_useCutoff.currentState()) {
 			return std::numeric_limits<coord_t>::lowest();
 		}
-		return _sameCutoff.currentState() ? RunParameters::singleton().canopyCutoff() : _cutoff.getValueLogErrors();
+		return _sameCutoff.currentState() ? LapisParameters::singleton().canopyCutoff() : _cutoff.getValueLogErrors();
 	}
 	coord_t FineIntParameter::fineIntCellSize() const
 	{
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 		coord_t cellsize = 1;
 		if (_sameCellsize.currentState()) {
 			rp.getParam<CsmParameter>().csmCellSize();

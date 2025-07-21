@@ -1,12 +1,12 @@
 #include"param_pch.hpp"
 #include"CsmParameter.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 #include"..\algorithms\AllCsmAlgorithms.hpp"
 #include"..\algorithms\AllCsmPostProcessors.hpp"
 
 namespace lapis {
 
-	size_t CsmParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new CsmParameter());
+	size_t CsmParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new CsmParameter());
 	void CsmParameter::reset()
 	{
 		*this = CsmParameter();
@@ -74,7 +74,7 @@ namespace lapis {
 			return true;
 		}
 
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 		LapisLogger& log = LapisLogger::getLogger();
 		const Alignment& metricAlign = *rp.metricAlign();
 		const LinearUnit& u = rp.outUnits();

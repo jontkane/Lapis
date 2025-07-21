@@ -11,11 +11,11 @@ namespace lapis {
 
 	class DemAlgorithm;
 
-	class RunParameters : public ParameterGetter {
+	class LapisParameters : public ParameterGetter {
 
 	public:
 
-		static RunParameters& singleton();
+		static LapisParameters& singleton();
 
 		size_t registerParameter(Parameter* param);
 
@@ -130,9 +130,9 @@ namespace lapis {
 
 	private:
 
-		RunParameters();
-		RunParameters(const RunParameters&) = delete;
-		RunParameters(RunParameters&&) = delete;
+		LapisParameters();
+		LapisParameters(const LapisParameters&) = delete;
+		LapisParameters(LapisParameters&&) = delete;
 		std::vector<std::unique_ptr<Parameter>> _params;
 
 		LinearUnit _prevUnits;
@@ -149,17 +149,17 @@ namespace lapis {
 	};
 
 	template<class PARAMETER>
-	inline PARAMETER& RunParameters::getParam()
+	inline PARAMETER& LapisParameters::getParam()
 	{
 		return *dynamic_cast<PARAMETER*>(_params[PARAMETER::parameterRegisteredIndex].get());
 	}
 	template<class PARAMETER>
-	inline const PARAMETER& RunParameters::getParam() const
+	inline const PARAMETER& LapisParameters::getParam() const
 	{
 		return *dynamic_cast<PARAMETER*>(_params[PARAMETER::parameterRegisteredIndex].get());
 	}
 	template<class T>
-	void RunParameters::renderGui()
+	void LapisParameters::renderGui()
 	{
 		_params[T::parameterRegisteredIndex]->renderGui();
 	}

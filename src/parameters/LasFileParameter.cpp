@@ -1,10 +1,10 @@
 #include"param_pch.hpp"
 #include"LasFileParameter.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 
 namespace lapis {
 
-	size_t LasFileParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new LasFileParameter());
+	size_t LasFileParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new LasFileParameter());
 	void LasFileParameter::reset()
 	{
 		*this = LasFileParameter();
@@ -73,7 +73,7 @@ namespace lapis {
 		}
 		_warnedAboutVersionMinor = false;
 
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		if (rp.isDebugNoAlign()) {
 			_runPrepared = true;

@@ -1,7 +1,7 @@
 #include"run_pch.hpp"
 #include"CsmHandler.hpp"
 #include"LapisController.hpp"
-#include"..\parameters\RunParameters.hpp"
+#include"..\parameters\LapisParameters.hpp"
 
 namespace lapis {
 
@@ -44,7 +44,7 @@ namespace lapis {
 		}
 	}
 
-	size_t CsmHandler::handlerRegisteredIndex = LapisController::registerHandler(new CsmHandler(&RunParameters::singleton()));
+	size_t CsmHandler::handlerRegisteredIndex = LapisController::registerHandler(new CsmHandler(&LapisParameters::singleton()));
 	void CsmHandler::reset()
 	{
 		*this = CsmHandler(_getter);

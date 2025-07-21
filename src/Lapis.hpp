@@ -5,7 +5,7 @@
 #include"utils/LapisOSSpecific.hpp"
 #include"run/LapisController.hpp"
 #include"parameters/LapisGui.hpp"
-#include"parameters/RunParameters.hpp"
+#include"parameters/LapisParameters.hpp"
 #include"run/AllHandlers.hpp"
 
 
@@ -42,9 +42,9 @@ namespace lapis {
 		proj_log_level(ProjContextByThread::get(), PJ_LOG_NONE);
 #endif
 		setProjDirectory(executableFilePath(), nullptr);
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 		rp.resetObject();
-		using pr = RunParameters::ParseResults;
+		using pr = LapisParameters::ParseResults;
 		pr parsed = rp.parseArgs(args);
 		rp.importBoostAndUpdateUnits();
 		if (parsed == pr::invalidOpts) {

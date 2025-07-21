@@ -1,10 +1,10 @@
 #include"param_pch.hpp"
 #include"NameParameter.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 
 namespace lapis {
 
-	size_t NameParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new NameParameter());
+	size_t NameParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new NameParameter());
 	void NameParameter::reset()
 	{
 		*this = NameParameter();

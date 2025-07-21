@@ -1,10 +1,10 @@
 #include"run_pch.hpp"
 #include"FineIntHandler.hpp"
-#include"..\parameters\RunParameters.hpp"
+#include"..\parameters\LapisParameters.hpp"
 #include"LapisController.hpp"
 
 namespace lapis {
-	size_t FineIntHandler::handlerRegisteredIndex = LapisController::registerHandler(new FineIntHandler(&RunParameters::singleton()));
+	size_t FineIntHandler::handlerRegisteredIndex = LapisController::registerHandler(new FineIntHandler(&LapisParameters::singleton()));
 	void FineIntHandler::reset()
 	{
 		*this = FineIntHandler(_getter);

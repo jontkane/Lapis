@@ -1,6 +1,6 @@
 #include"param_pch.hpp"
 #include"GuiNumericTextBoxWithUnits.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 
 namespace lapis {
 	NumericTextBoxWithUnits::NumericTextBoxWithUnits(const std::string& guiDesc, const std::string& cmdName, coord_t defaultValue)
@@ -35,7 +35,7 @@ namespace lapis {
 		ImGui::PopItemWidth();
 
 		ImGui::SameLine();
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 		if (std::atof(_buffer.data()) == 1.f) {
 			ImGui::Text(rp.unitSingular().c_str());
 		}
@@ -58,7 +58,7 @@ namespace lapis {
 	}
 	void NumericTextBoxWithUnits::updateUnits()
 	{
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 		const LinearUnit& src = rp.prevUnits();
 		const LinearUnit& dst = rp.outUnits();
 		try {

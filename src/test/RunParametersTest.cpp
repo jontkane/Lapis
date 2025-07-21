@@ -1,5 +1,5 @@
 #include"test_pch.hpp"
-#include"..\parameters\RunParameters.hpp"
+#include"..\parameters\LapisParameters.hpp"
 #include"..\algorithms\AllDemAlgorithms.hpp"
 #include"..\parameters\AllParameters.hpp"
 #include"..\algorithms\AllCsmAlgorithms.hpp"
@@ -12,8 +12,8 @@ namespace lapis {
 	class RunParametersTest : public ::testing::Test {
 	public:
 
-		RunParameters& rp() {
-			return RunParameters::singleton();
+		LapisParameters& rp() {
+			return LapisParameters::singleton();
 		}
 
 		void TearDown() override {

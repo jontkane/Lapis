@@ -1,10 +1,10 @@
 #include"param_pch.hpp"
 #include"DemParameter.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 
 namespace lapis {
 
-	size_t DemParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new DemParameter());
+	size_t DemParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new DemParameter());
 	void DemParameter::reset()
 	{
 		*this = DemParameter();
@@ -147,7 +147,7 @@ namespace lapis {
 		}
 
 		LapisLogger& log = LapisLogger::getLogger();
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		std::set<DemFileAlignment> fileAligns;
 		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
@@ -169,7 +169,7 @@ namespace lapis {
 			_demUnitsCache = _unit.currentSelection();
 
 			if (_demUnitsCache == linearUnitPresets::unknownLinear) {
-				lasUnits = RunParameters::singleton().lasZUnits();
+				lasUnits = LapisParameters::singleton().lasZUnits();
 				if (!lasUnits.has_value()) {
 					log.logError("Not all las files have the same units. \"Same as Las Files\" is an invalid option for dem units.");
 					return false;
@@ -290,7 +290,7 @@ namespace lapis {
 	}
 	std::shared_ptr<VectorDataset<Polygon>> DemParameter::demFileLayout()
 	{
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		if (_demAlgo.currentSelection() != DemAlgo::VENDORRASTER) {
 			return nullptr;
@@ -337,7 +337,7 @@ namespace lapis {
 			return out;
 		}
 
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 		Alignment layout = *rp.layout();
 
 		layout = extendAlignment(layout, a, SnapType::out);

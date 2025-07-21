@@ -1,10 +1,10 @@
 #include"param_pch.hpp"
 #include"AlignmentParameter.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 
 namespace lapis {
 
-	size_t AlignmentParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new AlignmentParameter());
+	size_t AlignmentParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new AlignmentParameter());
 	void AlignmentParameter::reset()
 	{
 		*this = AlignmentParameter();
@@ -121,7 +121,7 @@ namespace lapis {
 					LapisLogger::getLogger().logError("At this time, output coordinate reference systems must be projected. Lat/lon output may be supported in future releases.");
 					return;
 				}
-				LinearUnitConverter converter{ srcOpt.value(), RunParameters::singleton().outUnits() };
+				LinearUnitConverter converter{ srcOpt.value(), LapisParameters::singleton().outUnits() };
 
 				_xres.setValue(converter(a.xres()));
 				_yres.setValue(converter(a.yres()));
@@ -212,7 +212,7 @@ namespace lapis {
 			_runPrepared = true;
 			return true;
 		}
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 		LapisLogger& log = LapisLogger::getLogger();
 
 		if (!_crs.cachedCrs().isProjected()) {
@@ -296,7 +296,7 @@ namespace lapis {
 	}
 	void AlignmentParameter::describeInPdf(MetadataPdf& pdf)
 	{
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		prepareForRun();
 		pdf.newPage();

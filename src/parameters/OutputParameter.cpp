@@ -1,10 +1,10 @@
 #include"param_pch.hpp"
 #include"OutputParameter.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 
 namespace lapis {
 
-	size_t OutputParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new OutputParameter());
+	size_t OutputParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new OutputParameter());
 	void OutputParameter::reset()
 	{
 		*this = OutputParameter();
@@ -52,7 +52,7 @@ namespace lapis {
 
 		_outPath = _output.path();
 
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 		size_t maxFileLength = rp.maxLapisFileName + _outPath.string().size() + rp.name().size();
 		LapisLogger& log = LapisLogger::getLogger();
 		if (maxFileLength > rp.maxTotalFilePath) {

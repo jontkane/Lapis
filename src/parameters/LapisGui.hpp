@@ -3,7 +3,7 @@
 #define LP_LAPISGUI_H
 
 #include"param_pch.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 #include"AllParameters.hpp"
 #include"..\utils\LapisFonts.hpp"
 
@@ -125,7 +125,7 @@ namespace lapis {
 	{
 		auto renderModTab = [](const std::string& name) {
 			if (ImGui::BeginTabItem(name.c_str())) {
-				RunParameters::singleton().renderGui<PARAMETER>();
+				LapisParameters::singleton().renderGui<PARAMETER>();
 				ImGui::EndTabItem();
 			}
 		};
@@ -151,7 +151,7 @@ namespace lapis {
 
 
 		ImGui::BeginTabBar("MainTabs");
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		if (!_runner->isRunning()) {
 			rp.updateUnits();
@@ -200,7 +200,7 @@ namespace lapis {
 	template<class RUNNERTYPE>
 	inline void LapisGui<RUNNERTYPE>::_runTab()
 	{
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		rp.renderGui<NameParameter>();
 		rp.renderGui<OutputParameter>();
@@ -278,7 +278,7 @@ namespace lapis {
 	template<class RUNNERTYPE>
 	inline void LapisGui<RUNNERTYPE>::_generalOptionsTab()
 	{
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		ImGui::BeginChild("##optionstab", ImGui::GetContentRegionAvail(), false);
 		static constexpr int columns = 2;
@@ -311,7 +311,7 @@ namespace lapis {
 	{
 		//check boxes for what to compute at the top
 		//then tabs for each of those to customize them
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		ImGui::BeginChild("products", ImVec2(ImGui::GetContentRegionAvail().x, 235), true, 0);
 		rp.renderGui<WhichProductsParameter>();
@@ -346,7 +346,7 @@ namespace lapis {
 	template<class RUNNERTYPE>
 	inline void LapisGui<RUNNERTYPE>::_aoiTab()
 	{
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		rp.renderGui<AoIParameter>();
 	}

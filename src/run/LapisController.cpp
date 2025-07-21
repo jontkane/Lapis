@@ -1,7 +1,7 @@
 #include"run_pch.hpp"
 #include"LapisController.hpp"
 #include"AllHandlers.hpp"
-#include"..\parameters\RunParameters.hpp"
+#include"..\parameters\LapisParameters.hpp"
 #include"..\utils\MetadataPdf.hpp"
 
 
@@ -34,7 +34,7 @@ namespace lapis {
 	{
 		_isRunning = true;
 		LapisLogger& log = LapisLogger::getLogger();
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		std::filesystem::path outfolder = rp.outFolder();
 		std::filesystem::path logFile = outfolder / "processingLog.txt";
@@ -148,7 +148,7 @@ namespace lapis {
 	void LapisController::writeParams() const
 	{
 		LapisLogger& log = LapisLogger::getLogger();
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		fs::path paramDir = rp.outFolder() / "RunParameters";
 		fs::create_directories(paramDir);
@@ -206,7 +206,7 @@ namespace lapis {
 				fontSize);
 		};
 
-		displayText(RunParameters::singleton().name(), 24.f, true);
+		displayText(LapisParameters::singleton().name(), 24.f, true);
 		displayText("Processed Using", 12.f, false);
 		displayText("Lapis Version " + std::to_string(LAPIS_VERSION_MAJOR) + "." + std::to_string(LAPIS_VERSION_MINOR),
 			18.f, true);
@@ -249,7 +249,7 @@ namespace lapis {
 
 	void LapisController::writeMetadata() const
 	{
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 		
 		MetadataPdf pdf{};
 
@@ -280,7 +280,7 @@ namespace lapis {
 	void LapisController::lasThread(size_t n)
 	{
 
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 		LapisLogger& log = LapisLogger::getLogger();
 
 		LasReader lr;
@@ -344,7 +344,7 @@ namespace lapis {
 
 	void LapisController::tileThread(cell_t tile)
 	{
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		if (!rp.layout()->atCellUnsafe(tile).has_value()) {
 			return;
@@ -390,7 +390,7 @@ namespace lapis {
 	}
 
 	void LapisController::writeLayout() const {
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		Raster<bool>& layout = *rp.layout();
 

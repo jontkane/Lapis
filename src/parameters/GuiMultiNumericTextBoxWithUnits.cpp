@@ -1,7 +1,7 @@
 #include"param_pch.hpp"
 #include"GuiMultiNumericTextBoxWithUnits.hpp"
 #include"GuiNumericTextBoxWithUnits.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 
 namespace lapis {
 	MultiNumericTextBoxWithUnits::MultiNumericTextBoxWithUnits(const std::string& guiDesc, const std::string& cmdName, const std::string& defaultValue)
@@ -41,7 +41,7 @@ namespace lapis {
 		for (auto& buffer : _buffers) {
 			ImGui::Text(buffer.asText());
 			ImGui::SameLine();
-			ImGui::Text(RunParameters::singleton().unitPlural().c_str());
+			ImGui::Text(LapisParameters::singleton().unitPlural().c_str());
 		}
 		return changed;
 	}
@@ -80,7 +80,7 @@ namespace lapis {
 	}
 	void MultiNumericTextBoxWithUnits::updateUnits()
 	{
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 		if (!rp.prevUnits().isConsistent(rp.outUnits())) {
 			for (auto& buffer : _buffers) {
 				buffer.updateUnits();

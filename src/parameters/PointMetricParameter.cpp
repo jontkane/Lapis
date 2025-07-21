@@ -1,10 +1,10 @@
 #include"param_pch.hpp"
 #include"PointMetricParameter.hpp"
-#include"RunParameters.hpp"
+#include"LapisParameters.hpp"
 
 namespace lapis {
 
-	size_t PointMetricParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new PointMetricParameter());
+	size_t PointMetricParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new PointMetricParameter());
 	void PointMetricParameter::reset()
 	{
 		*this = PointMetricParameter();
@@ -82,7 +82,7 @@ namespace lapis {
 			return true;
 		}
 
-		RunParameters& rp = RunParameters::singleton();
+		LapisParameters& rp = LapisParameters::singleton();
 
 		LapisLogger& log = LapisLogger::getLogger();
 		if (std::isnan(_canopyCutoff.getValueLogErrors())) {
