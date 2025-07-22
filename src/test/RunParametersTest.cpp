@@ -12,16 +12,23 @@ namespace lapis {
 	class RunParametersTest : public ::testing::Test {
 	public:
 
-		LapisParameters& rp() {
-			return LapisParameters::singleton();
+		ParameterManager& rp() {
+			static std::once_flag flag;
+			std::call_once(
+				flag, 
+				[]() {
+					setParameterManager(new LapisParameters());
+				}
+			);
+			return parameterManager();
 		}
 
 		void TearDown() override {
-			rp().resetObject();
+			rp().reset();
 		}
 
 		void prepareParams(const std::vector<std::string>& args) {
-			rp().resetObject();
+			rp().reset();
 			rp().parseArgs(args);
 			rp().importBoostAndUpdateUnits();
 			rp().prepareForRun();
@@ -48,9 +55,7 @@ namespace lapis {
 	};
 
 	TEST_F(RunParametersTest, demFiles) {
-		std::string testFolder = LAPISTESTFILES;
-
-		std::filesystem::remove_all(testFolder + "/output"); //some other tests will write stuff here; they should clean up after themselves but just in case
+		std::string testFolder = LAPISTESTFILES + std::string("/StaticTestFiles");
 
 		auto expectVendorRaster = [&](size_t numberOfRasters) {
 			EXPECT_NE(dynamic_cast<VendorRasterApplier<DemParameter>*>(rp().demAlgorithm(LasReader()).get()), nullptr);
@@ -186,7 +191,7 @@ namespace lapis {
 
 	TEST_F(RunParametersTest, lasFilesAndAlignment) {
 
-		std::string testFileFolder = LAPISTESTFILES;
+		std::string testFileFolder = LAPISTESTFILES + std::string("/StaticTestFiles");
 		prepareParams({ "--las=" + testFileFolder, "--debug-no-output"});
 		const auto& extents = rp().lasExtents();
 

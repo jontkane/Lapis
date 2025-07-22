@@ -1,10 +1,10 @@
 #include"param_pch.hpp"
 #include"LasFileParameter.hpp"
-#include"LapisParameters.hpp"
+#include"ParameterGetter.hpp"
 
 namespace lapis {
 
-	size_t LasFileParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new LasFileParameter());
+	LAPIS_PARAMETER_REGISTER_DEFINE(LasFileParameter);
 	void LasFileParameter::reset()
 	{
 		*this = LasFileParameter();
@@ -73,9 +73,9 @@ namespace lapis {
 		}
 		_warnedAboutVersionMinor = false;
 
-		LapisParameters& rp = LapisParameters::singleton();
+        ParameterManager& pm = parameterManager();
 
-		if (rp.isDebugNoAlign()) {
+		if (pm.isDebugNoAlign()) {
 			_runPrepared = true;
 			return true;
 		}
@@ -87,12 +87,12 @@ namespace lapis {
 		while (it != s.end()) {
 			auto& las = *it;
 			++it;
-			if (!rp.overlapsAoI(las.ext)) {
+			if (!pm.overlapsAoI(las.ext)) {
 				s.erase(las);
 			}
 		}
 
-		CoordRef outCrs = rp.userCrsSpecification();
+		CoordRef outCrs = pm.userCrsSpecification();
 		if (outCrs.isEmpty()) {
 			for (const LasFileExtent& e : s) {
 				outCrs = e.ext.crs();
@@ -152,7 +152,7 @@ namespace lapis {
 				_fullExtent = extendExtent(_fullExtent, l.ext);
 			}
 		}
-		_fullExtent.setZUnits(rp.outUnits());
+		_fullExtent.setZUnits(pm.outUnits());
 
 		_runPrepared = true;
 		return true;

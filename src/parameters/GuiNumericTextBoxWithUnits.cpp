@@ -35,12 +35,12 @@ namespace lapis {
 		ImGui::PopItemWidth();
 
 		ImGui::SameLine();
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 		if (std::atof(_buffer.data()) == 1.f) {
-			ImGui::Text(rp.unitSingular().c_str());
+			ImGui::Text(pm.unitSingular().c_str());
 		}
 		else {
-			ImGui::Text(rp.unitPlural().c_str());
+			ImGui::Text(pm.unitPlural().c_str());
 		}
 		displayHelp();
 
@@ -58,9 +58,9 @@ namespace lapis {
 	}
 	void NumericTextBoxWithUnits::updateUnits()
 	{
-		LapisParameters& rp = LapisParameters::singleton();
-		const LinearUnit& src = rp.prevUnits();
-		const LinearUnit& dst = rp.outUnits();
+		ParameterManager& pm = parameterManager();
+		const LinearUnit& src = pm.prevUnits();
+		const LinearUnit& dst = pm.outUnits();
 		try {
 			double v = std::stod(_buffer.data());
 			v = src.convertOneFromThis(v, dst);

@@ -41,7 +41,7 @@ namespace lapis {
 		for (auto& buffer : _buffers) {
 			ImGui::Text(buffer.asText());
 			ImGui::SameLine();
-			ImGui::Text(LapisParameters::singleton().unitPlural().c_str());
+			ImGui::Text(parameterManager().unitPlural().c_str());
 		}
 		return changed;
 	}
@@ -80,8 +80,8 @@ namespace lapis {
 	}
 	void MultiNumericTextBoxWithUnits::updateUnits()
 	{
-		LapisParameters& rp = LapisParameters::singleton();
-		if (!rp.prevUnits().isConsistent(rp.outUnits())) {
+		ParameterManager& pm = parameterManager();
+		if (!pm.prevUnits().isConsistent(pm.outUnits())) {
 			for (auto& buffer : _buffers) {
 				buffer.updateUnits();
 			}

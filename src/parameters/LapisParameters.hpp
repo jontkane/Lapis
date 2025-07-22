@@ -11,129 +11,101 @@ namespace lapis {
 
 	class DemAlgorithm;
 
-	class LapisParameters : public ParameterGetter {
+	class LapisParameters : public ParameterManager {
 
 	public:
-
-		static LapisParameters& singleton();
-
-		size_t registerParameter(Parameter* param);
-
-		template<class T>
-		void renderGui();
-
-		void importBoostAndUpdateUnits();
-		void updateUnits();
-
-		bool prepareForRun();
-		void cleanAfterRun();
-		void resetObject();
-
-		template<class PARAMETER>
-		PARAMETER& getParam();
-
-		template<class PARAMETER>
-		const PARAMETER& getParam() const;
-
-		const LinearUnit& outUnits();
-		void setPrevUnits(const LinearUnit& u);
-		const LinearUnit& prevUnits();
-		const std::string& unitSingular();
-		const std::string& unitPlural();
-
-		const std::vector<Extent>& lasExtents();
-		LasReader getLas(size_t i);
-		std::optional<LinearUnit> lasZUnits();
-
-		std::unique_ptr<DemAlgoApplier> demAlgorithm(LasReader&& l);
-
-		//userCrsSpecification() returns what the user actually selected. It may be an empty crs, indicating no particular preference
-		//outputCrs() returns the actual crs being used. It will only be empty in rare circumstances
-		const CoordRef& userCrsSpecification();
-		const CoordRef& outputCrs();
-
-		const Extent& fullExtent();
-		const std::shared_ptr<Alignment> metricAlign();
-		const std::shared_ptr<Alignment> csmAlign();
-		const std::shared_ptr<Alignment> fineIntAlign();
-		std::shared_ptr<Raster<bool>> layout();
-		std::string layoutTileName(cell_t tile);
-
-		std::shared_ptr<VectorDataset<Polygon>> lasFileLayout();
-		std::shared_ptr<VectorDataset<Polygon>> demFileLayout();
-
-		std::mutex& cellMutex(cell_t cell);
-		std::mutex& globalMutex();
-
-		const std::vector<std::shared_ptr<LasFilter>>& filters();
-		coord_t minHt();
-		coord_t maxHt();
-		bool overlapsAoI(const Extent& e);
-
-		CsmAlgorithm* csmAlgorithm();
-		CsmPostProcessor* csmPostProcessAlgorithm();
-
-		int nThread();
-		coord_t binSize();
-		size_t tileFileSize();
-
-		coord_t canopyCutoff();
-		const std::vector<coord_t>& strataBreaks();
-		const std::vector<std::string>& strataNames();
-
-		TaoIdAlgorithm* taoIdAlgorithm();
-		TaoSegmentAlgorithm* taoSegAlgorithm();
-		bool vectorizeSegments();
-
-		Raster<coord_t> bufferedElev(const Raster<coord_t>& unbufferedElev);
-		const std::vector<coord_t>& topoWindows();
-		const std::vector<std::string>& topoWindowNames();
-		bool useRadians();
-
-		const std::filesystem::path& outFolder();
-		const std::string& name();
-		//this fuction is intended to produce matadata only for parameters not associated with a single product
-		void describeParameters(MetadataPdf& pdf);
-
-		coord_t fineIntCanopyCutoff();
-
-		bool doPointMetrics();
-		bool doFirstReturnMetrics();
-		bool doAllReturnMetrics();
-		bool doAdvancedPointMetrics();
-		bool doCsm();
-		bool doCsmMetrics();
-		bool doTaos();
-		bool doFineInt();
-		bool doTopo();
-		bool doStratumMetrics();
-
-		bool isDebugNoAlign();
-		bool isDebugNoOutput();
-		bool isAnyDebug();
-
-		enum class ParseResults {
-			invalidOpts, helpPrinted, validOpts, guiRequested
-		};
-
-		ParseResults parseArgs(const std::vector<std::string>& args);
-		ParseResults parseIni(const std::string& path);
-
-		std::ostream& writeOptions(std::ostream& out, ParamCategory cat) const;
-
-		const int maxLapisFileName = 75;
-#ifdef _WIN32
-		const int maxTotalFilePath = 250;
-#else
-		const int maxTotalFilePath = 4000;
-#endif
-
-	private:
-
 		LapisParameters();
 		LapisParameters(const LapisParameters&) = delete;
 		LapisParameters(LapisParameters&&) = delete;
-		std::vector<std::unique_ptr<Parameter>> _params;
+
+		bool prepareForRun() override;
+		void cleanAfterRun() override;
+		void reset() override;
+
+		void importBoostAndUpdateUnits() override;
+		void updateUnits() override;
+		void setPrevUnits(const LinearUnit& u) override;
+		const LinearUnit& prevUnits() override;
+
+		const LinearUnit& outUnits() override;
+		const std::string& unitSingular() override;
+		const std::string& unitPlural() override;
+
+		const std::vector<Extent>& lasExtents() override;
+		LasReader getLas(size_t i) override;
+		std::optional<LinearUnit> lasZUnits() override;
+
+		std::unique_ptr<DemAlgoApplier> demAlgorithm(LasReader&& l) override;
+
+		const CoordRef& userCrsSpecification() override;
+		const CoordRef& outputCrs() override;
+
+		const Extent& fullExtent() override;
+		const std::shared_ptr<Alignment> metricAlign() override;
+		const std::shared_ptr<Alignment> csmAlign() override;
+		const std::shared_ptr<Alignment> fineIntAlign() override;
+		std::shared_ptr<Raster<bool>> layout() override;
+		std::string layoutTileName(cell_t tile) override;
+
+		std::shared_ptr<VectorDataset<Polygon>> lasFileLayout() override;
+		std::shared_ptr<VectorDataset<Polygon>> demFileLayout() override;
+
+		std::mutex& cellMutex(cell_t cell) override;
+		std::mutex& globalMutex() override;
+
+		const std::vector<std::shared_ptr<LasFilter>>& filters() override;
+		coord_t minHt() override;
+		coord_t maxHt() override;
+		bool overlapsAoI(const Extent& e) override;
+
+		CsmAlgorithm* csmAlgorithm() override;
+		CsmPostProcessor* csmPostProcessAlgorithm() override;
+
+		int nThread() override;
+		coord_t binSize() override;
+		size_t tileFileSize() override;
+
+		coord_t canopyCutoff() override;
+		const std::vector<coord_t>& strataBreaks() override;
+		const std::vector<std::string>& strataNames() override;
+
+		TaoIdAlgorithm* taoIdAlgorithm() override;
+		TaoSegmentAlgorithm* taoSegAlgorithm() override;
+
+
+		Raster<coord_t> bufferedElev(const Raster<coord_t>& unbufferedElev) override;
+		const std::vector<coord_t>& topoWindows() override;
+		const std::vector<std::string>& topoWindowNames() override;
+		bool useRadians() override;
+
+		const std::filesystem::path& outFolder() override;
+		const std::string& name() override;
+		void describeParameters(MetadataPdf& pdf) override;
+
+		coord_t fineIntCanopyCutoff() override;
+
+		bool doPointMetrics() override;
+		bool doFirstReturnMetrics() override;
+		bool doAllReturnMetrics() override;
+		bool doAdvancedPointMetrics() override;
+		bool doCsm() override;
+		bool doCsmMetrics() override;
+		bool doTaos() override;
+		bool doFineInt() override;
+		bool doTopo() override;
+		bool doStratumMetrics() override;
+		bool doVectorizeSegments() override;
+
+		bool isDebugNoAlign() override;
+		bool isDebugNoOutput() override;
+		bool isAnyDebug() override;
+
+		ParseResults parseArgs(const std::vector<std::string>& args) override;
+		ParseResults parseIni(const std::string& path) override;
+
+		std::ostream& writeOptions(std::ostream& out, ParamCategory cat) const override;
+
+	private:
 
 		LinearUnit _prevUnits;
 
@@ -148,21 +120,7 @@ namespace lapis {
 		std::shared_ptr<void> _pdf;
 	};
 
-	template<class PARAMETER>
-	inline PARAMETER& LapisParameters::getParam()
-	{
-		return *dynamic_cast<PARAMETER*>(_params[PARAMETER::parameterRegisteredIndex].get());
-	}
-	template<class PARAMETER>
-	inline const PARAMETER& LapisParameters::getParam() const
-	{
-		return *dynamic_cast<PARAMETER*>(_params[PARAMETER::parameterRegisteredIndex].get());
-	}
-	template<class T>
-	void LapisParameters::renderGui()
-	{
-		_params[T::parameterRegisteredIndex]->renderGui();
-	}
+
 }
 
 #endif

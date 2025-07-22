@@ -5,7 +5,7 @@
 
 namespace lapis {
 
-	size_t TopoHandler::handlerRegisteredIndex = LapisController::registerHandler(new TopoHandler(&LapisParameters::singleton()));
+	HANDLER_REGISTER_DEFINITION(TopoHandler);
 	void TopoHandler::reset()
 	{
 		*this = TopoHandler(_getter);

@@ -1,10 +1,10 @@
 #include"param_pch.hpp"
 #include"TopoParameter.hpp"
-#include"LapisParameters.hpp"
+#include"ParameterGetter.hpp"
 
 namespace lapis {
 
-	size_t TopoParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new TopoParameter());
+	LAPIS_PARAMETER_REGISTER_DEFINE(TopoParameter);
 	void TopoParameter::reset()
 	{
 		*this = TopoParameter();
@@ -71,7 +71,7 @@ namespace lapis {
 		}
 
 		LapisLogger& log = LapisLogger::getLogger();
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 
 		auto to_string_with_precision = [](coord_t v)->std::string {
 			std::ostringstream out;
@@ -89,7 +89,7 @@ namespace lapis {
 				return false;
 			}
 
-			_topoWindowNames.push_back(to_string_with_precision(v) + rp.unitPlural());
+			_topoWindowNames.push_back(to_string_with_precision(v) + pm.unitPlural());
 		}
 
 		_runPrepared = true;

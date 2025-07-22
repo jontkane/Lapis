@@ -1,11 +1,11 @@
 #include"param_pch.hpp"
 #include"FineIntParameter.hpp"
-#include"LapisParameters.hpp"
+#include"ParameterGetter.hpp"
 #include"CsmParameter.hpp"
 
 namespace lapis {
 
-	size_t FineIntParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new FineIntParameter());
+	LAPIS_PARAMETER_REGISTER_DEFINE(FineIntParameter);
 	void FineIntParameter::reset()
 	{
 		*this = FineIntParameter();
@@ -91,9 +91,9 @@ namespace lapis {
 			return true;
 		}
 		LapisLogger& log = LapisLogger::getLogger();
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 
-		if (!rp.doFineInt()) {
+		if (!pm.doFineInt()) {
 			_runPrepared = true;
 			return true;
 		}
@@ -109,7 +109,7 @@ namespace lapis {
 
 		coord_t cellsize = 1;
 		if (_sameCellsize.currentState()) {
-			const Alignment& a = *rp.csmAlign();
+			const Alignment& a = *pm.csmAlign();
 			cellsize = a.xres();
 		}
 		else {
@@ -124,7 +124,7 @@ namespace lapis {
 			}
 		}
 
-		const Alignment& a = *rp.metricAlign();
+		const Alignment& a = *pm.metricAlign();
 		_fineIntAlign = std::make_unique<Alignment>((Extent)a, a.xOrigin(), a.yOrigin(), cellsize, cellsize);
 
 		_runPrepared = true;
@@ -141,17 +141,18 @@ namespace lapis {
 	}
 	coord_t FineIntParameter::fineIntCutoff() const
 	{
+		ParameterManager& pm = parameterManager();
 		if (!_useCutoff.currentState()) {
 			return std::numeric_limits<coord_t>::lowest();
 		}
-		return _sameCutoff.currentState() ? LapisParameters::singleton().canopyCutoff() : _cutoff.getValueLogErrors();
+		return _sameCutoff.currentState() ? pm.canopyCutoff() : _cutoff.getValueLogErrors();
 	}
 	coord_t FineIntParameter::fineIntCellSize() const
 	{
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 		coord_t cellsize = 1;
 		if (_sameCellsize.currentState()) {
-			rp.getParam<CsmParameter>().csmCellSize();
+			pm.getParam<CsmParameter>().csmCellSize();
 		}
 		else {
 			cellsize = _cellsize.getValueLogErrors();

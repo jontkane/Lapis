@@ -92,6 +92,7 @@ target_link_libraries(Lapis_test PRIVATE ${LAPIS_INTERNAL_LINKS})
 
 
 find_package(GTest REQUIRED)
+add_compile_definitions(LAPISTESTFILES="${LAPIS_DIR}/src/test/TestFiles/")
 target_include_directories(Lapis_test PRIVATE ${GTEST_INCLUDE_DIRS})
 target_link_libraries(Lapis_test PRIVATE ${GTEST_BOTH_LIBRARIES})
 
@@ -117,5 +118,3 @@ else()
 	target_compile_options(Lapis_run PRIVATE -Wall -Wextra -Werror)
 	target_compile_options(Lapis_test PRIVATE -Wall -WExtra -Werror)
 endif()
-
-add_compile_definitions(LAPISTESTDATA="${LAPIS_DIR}/src/test/TestData/")

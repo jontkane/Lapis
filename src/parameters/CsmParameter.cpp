@@ -1,12 +1,12 @@
 #include"param_pch.hpp"
 #include"CsmParameter.hpp"
-#include"LapisParameters.hpp"
+#include"ParameterGetter.hpp"
 #include"..\algorithms\AllCsmAlgorithms.hpp"
 #include"..\algorithms\AllCsmPostProcessors.hpp"
 
 namespace lapis {
 
-	size_t CsmParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new CsmParameter());
+	LAPIS_PARAMETER_REGISTER_DEFINE(CsmParameter);
 	void CsmParameter::reset()
 	{
 		*this = CsmParameter();
@@ -74,13 +74,13 @@ namespace lapis {
 			return true;
 		}
 
-		LapisParameters& rp = LapisParameters::singleton();
+        ParameterManager& pm = parameterManager();
 		LapisLogger& log = LapisLogger::getLogger();
-		const Alignment& metricAlign = *rp.metricAlign();
-		const LinearUnit& u = rp.outUnits();
+		const Alignment& metricAlign = *pm.metricAlign();
+		const LinearUnit& u = pm.outUnits();
 
 
-		if (!rp.doCsm()) {
+		if (!pm.doCsm()) {
 			//there's a few random places in the code that use the csm alignment even if the csm isn't being calculated
 			//if the csm is turned off, so we don't have its parameters, just default to 1 meter cellsize
 			coord_t cellsize = linearUnitPresets::meter.convertOneFromThis(1, metricAlign.crs().getXYLinearUnits());

@@ -18,17 +18,11 @@ namespace lapis {
 
 		void sendAbortSignal();
 
-		static size_t registerHandler(ProductHandler* handler);
-		template<class HANDLER>
-		static void replaceHandlerWithMod(HANDLER* handler) {
-			_handlers()[HANDLER::handlerRegisteredIndex].reset(handler);
-		}
-
 	protected:
 		mutable std::atomic_bool _isRunning = false;
 
-		void lasThread(size_t n);
-		void tileThread(cell_t tile);
+		const void lasThread(size_t n);
+		const void tileThread(cell_t tile);
 		void cleanUp();
 
 		void writeLayout() const;
@@ -67,8 +61,6 @@ namespace lapis {
 #endif
 			}
 		}
-
-		static std::vector<std::unique_ptr<ProductHandler>>& _handlers();
 	};
 }
 

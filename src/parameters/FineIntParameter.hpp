@@ -9,6 +9,7 @@ namespace lapis {
 	public:
 
 		FineIntParameter();
+		LAPIS_PARAMETER_REGISTER_DECLARE;
 
 		void addToCmd(BoostOptDesc& visible,
 			BoostOptDesc& hidden) override;
@@ -26,7 +27,6 @@ namespace lapis {
 		void cleanAfterRun() override;
 
 		void reset() override;
-		static size_t parameterRegisteredIndex;
 
 		std::shared_ptr<Alignment> fineIntAlign();
 		coord_t fineIntCutoff() const;

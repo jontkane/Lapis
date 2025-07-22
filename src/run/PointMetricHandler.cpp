@@ -6,7 +6,7 @@
 
 namespace lapis {
 
-	size_t PointMetricHandler::handlerRegisteredIndex = LapisController::registerHandler(new PointMetricHandler(&LapisParameters::singleton()));
+	HANDLER_REGISTER_DEFINITION(PointMetricHandler);
 	void PointMetricHandler::reset()
 	{
 		*this = PointMetricHandler(_getter);

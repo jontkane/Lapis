@@ -7,7 +7,7 @@ namespace lapis {
 
 	//A variant of overlay that will not take values from the outer edge of the overlaid raster unless it would overwrite a nodata value
 	//Intended for use when mosaicing together rasters that have edge effects, but also have a buffer
-	void overlayExcludingEdgeThreadSafe(Raster<metric_t>& base, const Raster<metric_t>& over, CsmParameterGetter* getter) {
+	static void overlayExcludingEdgeThreadSafe(Raster<metric_t>& base, const Raster<metric_t>& over, CsmParameterGetter* getter) {
 		Alignment::RowColExtent rcExt = base.rowColExtent(over, SnapType::near); //snap type doesn't matter with consistent alignments, but 'near' will correct for floating point issues
 
 		auto distFromEdge = [](const Alignment& a, rowcol_t row, rowcol_t col) {
@@ -44,7 +44,7 @@ namespace lapis {
 		}
 	}
 
-	size_t CsmHandler::handlerRegisteredIndex = LapisController::registerHandler(new CsmHandler(&LapisParameters::singleton()));
+	HANDLER_REGISTER_DEFINITION(CsmHandler);
 	void CsmHandler::reset()
 	{
 		*this = CsmHandler(_getter);

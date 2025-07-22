@@ -26,7 +26,7 @@ namespace lapis {
 
 	template<class HANDLER>
 	void modProductBehavior(HANDLER* newBehavior) {
-		LapisController::replaceHandlerWithMod<HANDLER>(newBehavior);
+		HandlerRegistrar::replaceHandlerWithMod<HANDLER>(newBehavior);
 	}
 
 	int lapisUnifiedMain(std::vector<std::string> args) {
@@ -42,11 +42,17 @@ namespace lapis {
 		proj_log_level(ProjContextByThread::get(), PJ_LOG_NONE);
 #endif
 		setProjDirectory(executableFilePath(), nullptr);
-		LapisParameters& rp = LapisParameters::singleton();
-		rp.resetObject();
+
+		//init things in the correct order; handlers are dependent on parameters
+		setParameterManager(new LapisParameters());
+        ParameterManager& pm = parameterManager();
+		pm.reset();
+        HandlerRegistrar::get().initHandlers();
+
+
 		using pr = LapisParameters::ParseResults;
-		pr parsed = rp.parseArgs(args);
-		rp.importBoostAndUpdateUnits();
+		pr parsed = pm.parseArgs(args);
+		pm.importBoostAndUpdateUnits();
 		if (parsed == pr::invalidOpts) {
 			lapisCout << "Error parsing command line\n";
 			return 1;

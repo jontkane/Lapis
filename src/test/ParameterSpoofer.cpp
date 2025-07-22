@@ -18,6 +18,10 @@ namespace lapis {
 	{
 		return _metricAlign;
 	}
+	const Extent& SharedParameterSpoofer::fullExtent()
+	{
+		return *_metricAlign;
+	}
 	void SharedParameterSpoofer::setLayout(const Alignment& a)
 	{
 		_layout = std::make_shared<Raster<bool>>(a);
@@ -151,6 +155,16 @@ namespace lapis {
 	{
 		return _strataNames;
 	}
+	void PointMetricParameterSpoofer::setMinHt(coord_t v)
+	{
+		_minHt = v;
+    }
+    coord_t PointMetricParameterSpoofer::minHt()
+	{
+		return _minHt;
+    }
+
+
 	void CsmParameterSpoofer::setCsmAlign(const Alignment& a)
 	{
 		_csmAlign = std::make_shared<Alignment>(a);
@@ -191,6 +205,8 @@ namespace lapis {
 	{
 		return _doCsmMetrics;
 	}
+
+
 	void TaoParameterSpoofer::setDoTaos(bool b)
 	{
 		_doTaos = b;
@@ -215,6 +231,16 @@ namespace lapis {
 	{
 		return _taoSegAlgorithm.get();
 	}
+	void TaoParameterSpoofer::setDoVectorizeSegments(bool b)
+	{
+		_doVectorizeSegments = b;
+	}
+	bool TaoParameterSpoofer::doVectorizeSegments()
+	{
+		return _doVectorizeSegments;
+    }
+
+
 	void FineIntParameterSpoofer::setFineIntAlign(const Alignment& a)
 	{
 		_fineIntAlign = std::make_shared<Alignment>(a);
@@ -239,6 +265,8 @@ namespace lapis {
 	{
 		return _doFineInt;
 	}
+
+
 	void TopoParameterSpoofer::setDoTopo(bool b)
 	{
 		_doTopo = b;

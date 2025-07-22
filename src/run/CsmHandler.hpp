@@ -9,6 +9,7 @@ namespace lapis {
 	public:
 		using ParamGetter = CsmParameterGetter;
 		CsmHandler(ParamGetter* p);
+		HANDLER_REGISTER_DECLARATION;
 
 		void prepareForRun() override;
 		void handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index) override;
@@ -19,7 +20,6 @@ namespace lapis {
 		void reset() override;
 		bool doThisProduct() override;
 		std::string name() override;
-		static size_t handlerRegisteredIndex;
 
 		void describeInPdf(MetadataPdf& pdf) override;
 

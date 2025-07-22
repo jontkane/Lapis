@@ -4,8 +4,6 @@
 
 #include"CommonGuiElements.hpp"
 
-//forward declares, including those needed by child classes
-
 namespace lapis {
 
 	enum class ParamCategory {
@@ -37,38 +35,42 @@ namespace lapis {
 		virtual void cleanAfterRun() = 0;
 		virtual void reset() = 0;
 	};
+
+	//this class should only be used for static registration of parameters
+	//calls to these functions at any other time will not do anything useful, and may break the program
+	class ParameterRegistrar {
+	public:
+		static ParameterRegistrar& get();
+		size_t registerParameter(Parameter* param);
+		std::vector<Parameter*>::iterator begin();
+        std::vector<Parameter*>::iterator end();
+        std::vector<Parameter*>::const_iterator begin() const;
+        std::vector<Parameter*>::const_iterator end() const;
+        
+		template<class PARAM>
+		PARAM* getParameter();
+        template<class PARAM>
+		const PARAM* getParameter() const;
+
+		size_t size() const;
+	private:
+		ParameterRegistrar() = default;
+		std::vector<Parameter*> _params;
+	};
+
+#define LAPIS_PARAMETER_REGISTER_DECLARE static size_t parameterRegisteredIndex;
+#define LAPIS_PARAMETER_REGISTER_DEFINE(PARAMETER) \
+	size_t PARAMETER::parameterRegisteredIndex = ParameterRegistrar::get().registerParameter(new PARAMETER());
+
+    template<class PARAM>
+	PARAM* ParameterRegistrar::getParameter() {
+		return dynamic_cast<PARAM*>(_params[PARAM::parameterRegisteredIndex]);
+	}
+    template<class PARAM>
+	const PARAM* ParameterRegistrar::getParameter() const {
+		return dynamic_cast<const PARAM*>(_params[PARAM::parameterRegisteredIndex]);
+	}
 }
 
 #endif
-
-	/*
-	* 	class NewParameter : public Parameter {
-	public:
-
-		NewParameter();
-
-		void addToCmd(BoostOptDesc& visible,
-			BoostOptDesc& hidden) override;
-
-		std::ostream& printToIni(std::ostream& o) override;
-
-		ParamCategory getCategory() const override;
-
-		void renderGui() override;
-
-		void importFromBoost() override;
-		void updateUnits() override;
-
-		bool prepareForRun() override;
-		void cleanAfterRun() override;
-
-		void reset() override;
-		static size_t parameterRegisteredIndex;
-		};
-
-		and in the cpp:
-
-		size_t NewParameter::parameterRegisteredIndex = RunParameters::singleton().registerParameter(new NewParameter());
-
-	*/
 

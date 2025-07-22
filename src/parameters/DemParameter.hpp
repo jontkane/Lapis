@@ -23,6 +23,7 @@ namespace lapis {
 	public:
 
 		DemParameter();
+		LAPIS_PARAMETER_REGISTER_DECLARE;
 
 		void addToCmd(BoostOptDesc& visible,
 			BoostOptDesc& hidden) override;
@@ -40,7 +41,6 @@ namespace lapis {
 		void cleanAfterRun() override;
 
 		void reset() override;
-		static size_t parameterRegisteredIndex;
 
 		DemAlgorithm* demAlgorithm();
 

@@ -151,21 +151,21 @@ namespace lapis {
 
 
 		ImGui::BeginTabBar("MainTabs");
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 
 		if (!_runner->isRunning()) {
-			rp.updateUnits();
-			rp.setPrevUnits(rp.outUnits());
+			pm.updateUnits();
+			pm.setPrevUnits(pm.outUnits());
 			if (ImGui::BeginTabItem("Run")) {
 				_runTab();
 				ImGui::EndTabItem();
 			}
 			if (ImGui::BeginTabItem("Las Files")) {
-				rp.renderGui<LasFileParameter>();
+				pm.renderGui<LasFileParameter>();
 				ImGui::EndTabItem();
 			}
 			if (ImGui::BeginTabItem("Ground Model")) {
-				rp.renderGui<DemParameter>();
+				pm.renderGui<DemParameter>();
 				ImGui::EndTabItem();
 			}
 			if (ImGui::BeginTabItem("Processing Options")) {
@@ -200,10 +200,10 @@ namespace lapis {
 	template<class RUNNERTYPE>
 	inline void LapisGui<RUNNERTYPE>::_runTab()
 	{
-		LapisParameters& rp = LapisParameters::singleton();
+        ParameterManager& pm = parameterManager();
 
-		rp.renderGui<NameParameter>();
-		rp.renderGui<OutputParameter>();
+		pm.renderGui<NameParameter>();
+		pm.renderGui<OutputParameter>();
 
 		if (ImGui::Button("Start Run")) {
 			if (!_runner->isRunning()) {
@@ -223,7 +223,7 @@ namespace lapis {
 			NFD::OpenDialog(inputIniFile, &iniFileFilter, 1);
 		}
 		if (inputIniFile) {
-			rp.parseIni(inputIniFile.get());
+			pm.parseIni(inputIniFile.get());
 			inputIniFile.reset();
 		}
 
@@ -239,11 +239,11 @@ namespace lapis {
 		if (outputIniFile) {
 			std::ofstream ofs{ outputIniFile.get()};
 			if (ofs) {
-				rp.writeOptions(ofs, ParamCategory::data);
+				pm.writeOptions(ofs, ParamCategory::data);
 				ofs << "\n";
-				rp.writeOptions(ofs, ParamCategory::computer);
+				pm.writeOptions(ofs, ParamCategory::computer);
 				ofs << "\n";
-				rp.writeOptions(ofs, ParamCategory::process);
+				pm.writeOptions(ofs, ParamCategory::process);
 			}
 			else {
 				LapisLogger::getLogger().logWarning("Unable to write options to " + std::string(outputIniFile.get()));
@@ -257,9 +257,9 @@ namespace lapis {
 			defaultini = defaultini.parent_path() / "lapisdefault.ini";
 			std::ofstream ofs{ defaultini.string() };
 			if (ofs) {
-				rp.writeOptions(ofs, ParamCategory::computer);
+				pm.writeOptions(ofs, ParamCategory::computer);
 				ofs << "\n";
-				rp.writeOptions(ofs, ParamCategory::process);
+				pm.writeOptions(ofs, ParamCategory::process);
 			}
 			else {
 				LapisLogger::getLogger().logWarning("Unable to write options to " + defaultini.string());
@@ -278,7 +278,7 @@ namespace lapis {
 	template<class RUNNERTYPE>
 	inline void LapisGui<RUNNERTYPE>::_generalOptionsTab()
 	{
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 
 		ImGui::BeginChild("##optionstab", ImGui::GetContentRegionAvail(), false);
 		static constexpr int columns = 2;
@@ -286,21 +286,21 @@ namespace lapis {
 		static ImVec2 subAreaSize = { ImGui::GetContentRegionMax().x / columns - 5, ImGui::GetContentRegionMax().y / rows - 5 };
 
 		ImGui::BeginChild("units", subAreaSize, true, 0);
-		rp.renderGui<OutUnitParameter>();
+		pm.renderGui<OutUnitParameter>();
 		ImGui::EndChild();
 
 		ImGui::SameLine();
 		ImGui::BeginChild("alignment", subAreaSize, true, 0);
-		rp.renderGui<AlignmentParameter>();
+		pm.renderGui<AlignmentParameter>();
 		ImGui::EndChild();
 
 		ImGui::BeginChild("filter", subAreaSize, true, 0);
-		rp.renderGui<FilterParameter>();
+		pm.renderGui<FilterParameter>();
 		ImGui::EndChild();
 
 		ImGui::SameLine();
 		ImGui::BeginChild("computer", subAreaSize, true, 0);
-		rp.renderGui<ComputerParameter>();
+		pm.renderGui<ComputerParameter>();
 		ImGui::EndChild();
 
 		ImGui::EndChild();
@@ -311,32 +311,32 @@ namespace lapis {
 	{
 		//check boxes for what to compute at the top
 		//then tabs for each of those to customize them
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 
 		ImGui::BeginChild("products", ImVec2(ImGui::GetContentRegionAvail().x, 235), true, 0);
-		rp.renderGui<WhichProductsParameter>();
+		pm.renderGui<WhichProductsParameter>();
 		ImGui::EndChild();
 
 		ImGui::BeginTabBar("producttabs");
 
-		if (rp.doPointMetrics() && ImGui::BeginTabItem("Point Metrics")) {
-			rp.renderGui<PointMetricParameter>();
+		if (pm.doPointMetrics() && ImGui::BeginTabItem("Point Metrics")) {
+			pm.renderGui<PointMetricParameter>();
 			ImGui::EndTabItem();
 		}
-		if (rp.doCsm() && ImGui::BeginTabItem("Canopy Surface Model")) {
-			rp.renderGui<CsmParameter>();
+		if (pm.doCsm() && ImGui::BeginTabItem("Canopy Surface Model")) {
+			pm.renderGui<CsmParameter>();
 			ImGui::EndTabItem();
 		}
-		if (rp.doTaos() && ImGui::BeginTabItem("Tree ID")) {
-			rp.renderGui<TaoParameter>();
+		if (pm.doTaos() && ImGui::BeginTabItem("Tree ID")) {
+			pm.renderGui<TaoParameter>();
 			ImGui::EndTabItem();
 		}
-		if (rp.doTopo() && ImGui::BeginTabItem("Topography")) {
-			rp.renderGui<TopoParameter>();
+		if (pm.doTopo() && ImGui::BeginTabItem("Topography")) {
+			pm.renderGui<TopoParameter>();
 			ImGui::EndTabItem();
 		}
-		if (rp.doFineInt() && ImGui::BeginTabItem("Fine-Scale Intensity")) {
-			rp.renderGui<FineIntParameter>();
+		if (pm.doFineInt() && ImGui::BeginTabItem("Fine-Scale Intensity")) {
+			pm.renderGui<FineIntParameter>();
 			ImGui::EndTabItem();
 		}
 
@@ -346,9 +346,9 @@ namespace lapis {
 	template<class RUNNERTYPE>
 	inline void LapisGui<RUNNERTYPE>::_aoiTab()
 	{
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 
-		rp.renderGui<AoIParameter>();
+		pm.renderGui<AoIParameter>();
 	}
 
 	template<class RUNNERTYPE>

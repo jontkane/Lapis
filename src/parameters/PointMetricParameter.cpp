@@ -1,10 +1,10 @@
 #include"param_pch.hpp"
 #include"PointMetricParameter.hpp"
-#include"LapisParameters.hpp"
+#include"ParameterGetter.hpp"
 
 namespace lapis {
 
-	size_t PointMetricParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new PointMetricParameter());
+	LAPIS_PARAMETER_REGISTER_DEFINE(PointMetricParameter);
 	void PointMetricParameter::reset()
 	{
 		*this = PointMetricParameter();
@@ -82,7 +82,7 @@ namespace lapis {
 			return true;
 		}
 
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 
 		LapisLogger& log = LapisLogger::getLogger();
 		if (std::isnan(_canopyCutoff.getValueLogErrors())) {
@@ -92,7 +92,7 @@ namespace lapis {
 			log.logWarning("Canopy cutoff is negative. Is this intentional?");
 		}
 
-		if (!rp.doPointMetrics()) {
+		if (!pm.doPointMetrics()) {
 			_runPrepared = true;
 			return true;
 		}
@@ -112,11 +112,11 @@ namespace lapis {
 				};
 				const std::vector<coord_t>& strata = _strata.cachedValues();
 				_strataNames.clear();
-				_strataNames.push_back("LessThan" + to_string_with_precision(strata[0]) + rp.unitPlural());
+				_strataNames.push_back("LessThan" + to_string_with_precision(strata[0]) + pm.unitPlural());
 				for (size_t i = 1; i < strata.size(); ++i) {
-					_strataNames.push_back(to_string_with_precision(strata[i - 1]) + "To" + to_string_with_precision(strata[i]) + rp.unitPlural());
+					_strataNames.push_back(to_string_with_precision(strata[i - 1]) + "To" + to_string_with_precision(strata[i]) + pm.unitPlural());
 				}
-				_strataNames.push_back("GreaterThan" + to_string_with_precision(strata[strata.size() - 1]) + rp.unitPlural());
+				_strataNames.push_back("GreaterThan" + to_string_with_precision(strata[strata.size() - 1]) + pm.unitPlural());
 			}
 		}
 

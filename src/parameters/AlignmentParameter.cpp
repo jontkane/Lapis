@@ -1,10 +1,10 @@
 #include"param_pch.hpp"
 #include"AlignmentParameter.hpp"
-#include"LapisParameters.hpp"
+#include"ParameterGetter.hpp"
 
 namespace lapis {
 
-	size_t AlignmentParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new AlignmentParameter());
+	LAPIS_PARAMETER_REGISTER_DEFINE(AlignmentParameter);
 	void AlignmentParameter::reset()
 	{
 		*this = AlignmentParameter();
@@ -121,7 +121,7 @@ namespace lapis {
 					LapisLogger::getLogger().logError("At this time, output coordinate reference systems must be projected. Lat/lon output may be supported in future releases.");
 					return;
 				}
-				LinearUnitConverter converter{ srcOpt.value(), LapisParameters::singleton().outUnits() };
+				LinearUnitConverter converter{ srcOpt.value(), parameterManager().outUnits()};
 
 				_xres.setValue(converter(a.xres()));
 				_yres.setValue(converter(a.yres()));
@@ -212,7 +212,7 @@ namespace lapis {
 			_runPrepared = true;
 			return true;
 		}
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 		LapisLogger& log = LapisLogger::getLogger();
 
 		if (!_crs.cachedCrs().isProjected()) {
@@ -221,10 +221,10 @@ namespace lapis {
 		}
 
 		CoordRef withZUnits = _crs.cachedCrs();
-		withZUnits.setZUnits(rp.outUnits());
+		withZUnits.setZUnits(pm.outUnits());
 		_crs.setCrs(withZUnits);
 
-		Extent e = rp.fullExtent();
+		Extent e = pm.fullExtent();
 		if (!e.crs().isProjected()) {
 			if (e.xmin() < -180 || e.xmax() > 180 || e.ymin() < -180 || e.ymax() > 180) {
 				log.logWarning("There's something unusual with the laz file CRS information. You may need to manually specify the CRS to get accurate results.");
@@ -260,7 +260,7 @@ namespace lapis {
 		}
 
 		//the branch where this doesn't have a value is handled above
-		LinearUnitConverter converter{ rp.outUnits(), e.crs().getXYLinearUnits().value_or(linearUnitPresets::unknownLinear) };
+		LinearUnitConverter converter{ pm.outUnits(), e.crs().getXYLinearUnits().value_or(linearUnitPresets::unknownLinear)};
 
 		xres = converter(xres);
 		yres = converter(yres);
@@ -296,21 +296,21 @@ namespace lapis {
 	}
 	void AlignmentParameter::describeInPdf(MetadataPdf& pdf)
 	{
-		LapisParameters& rp = LapisParameters::singleton();
+        ParameterManager& pm = parameterManager();
 
 		prepareForRun();
 		pdf.newPage();
 		pdf.writePageTitle("Output Data Characteristics");
 	
 		std::optional<LinearUnit> alignUnits = _align->crs().getXYLinearUnits();
-		LinearUnitConverter converter = alignUnits.has_value() ? LinearUnitConverter(alignUnits.value(), rp.outUnits()) : LinearUnitConverter();
+		LinearUnitConverter converter = alignUnits.has_value() ? LinearUnitConverter(alignUnits.value(), pm.outUnits()) : LinearUnitConverter();
 
 		std::string xresDisplay = pdf.numberWithUnits(
 			converter(_align->xres()),
-			rp.unitSingular(),rp.unitPlural());
+			pm.unitSingular(),pm.unitPlural());
 		std::string yresDisplay = pdf.numberWithUnits(
 			converter(_align->yres()),
-			rp.unitSingular(),rp.unitPlural());
+			pm.unitSingular(),pm.unitPlural());
 		std::string cellsizeDesc;
 		if (_align->xres() == _align->yres()) {
 			cellsizeDesc = "All metrics were processed at a cellsize of " +
@@ -322,7 +322,7 @@ namespace lapis {
 				yresDisplay + ".";
 		}
 		pdf.writeTextBlockWithWrap(cellsizeDesc);
-		std::string unitDisplay = rp.unitPlural();
+		std::string unitDisplay = pm.unitPlural();
 		std::transform(unitDisplay.begin(), unitDisplay.end(), unitDisplay.begin(),
 			[](unsigned char c) { return std::tolower(c); });
 		pdf.writeTextBlockWithWrap("Where appropriate, the units of all output data are " + unitDisplay + ".");

@@ -1,11 +1,10 @@
 #include"param_pch.hpp"
 #include"FilterParameter.hpp"
-#include"LapisParameters.hpp"
-
+#include"ParameterGetter.hpp"
 
 namespace lapis {
 
-	size_t FilterParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new FilterParameter());
+	LAPIS_PARAMETER_REGISTER_DEFINE(FilterParameter);
 	void FilterParameter::reset()
 	{
 		*this = FilterParameter();
@@ -135,12 +134,12 @@ namespace lapis {
 	}
 	void FilterParameter::_outlierPdf(MetadataPdf& pdf)
 	{
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 
 		pdf.writeSubsectionTitle("Outlier Filter");
 		std::stringstream outlier;
-		outlier << "Points below " << pdf.numberWithUnits(minht(),rp.unitSingular(),rp.unitPlural()) << " ";
-		outlier << "or above " << pdf.numberWithUnits(maxht(),rp.unitSingular(),rp.unitPlural());
+		outlier << "Points below " << pdf.numberWithUnits(minht(),pm.unitSingular(),pm.unitPlural()) << " ";
+		outlier << "or above " << pdf.numberWithUnits(maxht(),pm.unitSingular(),pm.unitPlural());
 		outlier << " were excluded.";
 		pdf.writeTextBlockWithWrap(outlier.str());
 	}

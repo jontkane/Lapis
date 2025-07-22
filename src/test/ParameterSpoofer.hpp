@@ -17,6 +17,9 @@ namespace lapis {
 		void setMetricAlign(const Alignment& a);
 		const std::shared_ptr<Alignment> metricAlign() override;
 
+        const Extent& fullExtent() override;
+
+
 		void setLayout(const Alignment& a);
 		std::shared_ptr<Raster<bool>> layout() override;
 
@@ -82,6 +85,9 @@ namespace lapis {
 		void setMaxHt(coord_t v);
 		coord_t maxHt() override;
 
+		void setMinHt(coord_t v);
+		coord_t minHt() override;
+
 		coord_t binSize() override;
 
 		void setStrata(const std::vector<coord_t>& breaks, const std::vector<std::string>& names);
@@ -98,6 +104,7 @@ namespace lapis {
 		coord_t _canopyCutoff = 2;
 
 		coord_t _maxHt = 100;
+        coord_t _minHt = 0;
 
 		std::vector<coord_t> _strataBreaks;
 		std::vector<std::string> _strataNames;
@@ -135,6 +142,9 @@ namespace lapis {
 		void setDoTaos(bool b);
 		bool doTaos() override;
 
+		void setDoVectorizeSegments(bool b);
+		bool doVectorizeSegments();
+
 
 		void setTaoIdAlgorithm(TaoIdAlgorithm* algo);
 		TaoIdAlgorithm* taoIdAlgorithm() override;
@@ -146,6 +156,7 @@ namespace lapis {
 		std::unique_ptr<TaoIdAlgorithm> _taoIdAlgorithm;
 		std::unique_ptr<TaoSegmentAlgorithm> _taoSegAlgorithm;
 		bool _doTaos = true;
+        bool _doVectorizeSegments = true;
 	};
 
 	class FineIntParameterSpoofer : public virtual FineIntParameterGetter, public SharedParameterSpoofer {

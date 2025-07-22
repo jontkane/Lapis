@@ -1,10 +1,9 @@
 #include"param_pch.hpp"
 #include"ComputerParameter.hpp"
-#include"LapisParameters.hpp"
 
 namespace lapis {
 
-	size_t ComputerParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new ComputerParameter());
+	LAPIS_PARAMETER_REGISTER_DEFINE(ComputerParameter);
 	void ComputerParameter::reset()
 	{
 		*this = ComputerParameter();

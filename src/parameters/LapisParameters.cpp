@@ -5,18 +5,6 @@
 #include"..\utils\LapisOSSpecific.hpp"
 
 namespace lapis {
-
-
-	LapisParameters& LapisParameters::singleton()
-	{
-		static LapisParameters d;
-		return d;
-	}
-	size_t LapisParameters::registerParameter(Parameter* param)
-	{
-		_params.emplace_back(param);
-		return _params.size() - 1;
-	}
 	LapisParameters::LapisParameters()
 	{
 	}
@@ -46,23 +34,23 @@ namespace lapis {
 		//that weren't specified in the same ini file that changed the units get converted
 		getParam<OutUnitParameter>().importFromBoost();
 		updateUnits();
-		for (size_t i = 0; i < _params.size(); ++i) {
-			_params[i]->importFromBoost();
+		for (Parameter* p : ParameterRegistrar::get()) {
+            p->importFromBoost();
 		}
 	}
 	void LapisParameters::updateUnits() {
-		for (size_t i = 0; i < _params.size(); ++i) {
-			_params[i]->updateUnits();
-		}
+		for (Parameter* p : ParameterRegistrar::get()) {
+			p->updateUnits();
+        }
 		setPrevUnits(outUnits());
 	}
 	bool LapisParameters::prepareForRun()
 	{
-		for (size_t i = 0; i < _params.size(); ++i) {
-			if (!_params[i]->prepareForRun()) {
+		for (Parameter* p : ParameterRegistrar::get()) {
+			if (!p->prepareForRun()) {
 				return false;
 			}
-		}
+        }
 		_cellMuts = std::make_unique<std::vector<std::mutex>>(_cellMutCount);
 
 		cell_t targetNCell = tileFileSize() / std::max(sizeof(csm_t), sizeof(intensity_t));
@@ -85,19 +73,19 @@ namespace lapis {
 	}
 	void LapisParameters::cleanAfterRun()
 	{
-		for (size_t i = 0; i < _params.size(); ++i) {
-			_params[i]->cleanAfterRun();
-		}
+		for (Parameter* p : ParameterRegistrar::get()) {
+			p->cleanAfterRun();
+        }
 		_cellMuts.reset();
 	}
-	void LapisParameters::resetObject() {
+	void LapisParameters::reset() {
 
 		_prevUnits = linearUnitPresets::meter;
 		_cellMuts.reset();
-		for (size_t i = 0; i < _params.size(); ++i) {
-			_params[i]->reset();
-			_params[i]->importFromBoost();
-		}
+		for (Parameter* p : ParameterRegistrar::get()) {
+			p->reset();
+            p->importFromBoost();
+        }
 		_pdf.reset();
 	}
 
@@ -279,7 +267,7 @@ namespace lapis {
 	{
 		return getParam<NameParameter>().name();
 	}
-	bool LapisParameters::vectorizeSegments()
+	bool LapisParameters::doVectorizeSegments()
 	{
 		return getParam<TaoParameter>().vectorizeSegments();
 	}
@@ -367,9 +355,9 @@ namespace lapis {
 
 			po::options_description visibleOpts;
 			po::options_description hiddenOpts;
-			for (size_t i = 0; i < _params.size(); ++i) {
-				_params[i]->addToCmd(visibleOpts, hiddenOpts);
-			}
+			for (Parameter* p : ParameterRegistrar::get()) {
+				p->addToCmd(visibleOpts, hiddenOpts);
+            }
 
 			po::options_description cmdOptions;
 			cmdOptions
@@ -441,9 +429,9 @@ namespace lapis {
 		try {
 			po::options_description visibleOpts;
 			po::options_description hiddenOpts;
-			for (size_t i = 0; i < _params.size(); ++i) {
-				_params[i]->addToCmd(visibleOpts, hiddenOpts);
-			}
+			for (Parameter* p : ParameterRegistrar::get()) {
+				p->addToCmd(visibleOpts, hiddenOpts);
+            }
 
 			po::options_description iniOptions;
 			iniOptions
@@ -479,14 +467,15 @@ namespace lapis {
 			break;
 		}
 
-		for (size_t i = 0; i < _params.size(); ++i) {
-			if (cat==_params[i]->getCategory())
-				_params[i]->printToIni(out);
-		}
+		for (Parameter* p : ParameterRegistrar::get()) {
+			if (cat == p->getCategory()) {
+				p->printToIni(out);
+			}
+        }
 		return out;
 	}
 
-	//these functions used to belong here but is going to be moved; until they find their forever home, I don't want to delete the implementation
+	//these functions used to belong here but are going to be moved; until they find their forever home, I don't want to delete the implementation
 	/*
 	RunParameters::DataIssues RunParameters::checkForDataIssues() {
 		LapisLogger& log = LapisLogger::getLogger();

@@ -6,7 +6,9 @@ library(lidR)
 library(rstudioapi)
 library(EBImage)
 
-unlink(file.path(dirname(getSourceEditorContext()$path),"TestData"),recursive=T)
+outputdir = file.path(dirname(getSourceEditorContext()$path),"TestFiles","GeneratedTestFiles")
+
+unlink(outputdir,recursive=T)
 
 
 dem = rast(xmin=0,xmax=100,ymin=0,ymax=100,res=1,crs="EPSG:32610+5703")
@@ -113,7 +115,7 @@ makeIni = function(params, outfile) {
 
 #each test's data is siloed into its own function so it's collapsible in RStudio
 makePointMetricAndFilterTest = function() {
-  outputfolder = file.path(dirname(getSourceEditorContext()$path),"TestData","PointMetricsTest")
+  outputfolder = file.path(outputdir,"PointMetricsTest")
   init(outputfolder)
   writeRaster(dem,file.path(outputfolder,"dem.tif"),overwrite=T)
   
@@ -166,7 +168,7 @@ makePointMetricAndFilterTest = function() {
 }
 
 makeCsmAndTaoTest = function() {
-  outputfolder = file.path(dirname(getSourceEditorContext()$path),"TestData","CSMTest")
+  outputfolder = file.path(outputdir,"CSMTest")
   init(outputfolder)
   writeRaster(dem,file.path(outputfolder,"dem.tif"),overwrite=T)
   

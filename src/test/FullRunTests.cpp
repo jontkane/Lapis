@@ -13,9 +13,14 @@ namespace lapis {
 #pragma warning(disable: 4267)
 
 		namespace fs = std::filesystem;
-		fs::remove_all(LAPISTESTDATA + std::string("PointMetricsTestOutput"));
 
-		std::string ini = LAPISTESTDATA + std::string("PointMetricsTest/params.ini");
+        fs::path inputdir = LAPISTESTFILES + std::string("GeneratedTestFiles/PointMetricsTest/");
+        ASSERT_TRUE(fs::exists(inputdir)) << "Please run GenerateTestData.R first";
+        fs::path outputdir = LAPISTESTFILES + std::string("GeneratedTestFiles/PointMetricsTestOutput/");
+
+		fs::remove_all(outputdir);
+
+		std::string ini = (inputdir / "params.ini").string();
 		ASSERT_TRUE(std::filesystem::exists(ini)) << "Please run GenerateTestData.R first";
 		std::vector<std::string> params = { "--ini-file=" + ini };
 		ASSERT_EQ(lapisUnifiedMain(params), 0) << "Run Failed";
@@ -25,7 +30,7 @@ namespace lapis {
 		//because the canopy cutoff is set to 1.5, canopy-only metrics should have the values from 2 to 50 instead
 
 		std::unordered_map<std::string, bool> filesChecked;
-		for (auto& p : fs::recursive_directory_iterator(fs::path{ LAPISTESTDATA } / "PointMetricsTestOutput" / "PointMetrics")) {
+		for (auto& p : fs::recursive_directory_iterator(outputdir / "PointMetrics")) {
 			if (fs::is_regular_file(p.path())) {
 				filesChecked[p.path().string()] = false;
 			}
@@ -62,7 +67,7 @@ namespace lapis {
 			filesChecked[file.string()] = true;
 		};
 
-		fs::path allReturns = fs::path{ LAPISTESTDATA } / "PointMetricsTestOutput" / "PointMetrics" / "AllReturns";
+		fs::path allReturns = outputdir / "PointMetrics" / "AllReturns";
 
 		auto getPercentileName = [](const fs::path& parent, const std::string& p) {
 			return parent / ("PointMetricsTest_" + p + "thPercentile_CanopyHeight_Meters.tif");
@@ -102,7 +107,7 @@ namespace lapis {
 
 		//for first return metrics, you can expect the values to be 0:20 (or 2:20 for canopy-only)
 
-		fs::path firstReturns = fs::path{ LAPISTESTDATA } / "PointMetricsTestOutput" / "PointMetrics" / "FirstReturns";
+		fs::path firstReturns = outputdir / "PointMetrics" / "FirstReturns";
 
 		std::vector<metric_t> expectedPercentileFirstReturns = { 2.9,3.8,4.7,5.6,6.5,7.4,8.3,9.2,10.1,11.0,11.9,12.8,13.7,14.6,15.5,16.4,17.3,18.2,19.1,19.82 };
 
@@ -139,21 +144,24 @@ testRaster(getPercentileName(firstReturns, pnames[i]), expectedPercentileFirstRe
 
 	TEST(FullRunTest, CsmAndTaoTest) {
 		namespace fs = std::filesystem;
-		fs::remove_all(LAPISTESTDATA + std::string("CSMTestOutput"));
+
+		fs::path inputdir = LAPISTESTFILES + std::string("GeneratedTestFiles/CSMTest/");
+        ASSERT_TRUE(fs::exists(inputdir)) << "Please run GenerateTestData.R first";
+        fs::path outputdir = LAPISTESTFILES + std::string("GeneratedTestFiles/CSMTestOutput/");
+
+		fs::remove_all(LAPISTESTFILES + std::string("CSMTestOutput"));
 
 
-		auto doRunTestCsm = [](const std::string& name) {
-			std::string ini = LAPISTESTDATA + std::string("CSMTest/" + name + ".ini");
+		auto doRunTestCsm = [&](const std::string& name) {
+			std::string ini = (inputdir / (name + ".ini")).string();
 			ASSERT_TRUE(std::filesystem::exists(ini)) << "Please run GenerateTestData.R first";
 			std::vector<std::string> params = { "--ini-file=" + ini };
 			ASSERT_EQ(lapisUnifiedMain(params), 0) << "Run Failed";
 
-			fs::path outfolder = LAPISTESTDATA + std::string("CSMTestOutput");
-
-			fs::path csmfile = outfolder / "CanopySurfaceModel" / (name + "_CanopySurfaceModel_Col1_Row1_Meters.tif");
+			fs::path csmfile = outputdir / "CanopySurfaceModel" / (name + "_CanopySurfaceModel_Col1_Row1_Meters.tif");
 			ASSERT_TRUE(fs::exists(csmfile)) << csmfile.string();
 			Raster<csm_t> actual{ csmfile.string() };
-			Raster<csm_t> expected{ (fs::path(LAPISTESTDATA) / "CSMTest" / name / "csm.tif").string() };
+			Raster<csm_t> expected{ (inputdir / name / "csm.tif").string() };
 
 			ASSERT_TRUE(actual.isSameAlignment(expected));
 			std::string error = "Issue with CSM of " + name;
@@ -167,9 +175,8 @@ testRaster(getPercentileName(firstReturns, pnames[i]), expectedPercentileFirstRe
 
 		};
 
-		auto testTaos = [](const std::string& name) {
-			fs::path expectedTaos = LAPISTESTDATA;
-			expectedTaos /= "CSMTest";
+		auto testTaos = [&](const std::string& name) {
+			fs::path expectedTaos = inputdir;
 			expectedTaos /= name;
 			expectedTaos /= "taos.shp";
 			ASSERT_TRUE(fs::exists(expectedTaos));
@@ -187,8 +194,7 @@ testRaster(getPercentileName(firstReturns, pnames[i]), expectedPercentileFirstRe
 				OGRFeature::DestroyFeature(feature);
 			}
 
-			fs::path actualTaos = LAPISTESTDATA;
-			actualTaos /= "CSMTestOutput";
+			fs::path actualTaos = outputdir;
 			actualTaos /= "TreeApproximateObjects";
 			actualTaos /= "Points";
 			actualTaos /= name + "_TAOs_Col1_Row1.shp";
@@ -217,8 +223,7 @@ testRaster(getPercentileName(firstReturns, pnames[i]), expectedPercentileFirstRe
 			}
 			EXPECT_LE(nMissed, actualCoords.size() * 0.01);
 
-			fs::path actualSegsName = LAPISTESTDATA;
-			actualSegsName /= "CSMTestOutput";
+			fs::path actualSegsName = outputdir;
 			actualSegsName /= "TreeApproximateObjects";
 			actualSegsName /= "SegmentRasters";
 			actualSegsName /= name + "_Segments_Col1_Row1.tif";

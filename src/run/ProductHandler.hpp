@@ -64,6 +64,38 @@ namespace lapis {
 		void tryRemove(std::filesystem::path p);
 	};
 
+	class HandlerRegistrar {
+	public:
+		static HandlerRegistrar& get();
+        size_t registerHandlerFactory(std::function<ProductHandler*(void)> factory);
+		void initHandlers();
+        std::vector<ProductHandler*>::iterator begin();
+        std::vector<ProductHandler*>::iterator end();
+        std::vector<ProductHandler*>::const_iterator begin() const;
+        std::vector<ProductHandler*>::const_iterator end() const;
+
+        template<class HANDLER>
+        HANDLER* getHandler();
+        template<class HANDLER>
+        const HANDLER* getHandler() const;
+
+        size_t size() const;
+
+		template<class HANDLER>
+		size_t replaceHandlerWithMod(ProductHandler* newBehavior);
+	private:
+        HandlerRegistrar() = default;
+        std::vector<std::function<ProductHandler*(void)>> _factories;
+        std::vector<ProductHandler*> _handlers;
+	};
+
+#define HANDLER_REGISTER_DECLARATION \
+	static size_t handlerRegisteredIndex;
+#define HANDLER_REGISTER_DEFINITION(CLASSNAME) \
+	size_t CLASSNAME::handlerRegisteredIndex = HandlerRegistrar::get().registerHandlerFactory([]() { \
+		return new CLASSNAME(&parameterManager()); \
+	});
+
 	template<class T>
 	inline void ProductHandler::writeRasterLogErrors(const std::filesystem::path& filename, Raster<T>& r) const
 	{
@@ -108,6 +140,25 @@ namespace lapis {
 		}
 		Extent bufferExt = Extent(thistile.xmin() - bufferDist, thistile.xmax() + bufferDist, thistile.ymin() - bufferDist, thistile.ymax() + bufferDist);
 		return Raster<T>(cropAlignment(a, bufferExt, SnapType::ll));
+	}
+
+    template<class HANDLER>
+	inline HANDLER* HandlerRegistrar::getHandler()
+	{
+        return dynamic_cast<HANDLER*>(_handlers[HANDLER::handlerRegisteredIndex]);
+    }
+    template<class HANDLER>
+	inline const HANDLER* HandlerRegistrar::getHandler() const
+	{
+		return dynamic_cast<const HANDLER*>(_handlers[HANDLER::handlerRegisteredIndex]);
+	}
+
+    template<class HANDLER>
+	inline size_t HandlerRegistrar::replaceHandlerWithMod(ProductHandler* newBehavior)
+	{
+		HANDLER* oldBehavior = getHandler<HANDLER>();
+        _handlers[HANDLER::handlerRegisteredIndex] = newBehavior;
+        delete oldBehavior;
 	}
 }
 

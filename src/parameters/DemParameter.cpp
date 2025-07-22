@@ -1,10 +1,10 @@
 #include"param_pch.hpp"
 #include"DemParameter.hpp"
-#include"LapisParameters.hpp"
+#include"ParameterGetter.hpp"
 
 namespace lapis {
 
-	size_t DemParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new DemParameter());
+	LAPIS_PARAMETER_REGISTER_DEFINE(DemParameter);
 	void DemParameter::reset()
 	{
 		*this = DemParameter();
@@ -147,7 +147,7 @@ namespace lapis {
 		}
 
 		LapisLogger& log = LapisLogger::getLogger();
-		LapisParameters& rp = LapisParameters::singleton();
+        ParameterManager& pm = parameterManager();
 
 		std::set<DemFileAlignment> fileAligns;
 		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
@@ -169,7 +169,7 @@ namespace lapis {
 			_demUnitsCache = _unit.currentSelection();
 
 			if (_demUnitsCache == linearUnitPresets::unknownLinear) {
-				lasUnits = LapisParameters::singleton().lasZUnits();
+				lasUnits = pm.lasZUnits();
 				if (!lasUnits.has_value()) {
 					log.logError("Not all las files have the same units. \"Same as Las Files\" is an invalid option for dem units.");
 					return false;
@@ -179,7 +179,7 @@ namespace lapis {
 
 			fileAligns = _specifiers.getFiles<DemOpener, DemFileAlignment>(DemOpener(_crs.cachedCrs(),_demUnitsCache));
 			for (auto& dem : fileAligns) {
-				if (!rp.overlapsAoI(dem.align)) {
+				if (!pm.overlapsAoI(dem.align)) {
 					fileAligns.erase(dem);
 				}
 			}
@@ -290,7 +290,7 @@ namespace lapis {
 	}
 	std::shared_ptr<VectorDataset<Polygon>> DemParameter::demFileLayout()
 	{
-		LapisParameters& rp = LapisParameters::singleton();
+        ParameterManager& pm = parameterManager();
 
 		if (_demAlgo.currentSelection() != DemAlgo::VENDORRASTER) {
 			return nullptr;
@@ -302,11 +302,11 @@ namespace lapis {
 		//constructing the transforms is a significant amount of time, so going through the effort to cache them is worth it
 		std::unordered_map<CoordRef, CoordTransform, CoordRefHasher, CoordRefComparator> transforms;
 
-		_demLayout = std::make_shared<VectorDataset<Polygon>>(rp.outputCrs());
+		_demLayout = std::make_shared<VectorDataset<Polygon>>(pm.outputCrs());
 		_demLayout->addStringField("Filename", 255);
 		for (const auto& fileAlign : _demFileAligns) {
 			if (!transforms.contains(fileAlign.align.crs())) {
-				transforms.emplace(fileAlign.align.crs(), CoordTransform(fileAlign.align.crs(), rp.outputCrs()));
+				transforms.emplace(fileAlign.align.crs(), CoordTransform(fileAlign.align.crs(), pm.outputCrs()));
 			}
 			_demLayout->addGeometry(Polygon(QuadExtent((Extent)fileAlign.align, transforms.at(fileAlign.align.crs()))));
 			_demLayout->back().setStringField("Filename", fileAlign.file.string());
@@ -337,8 +337,8 @@ namespace lapis {
 			return out;
 		}
 
-		LapisParameters& rp = LapisParameters::singleton();
-		Alignment layout = *rp.layout();
+        ParameterManager& pm = parameterManager();
+		Alignment layout = *pm.layout();
 
 		layout = extendAlignment(layout, a, SnapType::out);
 

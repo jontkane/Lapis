@@ -9,6 +9,7 @@ namespace lapis {
 	class AoIParameter : public Parameter {
 	public:
 		AoIParameter();
+		LAPIS_PARAMETER_REGISTER_DECLARE;
 
 		void addToCmd(BoostOptDesc& visible,
 			BoostOptDesc& hidden) override;
@@ -26,7 +27,6 @@ namespace lapis {
 		void cleanAfterRun() override;
 
 		void reset() override;
-		static size_t parameterRegisteredIndex;
 
 		//this function indicates whether an area (presumably representing a las file) should be entirely skipped
 		bool overlapsAoI(const Extent& e);

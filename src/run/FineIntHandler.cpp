@@ -4,7 +4,7 @@
 #include"LapisController.hpp"
 
 namespace lapis {
-	size_t FineIntHandler::handlerRegisteredIndex = LapisController::registerHandler(new FineIntHandler(&LapisParameters::singleton()));
+	HANDLER_REGISTER_DEFINITION(FineIntHandler);
 	void FineIntHandler::reset()
 	{
 		*this = FineIntHandler(_getter);

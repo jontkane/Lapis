@@ -4,7 +4,7 @@
 #include"LapisController.hpp"
 
 namespace lapis {
-	size_t TaoHandler::handlerRegisteredIndex = LapisController::registerHandler(new TaoHandler(&LapisParameters::singleton()));
+	HANDLER_REGISTER_DEFINITION(TaoHandler);
 	void TaoHandler::reset()
 	{
 		*this = TaoHandler(_getter);
@@ -99,7 +99,7 @@ namespace lapis {
 		for (cell_t cellInTile : highPoints) {
 			coord_t x = segments.xFromCellUnsafe(cellInTile);
 			coord_t y = segments.yFromCellUnsafe(cellInTile);
-			cell_t cellFullAlign = LapisParameters::singleton().csmAlign()->cellFromXYUnsafe(x, y);
+			cell_t cellFullAlign = parameterManager().csmAlign()->cellFromXYUnsafe(x, y);
 
 			//in theory, you could identify areas that belong only to this tile, and aren't even in the buffers of any other tiles
 			//this is easy in a normal case, but kind of annoying to account for edge cases
@@ -237,8 +237,8 @@ namespace lapis {
 		writeVectorLogErrors(circleFilename, circleVector);
 		circleVector = VectorDataset<Polygon>{}; //destructing early to save a bit of memory
 
-		if (LapisParameters::singleton().vectorizeSegments()) {
-			VectorDataset<MultiPolygon> segmentsVector = rasterToMultiPolygonForTaos(segments, &highPointsVector);
+		if (_getter->doVectorizeSegments()) {
+			VectorDataset<MultiPolygon> segmentsVector = rasterToMultiPolygonForTaos(segments, &highPointsVector.attributes());
 			writeVectorLogErrors(getFullTileFilename(taoDir() / _segmentPolygonFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile, "shp"), segmentsVector);
 		}
 

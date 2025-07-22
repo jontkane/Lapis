@@ -9,6 +9,7 @@ namespace lapis {
 	public:
 
 		PointMetricParameter();
+		LAPIS_PARAMETER_REGISTER_DECLARE;
 
 		void addToCmd(BoostOptDesc& visible,
 			BoostOptDesc& hidden) override;
@@ -26,7 +27,6 @@ namespace lapis {
 		void cleanAfterRun() override;
 
 		void reset() override;
-		static size_t parameterRegisteredIndex;
 
 		bool doAllReturns() const;
 		bool doFirstReturns() const;

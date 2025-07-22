@@ -1,10 +1,8 @@
 #include"param_pch.hpp"
 #include"OutUnitParameter.hpp"
-#include"LapisParameters.hpp"
-
 namespace lapis {
 
-	size_t OutUnitParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new OutUnitParameter());
+	LAPIS_PARAMETER_REGISTER_DEFINE(OutUnitParameter);
 	void OutUnitParameter::reset()
 	{
 		*this = OutUnitParameter();

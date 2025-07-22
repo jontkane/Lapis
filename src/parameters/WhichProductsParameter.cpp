@@ -1,10 +1,9 @@
 #include"param_pch.hpp"
 #include"WhichProductsParameter.hpp"
-#include"LapisParameters.hpp"
 
 namespace lapis {
 
-	size_t WhichProductsParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new WhichProductsParameter());
+	LAPIS_PARAMETER_REGISTER_DEFINE(WhichProductsParameter);
 	void WhichProductsParameter::reset()
 	{
 		*this = WhichProductsParameter();

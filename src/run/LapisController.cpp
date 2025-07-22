@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 #define LAPIS_CHECK_ABORT_AND_DEALLOC \
 if (_needAbort) { \
 	LapisLogger::getLogger().logMessage("Aborting"); \
-	RunParameters::singleton().cleanAfterRun(); \
+	parameterManager().cleanAfterRun(); \
 	LapisLogger::getLogger().setProgress("Aborted",0,false); \
 	_isRunning = false; \
 	log.closeLogFile(); \
@@ -26,17 +26,17 @@ namespace lapis {
 
 	LapisController::LapisController()
 	{
-		for (size_t i = 0; i < _handlers().size(); ++i) {
-			_handlers()[i]->reset();
-		}
+		for (ProductHandler* handler : HandlerRegistrar::get()) {
+			handler->reset();
+        }
 	}
 	bool LapisController::processFullArea()
 	{
 		_isRunning = true;
 		LapisLogger& log = LapisLogger::getLogger();
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 
-		std::filesystem::path outfolder = rp.outFolder();
+		std::filesystem::path outfolder = pm.outFolder();
 		std::filesystem::path logFile = outfolder / "processingLog.txt";
 		log.setLogFile(logFile);
 
@@ -56,7 +56,7 @@ namespace lapis {
 			}
 			LAPIS_CHECK_ABORT_AND_DEALLOC;
 
-			if (!rp.prepareForRun()) {
+			if (!pm.prepareForRun()) {
 				sendAbortSignal();
 			}
 			LAPIS_CHECK_ABORT_AND_DEALLOC;
@@ -64,44 +64,45 @@ namespace lapis {
 			writeParams();
 			LAPIS_CHECK_ABORT_AND_DEALLOC;
 
-			for (auto& p : _handlers()) {
-				if (p->doThisProduct())
-					p->prepareForRun();
-			}
+			for (ProductHandler* handler : HandlerRegistrar::get()) {
+				if (handler->doThisProduct()) {
+					handler->prepareForRun();
+				}
+            }
 			writeMetadata(); //this call has to happen in between preparing for the run and cleaning up
 
-			log.setNThread(rp.nThread());
+			log.setNThread(pm.nThread());
 
-			log.setProgress("Processing LAS Files", (int)rp.lasExtents().size());
+			log.setProgress("Processing LAS Files", (int)pm.lasExtents().size());
 			uint64_t soFar = 0;
 			std::vector<std::thread> threads;
 			auto lasThreadFunc = [&]() {
-				_distributeWork(soFar, rp.lasExtents().size(), [&](size_t n) {this->lasThread(n); }, rp.globalMutex());
+				_distributeWork(soFar, pm.lasExtents().size(), [&](size_t n) {this->lasThread(n); }, pm.globalMutex());
 			};
-			for (int i = 0; i < rp.nThread(); ++i) {
+			for (int i = 0; i < pm.nThread(); ++i) {
 				threads.push_back(std::thread(lasThreadFunc));
 			}
-			for (int i = 0; i < rp.nThread(); ++i) {
+			for (int i = 0; i < pm.nThread(); ++i) {
 				threads[i].join();
 			}
 			LAPIS_CHECK_ABORT_AND_DEALLOC;
 
 
 			int nTile = 0;
-			for (cell_t cell : CellIterator(*rp.layout())) {
-				nTile += rp.layout()->atCellUnsafe(cell).has_value();
+			for (cell_t cell : CellIterator(*pm.layout())) {
+				nTile += pm.layout()->atCellUnsafe(cell).has_value();
 			}
 
 			log.setProgress("Processing Tiles", nTile);
 			soFar = 0;
 			threads.clear();
 			auto tileThreadFunc = [&]() {
-				_distributeWork(soFar, rp.layout()->ncell(), [&](cell_t tile) {this->tileThread(tile); }, rp.globalMutex());
+				_distributeWork(soFar, pm.layout()->ncell(), [&](cell_t tile) {this->tileThread(tile); }, pm.globalMutex());
 			};
-			for (int i = 0; i < rp.nThread(); ++i) {
+			for (int i = 0; i < pm.nThread(); ++i) {
 				threads.push_back(std::thread(tileThreadFunc));
 			}
-			for (int i = 0; i < rp.nThread(); ++i) {
+			for (int i = 0; i < pm.nThread(); ++i) {
 				threads[i].join();
 			}
 			LAPIS_CHECK_ABORT_AND_DEALLOC;
@@ -109,7 +110,7 @@ namespace lapis {
 			cleanUp();
 			LAPIS_CHECK_ABORT_AND_DEALLOC;
 
-			rp.cleanAfterRun();
+			pm.cleanAfterRun();
 
 			log.setProgress("Done!", 0, false);
 			_isRunning = false;
@@ -139,18 +140,12 @@ namespace lapis {
 		_needAbort = true;
 	}
 
-	size_t LapisController::registerHandler(ProductHandler* handler)
-	{
-		_handlers().emplace_back(handler);
-		return _handlers().size() - 1;
-	}
-
 	void LapisController::writeParams() const
 	{
 		LapisLogger& log = LapisLogger::getLogger();
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 
-		fs::path paramDir = rp.outFolder() / "RunParameters";
+		fs::path paramDir = pm.outFolder() / "RunParameters";
 		fs::create_directories(paramDir);
 
 		std::ofstream fullParams{ paramDir / "FullParameters.ini" };
@@ -158,9 +153,9 @@ namespace lapis {
 			log.logWarning("Could not open " + (paramDir / "FullParameters.ini").string() + " for writing");
 		}
 		else {
-			rp.writeOptions(fullParams, ParamCategory::data);
-			rp.writeOptions(fullParams, ParamCategory::process);
-			rp.writeOptions(fullParams, ParamCategory::computer);
+			pm.writeOptions(fullParams, ParamCategory::data);
+			pm.writeOptions(fullParams, ParamCategory::process);
+			pm.writeOptions(fullParams, ParamCategory::computer);
 			
 		}
 
@@ -169,8 +164,8 @@ namespace lapis {
 			log.logWarning("Could not open " + (paramDir / "ProcessingAndComputerParameters.ini").string() + " for writing");
 		}
 		else {
-			rp.writeOptions(runAndComp, ParamCategory::process);
-			rp.writeOptions(runAndComp, ParamCategory::computer);
+			pm.writeOptions(runAndComp, ParamCategory::process);
+			pm.writeOptions(runAndComp, ParamCategory::computer);
 		}
 
 		std::ofstream data{ paramDir / "DataParameters.ini" };
@@ -178,7 +173,7 @@ namespace lapis {
 			log.logWarning("Could not open " + (paramDir / "DataParameters.ini").string() + " for writing");
 		}
 		else {
-			rp.writeOptions(data, ParamCategory::data);
+			pm.writeOptions(data, ParamCategory::data);
 		}
 
 		std::ofstream metric{ paramDir / "ProcessingParameters.ini" };
@@ -186,7 +181,7 @@ namespace lapis {
 			log.logWarning("Could not open " + (paramDir / "ProcessingParameters.ini").string() + " for writing");
 		}
 		else {
-			rp.writeOptions(metric, ParamCategory::process);
+			pm.writeOptions(metric, ParamCategory::process);
 		}
 
 		std::ofstream computer{ paramDir / "ComputerParameters.ini" };
@@ -194,11 +189,11 @@ namespace lapis {
 			log.logWarning("Could not open " + (paramDir / "ComputerParameters.ini").string() + " for writing");
 		}
 		else {
-			rp.writeOptions(computer, ParamCategory::computer);
+			pm.writeOptions(computer, ParamCategory::computer);
 		}
 	}
 
-	void writeSplashPage(MetadataPdf& pdf) {
+	static void writeSplashPage(MetadataPdf& pdf) {
 		pdf.newPage();
 		auto displayText = [&](const std::string& text, HPDF_REAL fontSize, bool bold) {
 			pdf.writeCenterAlignedTextLine(text,
@@ -206,7 +201,7 @@ namespace lapis {
 				fontSize);
 		};
 
-		displayText(LapisParameters::singleton().name(), 24.f, true);
+		displayText(parameterManager().name(), 24.f, true);
 		displayText("Processed Using", 12.f, false);
 		displayText("Lapis Version " + std::to_string(LAPIS_VERSION_MAJOR) + "." + std::to_string(LAPIS_VERSION_MINOR),
 			18.f, true);
@@ -219,7 +214,7 @@ namespace lapis {
 		displayText(ss.str(), 16, false);
 	}
 
-	void writeIniDescription(MetadataPdf& pdf) {
+	static void writeIniDescription(MetadataPdf& pdf) {
 		pdf.newPage();
 
 		pdf.writePageTitle("RunParameters Folder");
@@ -249,57 +244,52 @@ namespace lapis {
 
 	void LapisController::writeMetadata() const
 	{
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 		
 		MetadataPdf pdf{};
 
 		writeSplashPage(pdf);
 		writeIniDescription(pdf);
-		rp.describeParameters(pdf);
+		pm.describeParameters(pdf);
 
-		for (auto& handler : _handlers()) {
-			if (handler->doThisProduct())
+		for (ProductHandler* handler : HandlerRegistrar::get()) {
+			if (handler->doThisProduct()) {
 				handler->describeInPdf(pdf);
-		}
+			}
+        }
 
 		namespace fs = std::filesystem;
-		std::string name = rp.name().size() ? rp.name() + "_" : "";
-		fs::path pdfFileName = rp.outFolder() / (name + "Lapis_Metadata.pdf");
+		std::string name = pm.name().size() ? pm.name() + "_" : "";
+		fs::path pdfFileName = pm.outFolder() / (name + "Lapis_Metadata.pdf");
 		if (fs::exists(pdfFileName)) {
 			fs::remove(pdfFileName);
 		}
 		pdf.writeToFile(pdfFileName.string());
 	}
 
-	std::vector<std::unique_ptr<ProductHandler>>& LapisController::_handlers()
-	{
-		static std::vector<std::unique_ptr<ProductHandler>> handlers = std::vector<std::unique_ptr<ProductHandler>>();
-		return handlers;
-	}
-
-	void LapisController::lasThread(size_t n)
+	const void LapisController::lasThread(size_t n)
 	{
 
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 		LapisLogger& log = LapisLogger::getLogger();
 
 		LasReader lr;
 		try {
-			lr = rp.getLas(n);
+			lr = pm.getLas(n);
 		}
 		catch (InvalidLasFileException e) {
 			log.logWarning(e.what());
 		}
-		if (!rp.overlapsAoI(lr))
+		if (!pm.overlapsAoI(lr))
 		{
 			LapisLogger::getLogger().incrementTask("Las File Didn't Overlap Area of Interest");
 			return;
 		}
-		Extent projectedExtent = QuadExtent(lr, rp.metricAlign()->crs()).outerExtent();
+		Extent projectedExtent = QuadExtent(lr, pm.metricAlign()->crs()).outerExtent();
 		LAPIS_CHECK_ABORT;
 
 		std::string filename = lr.filename();
-		std::unique_ptr<DemAlgoApplier> pointGetter = rp.demAlgorithm(std::move(lr));
+		std::unique_ptr<DemAlgoApplier> pointGetter = pm.demAlgorithm(std::move(lr));
 
 		const size_t nPoints = 100ll * 1024ll * 1024ll / sizeof(LasPoint); //100 mb per thread
 
@@ -307,11 +297,11 @@ namespace lapis {
 		while (pointGetter->pointsRemaining()) {
 			std::span<LasPoint> view = pointGetter->getPoints(nPoints);
 			totalPoints += view.size();
-			for (auto& handler : _handlers()) {
+			for (ProductHandler* handler : HandlerRegistrar::get()) {
 				if (handler->doThisProduct()) {
 					handler->handlePoints(view, projectedExtent, n);
 				}
-			}
+            }
 		}
 
 		if (totalPoints == 0) {
@@ -319,47 +309,47 @@ namespace lapis {
 		}
 		LAPIS_CHECK_ABORT;
 
-		for (auto& handler : _handlers()) {
+		for (ProductHandler* handler : HandlerRegistrar::get()) {
 			if (handler->doThisProduct()) {
 				if (totalPoints > 0) {
 					handler->finishLasFile(projectedExtent, n);
-				}
+                }
 			}
-		}
+        }
 
 		std::shared_ptr<Raster<coord_t>> uncroppedDem = pointGetter->getDem();
 
 		if (uncroppedDem) {
 			Raster<coord_t> croppedDem = cropRaster(*uncroppedDem, projectedExtent, SnapType::near);
-			for (auto& handler : _handlers()) {
+			for (ProductHandler* handler : HandlerRegistrar::get()) {
 				if (handler->doThisProduct()) {
 					handler->handleDem(croppedDem, n);
 				}
-			}
+            }
 		}
 
 		LAPIS_CHECK_ABORT;
 		LapisLogger::getLogger().incrementTask("Las File Finished");
 	}
 
-	void LapisController::tileThread(cell_t tile)
+	const void LapisController::tileThread(cell_t tile)
 	{
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 
-		if (!rp.layout()->atCellUnsafe(tile).has_value()) {
+		if (!pm.layout()->atCellUnsafe(tile).has_value()) {
 			return;
 		}
 
-		CsmHandler* csmhandler = dynamic_cast<CsmHandler*>(_handlers()[CsmHandler::handlerRegisteredIndex].get());
+        CsmHandler* csmhandler = HandlerRegistrar::get().getHandler<CsmHandler>();
 		Raster<csm_t> bufferedCsm = csmhandler->getBufferedCsm(tile);
 
-		if (!bufferedCsm.overlaps(*rp.layout())) { //indicates a filler value due to the buffered tile not having any data
+		if (!bufferedCsm.overlaps(*pm.layout())) { //indicates a filler value due to the buffered tile not having any data
 			LapisLogger::getLogger().incrementTask("Tile Finished");
 			return;
 		}
 		
 		try {
-			CropView cv{ &bufferedCsm,rp.layout()->extentFromCell(tile),SnapType::out };
+			CropView cv{ &bufferedCsm,pm.layout()->extentFromCell(tile),SnapType::out };
 			if (!cv.hasAnyValue()) {
 				LapisLogger::getLogger().incrementTask("Tile Finished");
 				return;
@@ -370,11 +360,11 @@ namespace lapis {
 			return;
 		}
 
-		for (auto& handler : _handlers()) {
-			if (handler->doThisProduct())
+		for (ProductHandler* handler : HandlerRegistrar::get()) {
+			if (handler->doThisProduct()) {
 				handler->handleCsmTile(bufferedCsm, tile);
-			LAPIS_CHECK_ABORT;
-		}
+			}
+        }
 
 		LapisLogger::getLogger().incrementTask("Tile Finished");
 	}
@@ -382,17 +372,18 @@ namespace lapis {
 	void LapisController::cleanUp()
 	{
 		writeLayout();
-		for (auto& handler : _handlers()) {
-			if (handler->doThisProduct())
+		for (ProductHandler* handler : HandlerRegistrar::get()) {
+			if (handler->doThisProduct()) {
 				handler->cleanup();
-			LAPIS_CHECK_ABORT;
-		}
+			}
+            LAPIS_CHECK_ABORT;
+        }
 	}
 
 	void LapisController::writeLayout() const {
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 
-		Raster<bool>& layout = *rp.layout();
+		Raster<bool>& layout = *pm.layout();
 
 		VectorDataset<Polygon> tileLayout{ layout.crs() };
 		tileLayout.addStringField("Name", 13);
@@ -418,13 +409,13 @@ namespace lapis {
 
 			tileLayout.addGeometry(rectangle);
 			auto feature = tileLayout.back();
-			feature.setStringField("Name", rp.layoutTileName(cell));
+			feature.setStringField("Name", pm.layoutTileName(cell));
 			feature.setNumericField("ID", cell);
 			feature.setNumericField("Column", layout.colFromCell(cell) + 1);
 			feature.setNumericField("Row", layout.rowFromCell(cell) + 1);
 		}
 
-		fs::path layoutDir = rp.outFolder() / "Layout";
+		fs::path layoutDir = pm.outFolder() / "Layout";
 		fs::path filename = layoutDir / "TileLayout.shp";
 		fs::create_directories(layoutDir);
 
@@ -441,11 +432,11 @@ namespace lapis {
 		tryWriteShapefile(tileLayout, filename);
 
 		using LayoutPoly = std::shared_ptr<VectorDataset<Polygon>>;
-		LayoutPoly las = rp.lasFileLayout();
+		LayoutPoly las = pm.lasFileLayout();
 		if (las) {
             tryWriteShapefile(*las, layoutDir / "LasFileLayout.shp");
 		}
-		LayoutPoly dem = rp.demFileLayout();
+		LayoutPoly dem = pm.demFileLayout();
 		if (dem) {
             tryWriteShapefile(*dem, layoutDir / "DemFileLayout.shp");
 		}

@@ -1,12 +1,12 @@
 #include"param_pch.hpp"
 #include"TaoParameter.hpp"
-#include"LapisParameters.hpp"
+#include"ParameterGetter.hpp"
 #include"..\algorithms\AllTaoIdAlgorithms.hpp"
 #include"..\algorithms\AllTaoSegmentAlgorithms.hpp"
 
 namespace lapis {
 
-	size_t TaoParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new TaoParameter());
+	LAPIS_PARAMETER_REGISTER_DEFINE(TaoParameter);
 	void TaoParameter::reset()
 	{
 		*this = TaoParameter();
@@ -59,7 +59,7 @@ namespace lapis {
 		return ParamCategory::process;
 	}
 	void TaoParameter::renderGui() {
-		if (!LapisParameters::singleton().doCsm()) {
+		if (!parameterManager().doCsm()) {
 			ImGui::Text("Tree identification requires a CSM");
 			return;
 		}
@@ -106,7 +106,7 @@ namespace lapis {
 			return true;
 		}
 
-		if (!LapisParameters::singleton().doTaos()) {
+		if (!parameterManager().doTaos()) {
 			_runPrepared = true;
 			return true;
 		}
@@ -130,11 +130,10 @@ namespace lapis {
 			return false;
 		}
 
-		LapisParameters& rp = LapisParameters::singleton();
+		ParameterManager& pm = parameterManager();
 		//any scenario where this wouldn't have a value should be caught earlier in the code
-		LinearUnit outXYUnits = rp.outputCrs().getXYLinearUnits().value();
-		LinearUnit userXYUnits = rp.outUnits();
-
+		LinearUnit outXYUnits = pm.outputCrs().getXYLinearUnits().value();
+		LinearUnit userXYUnits = pm.outUnits();
 		switch (_idAlgo.currentSelection()) {
 		case IdAlgo::HIGHPOINT:
 			_idAlgorithm = std::make_unique<HighPoints>(minTaoHt(), userXYUnits.convertOneFromThis(minTaoDist(), outXYUnits));
@@ -146,7 +145,7 @@ namespace lapis {
 
 		switch (_segAlgo.currentSelection()) {
 		case SegAlgo::WATERSHED:
-			_segmentAlgorithm = std::make_unique<WatershedSegment>(minTaoHt(),rp.maxHt(),rp.binSize());
+			_segmentAlgorithm = std::make_unique<WatershedSegment>(minTaoHt(),pm.maxHt(),pm.binSize());
 			break;
 		default:
 			log.logError("Invalid TAO Segment algorithm");
@@ -163,7 +162,7 @@ namespace lapis {
 	}
 	coord_t TaoParameter::minTaoHt() const
 	{
-		return _sameMinHt.currentState() ? LapisParameters::singleton().canopyCutoff() : _minht.getValueLogErrors();
+		return _sameMinHt.currentState() ? parameterManager().canopyCutoff() : _minht.getValueLogErrors();
 	}
 	coord_t TaoParameter::minTaoDist() const
 	{

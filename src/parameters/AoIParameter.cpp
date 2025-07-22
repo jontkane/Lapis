@@ -1,10 +1,9 @@
 #include"param_pch.hpp"
 #include"AoIParameter.hpp"
-#include"LapisParameters.hpp"
 
 namespace lapis {
 
-	size_t AoIParameter::parameterRegisteredIndex = LapisParameters::singleton().registerParameter(new AoIParameter());
+	LAPIS_PARAMETER_REGISTER_DEFINE(AoIParameter);
 	void AoIParameter::reset()
 	{
 		*this = AoIParameter();
