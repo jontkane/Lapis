@@ -33,5 +33,4 @@
 
 build/
 /imgui.ini
-/src/test/testfiles/output/
-/src/test/TestData/
+/src/test/TestFiles/GeneratedTestFiles
