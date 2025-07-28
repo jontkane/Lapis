@@ -66,9 +66,8 @@ namespace lapis {
 		virtual ~TaoParameterGetter() = default;
 
 		virtual TaoIdAlgorithm* taoIdAlgorithm() = 0;
-		virtual TaoSegmentAlgorithm* taoSegAlgorithm() = 0;
+		virtual const std::vector<std::unique_ptr<TaoSegmentAlgorithm>>& taoSegAlgorithms() = 0;
 		virtual bool doTaos() = 0;
-		virtual bool doVectorizeSegments() = 0;
 	};
 
 	class FineIntParameterGetter : public virtual SharedParameterGetter {

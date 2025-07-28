@@ -8,24 +8,25 @@ namespace lapis {
 		: _minHt(minHtCsmZUnits), _minDist(minDistCsmXYUnits)
 	{
 	}
-	std::vector<cell_t> HighPoints::identifyTaos(const Raster<csm_t>& csm)
+	std::vector<IDedTao> HighPoints::identifyTaos(const Raster<csm_t>& csm, UniqueIdGenerator& idGenerator)
 	{
-		std::vector<cell_t> candidates = _taoCandidates(csm);
+		std::vector<IDedTao> candidates = _taoCandidates(csm, idGenerator);
 
 		if (_minDist <= 0) {
 			return candidates;
 		}
 
-		struct CellValue {
+		struct SortableCandidate {
 			csm_t value;
 			cell_t cell;
+			taoid_t id;
 		};
-		std::vector<CellValue> sortableValues;
+		std::vector<SortableCandidate> sortableValues;
 		sortableValues.reserve(candidates.size());
 
-		for (cell_t cell : candidates) {
-			auto v = csm[cell];
-			sortableValues.emplace_back(v.value(), cell);
+		for (IDedTao tao : candidates) {
+			auto v = csm.atCellUnsafe(tao.location);
+			sortableValues.emplace_back(v.value(), tao.location, tao.id);
 		}
 		std::sort(sortableValues.begin(), sortableValues.end(), [](auto& a, auto& b) {return a.value > b.value; });
 
@@ -48,11 +49,11 @@ namespace lapis {
 			}
 		}
 
-		std::vector<cell_t> out;
+		std::vector<IDedTao> out;
 
-		for (CellValue& candidate : sortableValues) {
+		for (SortableCandidate& candidate : sortableValues) {
 			if (!masked[candidate.cell].value()) {
-				out.push_back(candidate.cell);
+				out.emplace_back(candidate.cell, candidate.id);
 
 				rowcol_t thisRow = masked.rowFromCellUnsafe(candidate.cell);
 				rowcol_t thisCol = masked.colFromCellUnsafe(candidate.cell);
@@ -87,18 +88,18 @@ namespace lapis {
 		}
 		pdf.writeTextBlockWithWrap(ss.str());
 	}
-	coord_t HighPoints::minHt()
+	coord_t HighPoints::minHt() const
 	{
 		return _minHt;
 	}
-	coord_t HighPoints::minDist()
+	coord_t HighPoints::minDist() const
 	{
 		return _minDist;
 	}
-	std::vector<cell_t> HighPoints::_taoCandidates(const Raster<csm_t>& csm)
+	std::vector<IDedTao> HighPoints::_taoCandidates(const Raster<csm_t>& csm, UniqueIdGenerator& idGenerator) const
 	{
-		std::vector<cell_t> candidates;
-		candidates.reserve(csm.ncell() / 10);
+        std::vector<IDedTao> candidates;
+        candidates.reserve(csm.ncell() / 10);
 
 		for (rowcol_t row = 0; row < csm.nrow(); ++row) {
 			for (rowcol_t col = 0; col < csm.ncol(); ++col) {
@@ -150,7 +151,7 @@ namespace lapis {
 				}
 
 				if (isHighPoint) {
-					candidates.push_back(csm.cellFromRowColUnsafe(row, col));
+					candidates.emplace_back(csm.cellFromRowColUnsafe(row, col), idGenerator.nextId());
 				}
 			}
 		}

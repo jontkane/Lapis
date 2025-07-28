@@ -7,16 +7,22 @@
 namespace lapis {
 	class WatershedSegment : public TaoSegmentAlgorithm {
 	public:
-		WatershedSegment(coord_t canopyCutoff, coord_t maxHt, coord_t binSize);
+		WatershedSegment(coord_t canopyCutoff, coord_t maxHt, coord_t binSize, bool vectorize);
 
-		Raster<taoid_t> segment(const Raster<csm_t>& csm, const std::vector<cell_t>& taos, UniqueIdGenerator& idGenerator);
+		SegmentResults segment(const Raster<csm_t>& bufferedCsm, const std::vector<IDedTao>& taos, const Extent& unbufferedExtent) override;
 
-		void describeInPdf(MetadataPdf& pdf, TaoParameterGetter* getter);
+		void describeInPdf(MetadataPdf& pdf, TaoParameterGetter* getter) override;
+
+		const std::string& name() const override;
+
+		bool producesRaster() const override;
+        bool producesVector() const override;
 
 	private:
 		coord_t _canopyCutoff;
 		coord_t _maxHt;
 		coord_t _binSize;
+		bool _vectorize;
 	};
 }
 

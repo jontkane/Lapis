@@ -8,6 +8,7 @@
 
 #include<Raster.hpp>
 #include<LasReader.hpp>
+#include<Vector.hpp>
 
 #include"../LapisTypedefs.hpp"
 

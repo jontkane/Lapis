@@ -3,5 +3,6 @@
 #define LP_ALLTAOSEGMENTALGORITHMS_H
 
 #include"WatershedSegment.hpp"
+#include"McGaugheySegment.hpp"
 
 #endif

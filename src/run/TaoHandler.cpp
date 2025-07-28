@@ -20,231 +20,6 @@ namespace lapis {
 		return "TAOs";
 	}
 
-	void TaoHandler::_writeHighPointsAsArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& bufferedCsm, const Raster<taoid_t>& bufferedSegments, 
-		const Extent& unbufferedExtent, cell_t tile) const {
-
-		std::filesystem::create_directories(taoTempDir());
-
-		std::filesystem::path fileName = getFullTempFilename(taoTempDir(), _highPointBasename, OutputUnitLabel::Unitless, tile, "tmp");
-		std::ofstream ofs{ fileName,std::ios::binary };
-
-		if (!ofs) {
-			LapisLogger::getLogger().logWarning("Error writing to " + fileName.string());
-			return;
-		}
-
-		auto writeBytes = [&](auto x) {
-			ofs.write((const char*)&x, sizeof(x));
-		};
-
-		LinearUnitConverter converter{ bufferedSegments.crs().getXYLinearUnits(), bufferedSegments.crs().getZUnits() };
-		const coord_t cellArea = converter(bufferedSegments.xres()) * converter(bufferedSegments.yres());
-
-		std::unordered_map<taoid_t, coord_t> areas;
-		for (cell_t cell = 0; cell < bufferedSegments.ncell(); ++cell) {
-			if (bufferedSegments[cell].has_value()) {
-				areas.try_emplace(bufferedSegments[cell].value(), 0);
-				areas[bufferedSegments[cell].value()] += cellArea;
-			}
-		}
-
-		for (cell_t cell : highPoints) {
-			coord_t x = bufferedCsm.xFromCellUnsafe(cell);
-			coord_t y = bufferedCsm.yFromCellUnsafe(cell);
-			if (!unbufferedExtent.contains(x, y)) {
-				continue;
-			}
-			writeBytes(x);
-			writeBytes(y);
-			writeBytes(bufferedCsm[cell].value());
-			writeBytes(areas[bufferedSegments[cell].value()]);
-		}
-	}
-	std::vector<TaoHandler::TaoInfo> TaoHandler::_readHighPointsFromArray(cell_t tile) const {
-		std::filesystem::path fileName = getFullTempFilename(taoTempDir(), _highPointBasename, OutputUnitLabel::Unitless, tile, "tmp");
-		std::ifstream ifs{ fileName,std::ios::binary };
-		if (!ifs) {
-			LapisLogger::getLogger().logWarning("Error reading from " + fileName.string());
-			return std::vector<TaoInfo>();
-		}
-
-		coord_t x, y;
-		csm_t height;
-		coord_t area;
-		std::vector<TaoInfo> out;
-		out.reserve(std::filesystem::file_size(fileName) / sizeof(TaoInfo));
-
-		auto readBytes = [&](auto* x) {
-			ifs.read((char*)x, sizeof(*x));
-		};
-
-		while (ifs) {
-			readBytes(&x);
-			readBytes(&y);
-			readBytes(&height);
-			readBytes(&area);
-			if (ifs.eof()) {
-				break;
-			}
-			out.emplace_back(x, y, height, area);
-		}
-		return out;
-	}
-	void TaoHandler::_updateMap(const Raster<taoid_t>& segments, const std::vector<cell_t>& highPoints, const Extent& unbufferedExtent, cell_t tileidx)
-	{
-		{
-			std::scoped_lock<std::mutex> lock(_getter->globalMutex());
-			idMap.tileToLocalNames.try_emplace(tileidx, TaoIdMap::IDToCoord());
-		}
-		for (cell_t cellInTile : highPoints) {
-			coord_t x = segments.xFromCellUnsafe(cellInTile);
-			coord_t y = segments.yFromCellUnsafe(cellInTile);
-			cell_t cellFullAlign = parameterManager().csmAlign()->cellFromXYUnsafe(x, y);
-
-			//in theory, you could identify areas that belong only to this tile, and aren't even in the buffers of any other tiles
-			//this is easy in a normal case, but kind of annoying to account for edge cases
-			//this could save a lot of memory here, if it ends up being necessary to do so
-
-			if (unbufferedExtent.contains(x, y)) { //this tao id is id that other tiles will have to match
-				std::scoped_lock<std::mutex> lock(_getter->globalMutex());
-				idMap.cellToFinalName.try_emplace(cellFullAlign, segments[cellInTile].value());
-			}
-			else { //this tao id will have to change eventually
-				idMap.tileToLocalNames[tileidx].try_emplace(segments[cellInTile].value(), cellFullAlign);
-			}
-		}
-	}
-	Raster<taoid_t> TaoHandler::_fixTaoIdsThread(cell_t tile) const
-	{
-		LapisLogger& log = LapisLogger::getLogger();
-
-		Raster<taoid_t> segments;
-		std::string name = getFullTileFilename(taoTempDir(), _segmentsBasename, OutputUnitLabel::Unitless, tile).string();
-		if (!std::filesystem::exists(name)) {
-			return segments;
-		}
-		try {
-			segments = Raster<taoid_t>{ name };
-		}
-		catch (InvalidRasterFileException e) {
-			log.logWarning("Error opening " + name);
-			return segments;
-		}
-
-		const TaoIdMap::IDToCoord& localNameMap = idMap.tileToLocalNames.at(tile);
-		for (cell_t cell = 0; cell < segments.ncell(); ++cell) {
-			auto v = segments[cell];
-			if (!v.has_value()) {
-				continue;
-			}
-			if (!localNameMap.contains(v.value())) {
-				continue;
-			}
-			if (!idMap.cellToFinalName.contains(localNameMap.at(v.value()))) { //edge of the acquisition
-				continue;
-			}
-			v.value() = idMap.cellToFinalName.at(localNameMap.at(v.value()));
-		}
-		return segments;
-	}
-	void TaoHandler::_writeIdLayers(cell_t tile) const
-	{
-		namespace fs = std::filesystem;
-		gdalAllRegisterThreadSafe();
-		fs::create_directories(taoDir());
-
-		Raster<taoid_t> segments = _fixTaoIdsThread(tile); //currently buffered
-		if (!segments.hasAnyValue()) {
-			return;
-		}
-
-		Extent unbufferedExtent = _getter->layout()->extentFromCell(tile);
-
-		std::vector<TaoInfo> highPoints = _readHighPointsFromArray(tile);
-		VectorDataset<Point> highPointsVector{ segments.crs() };
-		VectorDataset<Polygon> circleVector{segments.crs()};
-
-		auto addIntegerField = [&](const std::string& name) {
-			highPointsVector.addIntegerField(name);
-			circleVector.addIntegerField(name);
-		};
-		addIntegerField("ID");
-
-		auto addRealField = [&](const std::string& name) {
-			highPointsVector.addRealField(name);
-			circleVector.addRealField(name);
-		};
-		addRealField("X");
-		addRealField("Y");
-		addRealField("Height");
-		addRealField("Area");
-		addRealField("Radius");
-
-		for (const TaoInfo& highPoint : highPoints) {
-			if (!unbufferedExtent.contains(highPoint.x, highPoint.y)) {
-				continue;
-			}
-
-			highPointsVector.addGeometry(Point{ highPoint.x,highPoint.y });
-			auto highPointsFeature = highPointsVector.back();
-
-			coord_t radius = std::sqrt(highPoint.area / M_PI);
-			constexpr int nPoints = 64;
-			constexpr double baseAngle = 2. * M_PI / nPoints;
-			auto initSinTable = [&]()->std::array<coord_t, nPoints> {
-				std::array<coord_t, nPoints> out{};
-				for (size_t i = 0; i < nPoints; ++i) {
-					out[i] = std::sin(i * baseAngle);
-				}
-				return out;
-			};
-			auto initCosTable = [&]()->std::array<coord_t, nPoints> {
-				std::array<coord_t, nPoints> out{};
-				for (size_t i  = 0; i < nPoints; ++i) {
-					out[i] = std::cos(i * baseAngle);
-				}
-				return out;
-			};
-			static const std::array<coord_t, nPoints> sinTable = initSinTable();
-			static const std::array<coord_t, nPoints> cosTable = initCosTable();
-
-			std::vector<CoordXY> circleRing;
-			circleRing.reserve(nPoints);
-			for (int i = 0; i < nPoints; ++i) {
-				coord_t x = highPoint.x + radius * cosTable[i];
-				coord_t y = highPoint.y + radius * sinTable[i];
-				circleRing.emplace_back(x, y);
-			}
-			Polygon circlePoly{ circleRing };
-			circleVector.addGeometry(circlePoly);
-			auto circleFeature = circleVector.back();
-
-			auto setField = [&](const std::string& name, auto value) {
-				highPointsFeature.setNumericField<decltype(value)>(name, value);
-				circleFeature.setNumericField<decltype(value)>(name, value);
-			};
-			setField("ID", segments.atXYUnsafe(highPoint.x, highPoint.y).value());
-			setField("X", highPoint.x);
-			setField("Y", highPoint.y);
-			setField("Height", highPoint.height);
-			setField("Area", highPoint.area);
-			setField("Radius", radius);
-		}
-
-		fs::path highPointFilename = getFullTileFilename(taoDir() / _highPointFolderName, _highPointBasename, OutputUnitLabel::Unitless, tile, "shp");
-		fs::path circleFilename = getFullTileFilename(taoDir() / _circleFolderName, _circleBasename, OutputUnitLabel::Unitless, tile, "shp");
-		writeVectorLogErrors(highPointFilename, highPointsVector);
-		writeVectorLogErrors(circleFilename, circleVector);
-		circleVector = VectorDataset<Polygon>{}; //destructing early to save a bit of memory
-
-		if (_getter->doVectorizeSegments()) {
-			VectorDataset<MultiPolygon> segmentsVector = rasterToMultiPolygonForTaos(segments, &highPointsVector.attributes());
-			writeVectorLogErrors(getFullTileFilename(taoDir() / _segmentPolygonFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile, "shp"), segmentsVector);
-		}
-
-		segments = cropRaster(segments, unbufferedExtent, SnapType::out);
-		writeRasterLogErrors(getFullTileFilename(taoDir() / _segmentRasterFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile), segments);
-	}
 	TaoHandler::TaoHandler(ParamGetter* p) : ProductHandler(p)
 	{
 		_getter = p;
@@ -265,43 +40,118 @@ namespace lapis {
 	}
 	void TaoHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile)
 	{
-		LapisLogger& log = LapisLogger::getLogger();
+		namespace fs = std::filesystem;
+		//ask IDer to ID
+		//make and write point vector
+		//for each segmenter:
+		//ask segmenter to segment
+		//add fields to vector, if present
+		//write segment raster as temp, if present
+		//make max height raster (if raster present), write as temp
+
+        LapisLogger& log = LapisLogger::getLogger();
 		if (!bufferedCsm.hasAnyValue()) {
 			return;
 		}
 
+		log.beginVerboseBenchmarkTimer("Identifying TAOs");
+		GenerateIdByTile idGenerator{ _getter->layout()->ncell(),tile };
+        std::vector<IDedTao> highPoints = _getter->taoIdAlgorithm()->identifyTaos(bufferedCsm, idGenerator);
 		Extent unbufferedExtent = _getter->layout()->extentFromCell(tile);
 
-		log.beginVerboseBenchmarkTimer("Identifying TAOs");
-		std::vector<cell_t> highPoints = _getter->taoIdAlgorithm()->identifyTaos(bufferedCsm);
-		log.endVerboseBenchmarkTimer("Identifying TAOs");
-		log.beginVerboseBenchmarkTimer("Segmenting TAOs");
-		GenerateIdByTile idGenerator{ _getter->layout()->ncell(),tile };
-		Raster<taoid_t> segments = _getter->taoSegAlgorithm()->segment(bufferedCsm, highPoints, idGenerator);
-		log.endVerboseBenchmarkTimer("Segmenting TAOs");
-
-		_updateMap(segments, highPoints, unbufferedExtent, tile);
-
-		log.beginVerboseBenchmarkTimer("Calulating TAO max height");
-		Raster<csm_t> maxHeight{ (Alignment)segments };
-		std::unordered_map<taoid_t, csm_t> heightByID;
-		for (cell_t c : highPoints) {
-			heightByID.emplace(segments[c].value(), bufferedCsm[c].value());
+        VectorDataset<Point> pointsVector{ bufferedCsm.crs() };
+        pointsVector.addIntegerField("ID");
+        pointsVector.addRealField("X");
+        pointsVector.addRealField("Y");
+        pointsVector.addRealField("Height");
+		for (IDedTao tao : highPoints) {
+            coord_t x = bufferedCsm.xFromCellUnsafe(tao.location);
+            coord_t y = bufferedCsm.yFromCellUnsafe(tao.location);
+			if (!unbufferedExtent.contains(x, y)) {
+				continue;
+            }
+			if (!bufferedCsm.atCellUnsafe(tao.location).has_value()) {
+				continue;
+			}
+            pointsVector.addGeometry(Point{ x, y });
+            auto&& feature = pointsVector.back();
+            feature.setNumericField("ID", tao.id);
+            feature.setNumericField("X", x);
+            feature.setNumericField("Y", y);
+			feature.setNumericField("Height", bufferedCsm.atCellUnsafe(tao.location).value());
 		}
-		for (cell_t cell = 0; cell < segments.ncell(); ++cell) {
-			if (segments[cell].has_value()) {
-				maxHeight[cell].has_value() = true;
-				maxHeight[cell].value() = heightByID[segments[cell].value()];
+        fs::path highPointFilename = getHighPointFilename(tile);
+        writeVectorLogErrors(highPointFilename, pointsVector);
+        log.endVerboseBenchmarkTimer("Identifying TAOs");
+
+		if (!_getter->taoSegAlgorithms().size()) {
+			return;
+		}
+		struct TaoHighPointInfo {
+			coord_t x;
+			coord_t y;
+			csm_t height;
+		};
+		std::unordered_map<taoid_t, TaoHighPointInfo> taoLookup;
+		for (auto&& feature : pointsVector) {
+			taoid_t id = feature.getNumericField<taoid_t>("ID");
+			coord_t x = feature.getNumericField<coord_t>("X");
+			coord_t y = feature.getNumericField<coord_t>("Y");
+			csm_t height = feature.getNumericField<csm_t>("Height");
+            taoLookup.emplace(id, TaoHighPointInfo{ x, y, height });
+		}
+
+        log.beginVerboseBenchmarkTimer("Segmenting TAOs");
+		for (const auto& segmenter : _getter->taoSegAlgorithms()) {
+            SegmentResults results = segmenter->segment(bufferedCsm, highPoints, unbufferedExtent);
+			if (results.raster.has_value()) {
+				writeRasterLogErrors(getSegmentRasterFilename(tile, segmenter.get(), true), *results.raster);
+
+                Raster<csm_t> taoHeight{ (Alignment)results.raster.value() };
+				for (cell_t cell : CellIterator(taoHeight)) {
+					if (!results.raster->atCellUnsafe(cell).has_value()) {
+						continue;
+					}
+					taoid_t id = results.raster->atCellUnsafe(cell).value();
+					if (!taoLookup.contains(id)) {
+						continue;
+					}
+                    auto v = taoHeight.atCellUnsafe(cell);
+					v.has_value() = true;
+                    v.value() = taoLookup.at(id).height;
+				}
+                writeRasterLogErrors(getTaoHeightRasterFilename(tile, segmenter.get(), true), taoHeight);
+			}
+
+			if (results.vector.has_value()) {
+				results.vector->addNumericField<coord_t>("X");
+                results.vector->addNumericField<coord_t>("Y");
+                results.vector->addNumericField<csm_t>("Height");
+                results.vector->addNumericField<coord_t>("Area");
+
+				coord_t convFactor = LinearUnitConverter{ bufferedCsm.crs().getXYLinearUnits(),_getter->outUnits() }.convertOne(1.);
+                convFactor *= convFactor; //conversion factor for area
+
+				for (auto&& feature : *results.vector) {
+                    taoid_t id = feature.getNumericField<taoid_t>("ID");
+					if (!taoLookup.contains(id)) {
+						//this shouldn't ever happen; if it does, the algorithm has a bug
+#ifndef NDEBUG
+                        throw std::runtime_error("TaoHandler::handleCsmTile: segmenter returned a feature with an ID that was not in the high points vector");
+#endif
+						continue;
+					}
+                    feature.setNumericField("X", taoLookup.at(id).x);
+                    feature.setNumericField("Y", taoLookup.at(id).y);
+                    feature.setNumericField("Height", taoLookup.at(id).height);
+					feature.setNumericField("Area", feature.getGeometry().area() * convFactor);
+				}
+
+                fs::path segmentVectorFilename = getSegmentPolygonFilename(tile, segmenter.get());
+                writeVectorLogErrors(segmentVectorFilename, *results.vector);
 			}
 		}
-		log.endVerboseBenchmarkTimer("Calculating TAO max height");
-
-		_writeHighPointsAsArray(highPoints, bufferedCsm, segments, unbufferedExtent, tile);
-
-		maxHeight = cropRaster(maxHeight, unbufferedExtent, SnapType::out);
-
-		writeRasterLogErrors(getFullTileFilename(taoTempDir(), _segmentsBasename, OutputUnitLabel::Unitless, tile), segments);
-		writeRasterLogErrors(getFullTileFilename(taoDir() / _maxHeightFolderName, _maxHeightBasename, OutputUnitLabel::Default, tile), maxHeight);
+        log.endVerboseBenchmarkTimer("Segmenting TAOs");
 	}
 	void TaoHandler::cleanup()
 	{
@@ -321,7 +171,7 @@ namespace lapis {
 							thisidx = sofar;
 							++sofar;
 						}
-						_writeIdLayers(thisidx);
+						_cleanupThreadFunc(thisidx);
 					}
 				}
 			));
@@ -333,6 +183,99 @@ namespace lapis {
 		tryRemove(taoTempDir());
 		deleteTempDirIfEmpty();
 	}
+	void TaoHandler::_cleanupThreadFunc(cell_t tile) const
+	{
+		//for each segmenter:
+        //for both segment and height rasters:
+		//read the temp file, if it exists
+		//crop it to the tile extent
+		//read the overlapping portions of the eight surrounding tiles
+		//overlay those overlapping portions
+        //write the result
+
+        LapisLogger& log = LapisLogger::getLogger();
+        log.beginVerboseBenchmarkTimer("Overlaying TAO rasters");
+
+		for (const auto& segmenter : _getter->taoSegAlgorithms()) {
+			if (!segmenter->producesRaster()) {
+				continue;
+			}
+			std::optional<Raster<taoid_t>> segmentsOpt = tryOpenRaster<taoid_t>(
+                getSegmentRasterFilename(tile, segmenter.get(), true));
+			if (!segmentsOpt) {
+				continue;
+			}
+			std::optional<Raster<csm_t>> taoHeightOpt = tryOpenRaster<csm_t>(
+                getTaoHeightRasterFilename(tile, segmenter.get(), true));
+			if (!taoHeightOpt) {
+				continue;
+			}
+
+            rowcol_t tileRow = _getter->layout()->rowFromCell(tile);
+            rowcol_t tileCol = _getter->layout()->colFromCell(tile);
+			for (rowcol_t rowBudge : {-1, 0, 1}) {
+                rowcol_t thisRow = tileRow + rowBudge;
+				if (thisRow < 0 || thisRow >= _getter->layout()->nrow()) {
+					continue;
+                }
+				for (rowcol_t colBudge : {-1, 0, 1}) {
+					rowcol_t thisCol = tileCol + colBudge;
+					if (thisCol < 0 || thisCol >= _getter->layout()->ncol()) {
+						continue;
+					}
+					if (rowBudge == 0 && colBudge == 0) {
+						continue;
+                    }
+
+                    cell_t otherTile = _getter->layout()->cellFromRowCol(thisRow, thisCol);
+
+					std::optional<Raster<taoid_t>> otherSegmentsOpt = tryOpenRaster<taoid_t>(
+                        getSegmentRasterFilename(otherTile, segmenter.get(), true),
+						*segmentsOpt, SnapType::out);
+					if (!otherSegmentsOpt) {
+						continue;
+                    }
+					segmentsOpt->overlay(*otherSegmentsOpt, [](auto a, auto b) {return a; });
+
+					std::optional<Raster<csm_t>> otherTaoHeight = tryOpenRaster<csm_t>(
+                        getTaoHeightRasterFilename(otherTile, segmenter.get(), true),
+						*segmentsOpt, SnapType::out);
+                    if (!otherTaoHeight) {
+						continue;
+                    }
+                    taoHeightOpt->overlay(*otherTaoHeight, [](auto a, auto b) {return a; });
+				}
+			}
+            Extent tileExtent = _getter->layout()->extentFromCell(tile);
+            *segmentsOpt = cropRaster(*segmentsOpt, tileExtent, SnapType::near);
+            *taoHeightOpt = cropRaster(*taoHeightOpt, tileExtent, SnapType::near);
+
+			writeRasterLogErrors(getSegmentRasterFilename(tile, segmenter.get(), false).string(), *segmentsOpt);
+			writeRasterLogErrors(getTaoHeightRasterFilename(tile, segmenter.get(), false).string(), *taoHeightOpt);
+		}
+
+        log.endVerboseBenchmarkTimer("Overlaying TAO rasters");
+    }
+	std::filesystem::path TaoHandler::getHighPointFilename(cell_t tile) const
+	{
+        return getFullTileFilename(taoDir() / _highPointFolderName, _highPointBasename, OutputUnitLabel::Unitless, tile, "shp");
+	}
+	std::filesystem::path TaoHandler::getSegmentRasterFilename(cell_t tile, TaoSegmentAlgorithm* segmenter, bool temp) const
+	{
+        namespace fs = std::filesystem;
+        fs::path baseFolder = temp ? taoTempDir() : taoDir();
+        return getFullTileFilename(baseFolder / segmenter->name() / _segmentRasterFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile, "tif");
+	}
+	std::filesystem::path TaoHandler::getTaoHeightRasterFilename(cell_t tile, TaoSegmentAlgorithm* segmenter, bool temp) const
+	{
+		namespace fs = std::filesystem;
+		fs::path baseFolder = temp ? taoTempDir() : taoDir();
+        return getFullTileFilename(baseFolder / segmenter->name() / _taoHeightFolderName, _taoHeightBasename, OutputUnitLabel::Default, tile, "tif");
+	}
+	std::filesystem::path TaoHandler::getSegmentPolygonFilename(cell_t tile, TaoSegmentAlgorithm* segmenter) const
+	{
+        return getFullTileFilename(taoDir() / segmenter->name() / _segmentPolygonFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile, "shp");
+	}
 	void TaoHandler::describeInPdf(MetadataPdf& pdf)
 	{
 		pdf.newPage();
@@ -341,11 +284,14 @@ namespace lapis {
 			"the uncertainty inherent in this task.");
 
 		_getter->taoIdAlgorithm()->describeInPdf(pdf, _getter);
-		_getter->taoSegAlgorithm()->describeInPdf(pdf, _getter);
+		for (const auto& segmenter : _getter->taoSegAlgorithms()) {
+            segmenter->describeInPdf(pdf, _getter);
+        }
 
 		pdf.writeSubsectionTitle("Products");
 		pdf.writeTextBlockWithWrap("The output TAO data can be found in the TreeApproximateObjects directory. There are three kinds of products: the TAOs themselves, the segment "
-			"rasters, and the max height rasters. To avoid unusably large filesizes, they are tiled. Their filenames indicate the row and olumn each tile belongs to. "
+			"raster and polygons, and the tao height rasters. To avoid unusably large filesizes, they are tiled. "
+			"Their filenames indicate the row and column each tile belongs to. "
 			"The location of each tile is available in TileLayout.shp, in the Layout directory.");
 
 		pdf.writeSubsectionTitle("TAOs");
@@ -368,13 +314,10 @@ namespace lapis {
 		ss << "each TAO receiving a unique polygon.";
 		pdf.writeTextBlockWithWrap(ss.str());
 
-		pdf.writeSubsectionTitle("Circles");
-		ss.str("");
-
-		pdf.writeSubsectionTitle("Max Height");
+		pdf.writeSubsectionTitle("Tao Height");
 		ss.str("");
 		ss.clear();
-		ss << "The files with names like " << getFullTileFilename("", _maxHeightBasename, OutputUnitLabel::Default, 0) << " ";
+		ss << "The files with names like " << getFullTileFilename("", _taoHeightBasename, OutputUnitLabel::Default, 0) << " ";
 		ss << "are similar to the segments files, but instead of using the TAO's ID as their value, they use the TAO's height. ";
 		ss << "These are thus similar in concept to a canopy surface model, but as if trees were a constant height, instead of having varying heights throughout their area.";
 		pdf.writeTextBlockWithWrap(ss.str());

@@ -5,6 +5,7 @@
 #include"Parameter.hpp"
 #include"..\algorithms\TaoIdAlgorithm.hpp"
 #include"..\algorithms\TaoSegmentAlgorithm.hpp"
+#include"..\algorithms\McGaugheySegment.hpp" // for McGaugheySmoothType
 
 namespace lapis {
 
@@ -48,8 +49,7 @@ namespace lapis {
 		coord_t minTaoDist() const;
 
 		TaoIdAlgorithm* taoIdAlgo();
-		TaoSegmentAlgorithm* taoSegAlgo();
-		bool vectorizeSegments();
+		const std::vector<std::unique_ptr<TaoSegmentAlgorithm>>& taoSegAlgos();
 
 	private:
 
@@ -66,16 +66,23 @@ namespace lapis {
 		RadioSelect<IdAlgoDecider, IdAlgo::IdAlgo> _idAlgo{ "Tree ID Algorithm:","id-algo" };
 		std::unique_ptr<TaoIdAlgorithm> _idAlgorithm;
 
-		class SegAlgoDecider {
+		std::vector<std::unique_ptr<TaoSegmentAlgorithm>> _segmentAlgorithms;
+		RadioBoolean _sameMinHt{ "tao-same-min-ht","Same as Point Metric Canopy Cutoff","Other:" };
+
+		CheckBox _doWatershed{ "Watershed", "watershed" };
+		CheckBox _vectorizeWatershed{ "Produce Polygons" ,"vectorize-segments" };
+
+        CheckBox _doMcgaughey{ "McGaughey", "do-mcgaughey" };
+        NumericTextBox _mcgNvertices{ "Number of Vertices:", "mcg-nvertices", 16 };
+        NumericTextBox _mcgSlopechangeMultiplier{ "Slope Change Factor:", "mcg-slope-change-factor", 4 };
+        NumericTextBox _mcgHeightCutoffMultiplier{ "Height Cutoff Factor:", "mcg-height-cutoff-factor", 2.0 / 3.0 };
+        NumericTextBox _mcgMaxDistMultiplier{ "Maximum Distance Factor:", "mcg-max-dist-factor", 3.0 / 4.0 };
+        class McGaugheySmoothDecider {
 		public:
 			int operator()(const std::string& s) const;
 			std::string operator()(int i) const;
-		};
-		RadioSelect<SegAlgoDecider, SegAlgo::SegAlgo> _segAlgo{ "Canopy Segmentation Algorithm:","seg-algo" };
-		std::unique_ptr<TaoSegmentAlgorithm> _segmentAlgorithm;
-		RadioBoolean _sameMinHt{ "tao-same-min-ht","Same as Point Metric Canopy Cutoff","Other:" };
-
-		CheckBox _vectorizeSegments{ "Produce Polygons" ,"vectorize-segments" };
+        };
+        RadioSelect<McGaugheySmoothDecider, McGaugheySmoothType> _mcgSmoothType{ "Smoothing Type:", "mcg-smooth-type" };
 
 		bool _runPrepared = false;
 	};

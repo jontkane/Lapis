@@ -3,44 +3,32 @@
 #define LP_TAOSEGMENTALGORITHM_H
 
 #include"algo_pch.hpp"
+#include"TaoAlgoCommonStuff.hpp"
 
 namespace lapis {
 
-	class UniqueIdGenerator;
 	class MetadataPdf;
 	class TaoParameterGetter;
+	struct IDedTao;
 
 	class TaoSegmentAlgorithm {
 	public:
 
 		virtual ~TaoSegmentAlgorithm() = default;
 
-		virtual Raster<taoid_t> segment(const Raster<csm_t>& csm, const std::vector<cell_t>& taos, UniqueIdGenerator& idGenerator) = 0;
+        //the raster output should NA out segments associated with taos outside the unbuffered extent
+        //the vector output should have an "ID" attribute.
+		//usually this will be produced by the function rasterToMultiPolyonForTaos, with nullptr as the attributes parameter
+		//X, Y, and Area will be supplied by other parts of the code,
+		//but if the algorithm wants to for some reason, it's okay to add additional attributes other than those
+		virtual SegmentResults segment(const Raster<csm_t>& bufferedCsm, const std::vector<IDedTao>& taos, const Extent& unbufferedExtent) = 0;
+
+		virtual const std::string& name() const = 0;
 
 		virtual void describeInPdf(MetadataPdf& pdf, TaoParameterGetter* getter) = 0;
-	};
 
-	class UniqueIdGenerator {
-	public:
-		virtual ~UniqueIdGenerator() = default;
-
-		virtual taoid_t nextId() = 0;
-	};
-
-	class GenerateIdByTile : public UniqueIdGenerator {
-	public:
-		GenerateIdByTile(cell_t nTiles, cell_t thisTile)
-			: _nTiles((taoid_t)nTiles), _previousId((taoid_t)(thisTile - nTiles + 1))
-		{
-		}
-		taoid_t nextId()
-		{
-			_previousId += _nTiles;
-			return _previousId;
-		}
-	private:
-		taoid_t _nTiles;
-		taoid_t _previousId;
+		virtual bool producesRaster() const = 0;
+        virtual bool producesVector() const = 0;
 	};
 }
 

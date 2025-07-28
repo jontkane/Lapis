@@ -238,31 +238,27 @@ namespace lapis {
 				continue;
 			}
 			thisext = cropExtent(thisext, bufferedCsm);
-			Raster<csm_t> thisr;
-			std::string filename = getFullTempFilename(csmTempDir(), _csmBaseName, OutputUnitLabel::Default, i).string();
-			try {
-				thisr = Raster<csm_t>{ filename,thisext, SnapType::out };
-			}
-			catch (InvalidRasterFileException e) {
-				LapisLogger::getLogger().logWarning("Unable to open " + filename);
+			std::filesystem::path filename = getFullTempFilename(csmTempDir(), _csmBaseName, OutputUnitLabel::Default, i);
+            std::optional<Raster<csm_t>> thisCsmOpt = tryOpenRaster<csm_t>(filename, bufferedCsm, SnapType::out);
+			if (!thisCsmOpt) {
 				continue;
 			}
 
 			if (!extentInit) {
-				extentWithData = thisr;
+				extentWithData = *thisCsmOpt;
 				extentInit = true;
 			}
 			else {
-				extentWithData = extendExtent(extentWithData, thisr);
+				extentWithData = extendExtent(extentWithData, *thisCsmOpt);
 			}
 
 
 			//for the same reason as the above comment
-			thisr.defineCRS(bufferedCsm.crs());
+			thisCsmOpt->defineCRS(bufferedCsm.crs());
 			auto overlayFunc = [&](csm_t a, csm_t b) {
 				return _getter->csmAlgorithm()->combineCells(a, b);
 			};
-			bufferedCsm.overlay(thisr, overlayFunc);
+			bufferedCsm.overlay(*thisCsmOpt, overlayFunc);
 		}
 
 		if (!bufferedCsm.hasAnyValue()) {

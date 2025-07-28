@@ -13,25 +13,45 @@ namespace lapis {
 	}
 
 	TaoParameter::TaoParameter() {
+		//static_assert(false, "Need to modify this for the tao refactor and new algorithms");
 		_idAlgo.addOption("High Points", IdAlgo::HIGHPOINT, IdAlgo::HIGHPOINT);
 		_idAlgo.setSingleLine();
-		_segAlgo.addOption("Watershed", SegAlgo::WATERSHED, SegAlgo::WATERSHED);
-		_segAlgo.setSingleLine();
-
-		_sameMinHt.setState(true);
-
 		_idAlgo.addHelpText("The algorithm for identifying trees. Only the 'high points' algorithm is supported currently.\n\n"
 			"High Points: This is a CSM-based algorithm. A CSM pixel is considered a candidate for being the stem of a tree if it's higher than all 8 of its neighbors.\n"
 			"It is good for trees such as conifers with well-defined tops.");
-		_segAlgo.addHelpText("The algorithm for segmenting the canopy between the identified trees. Only the watershed algorith is supported currently.\n\n"
-			"Watershed: expand each identified tree downwards from the center until it would have to go upwards again.\n"
-			"The watershed algorithm requires no parameterization");
+
+		_sameMinHt.setState(true);
 
 		_mindist.addHelpText("If two TAOs are very close to each other, it may represent an error rather than two separate trees. "
 			"If this is set to a value greater than 0, then if two TAOs are too close, the shorter one will be removed.");
 
-		_vectorizeSegments.addHelpText("If this box is checked, vectorized polygons will be produced corresponding to the boundary of each TAO.\n"
+		_doWatershed.addHelpText("This algorithm marks the boundary between TAOs as the location where the canopy has a 'valley'. "
+			"It has the advantage that all canopy pixels are assigned to exactly one TAO, and is fast to run. "
+			"It has the disadvantage that the segments produced often do not resemble the shape of trees.");
+
+		_vectorizeWatershed.addHelpText("If this box is checked, vectorized polygons will be produced corresponding to the boundary of each TAO.\n"
 			"This option is fairly slow and may increase the memory requirements of the run.");
+
+		_doMcgaughey.addHelpText("This algorithm is found in the FUSION program, created by Bob McGaughey. "
+			"It produces only polygons, no rasters. It works by casting many rays out from the TAO. "
+			"When the ray encounters one of several conditions, it stops and that location is recorded as a vertex of the polygon. ");
+		_mcgSlopechangeMultiplier.addHelpText("One of the conditions for a boundary of a TAO is when the slope of the CSM suddenly increased (i.e., there is a sharp drop-off). "
+			"This variable controls how sharp that drop-off needs to be before it causes a boundary to be found. A higher value requires a sharper drop-off.");
+		_mcgHeightCutoffMultiplier.addHelpText("One of the conditions for a boundary of a TAO is when the CSM drops below a certain percentage of the height of the TAO. "
+			"This variable controls that percentage. For example, by default, areas lower than 2/3 the height of the TAO cannot be part of the segment.");
+		_mcgMaxDistMultiplier.addHelpText("The boundary of the segment cannot be more than a certain distance from the TAO, measured as a percentage of the height of the TAO. "
+            "This variable controls that percentage. For example, by default, the segment will never have a radius larger than 3/4 the height of the TAO.");
+		_mcgNvertices.addHelpText("The number of vertices for the output polygons. "
+			"A higher number will produce a smoother polygon, but will take longer to compute.");
+		_mcgSmoothType.addHelpText("The type of smoothing to apply to the polygon.\n\n"
+			"Fusion: The original algorithm from FUSION. This algorithm has a number of complexities, but to simplify, it smooths 'spikes' in the polygon by setting their distance from the TAO to be "
+			"equal to the average distance of the two neighboring vertices.\n\n"
+			"Simple: This algorithm simply sets the distance of each vertex to be the average of its own distance, and the distances of the two neighboring vertices.\n\n"
+			"None: No smoothing is performed.");
+        _mcgSmoothType.addOption("Fusion", (int)McGaugheySmoothType::fusion, McGaugheySmoothType::fusion);
+        _mcgSmoothType.addOption("Simple", (int)McGaugheySmoothType::simple, McGaugheySmoothType::simple);
+        _mcgSmoothType.addOption("None", (int)McGaugheySmoothType::none, McGaugheySmoothType::none);
+        _mcgSmoothType.setSingleLine();
 
 	}
 	void TaoParameter::addToCmd(BoostOptDesc& visible,
@@ -39,8 +59,16 @@ namespace lapis {
 		_minht.addToCmd(visible, hidden);
 		_mindist.addToCmd(visible, hidden);
 		_idAlgo.addToCmd(visible, hidden);
-		_segAlgo.addToCmd(visible, hidden);
-		_vectorizeSegments.addToCmd(visible, hidden);
+
+		_doWatershed.addToCmd(visible, hidden);
+		_vectorizeWatershed.addToCmd(visible, hidden);
+
+        _doMcgaughey.addToCmd(visible, hidden);
+        _mcgNvertices.addToCmd(visible, hidden);
+        _mcgSlopechangeMultiplier.addToCmd(visible, hidden);
+        _mcgHeightCutoffMultiplier.addToCmd(visible, hidden);
+        _mcgMaxDistMultiplier.addToCmd(visible, hidden);
+        _mcgSmoothType.addToCmd(visible, hidden);
 	}
 	std::ostream& TaoParameter::printToIni(std::ostream& o) {
 		if (!_sameMinHt.currentState()) {
@@ -49,10 +77,17 @@ namespace lapis {
 		_mindist.printToIni(o);
 
 		_idAlgo.printToIni(o);
-		_segAlgo.printToIni(o);
 
+        _doWatershed.printToIni(o);
+        _vectorizeWatershed.printToIni(o);
 
-		_vectorizeSegments.printToIni(o);
+        _doMcgaughey.printToIni(o);
+        _mcgNvertices.printToIni(o);
+        _mcgSlopechangeMultiplier.printToIni(o);
+        _mcgHeightCutoffMultiplier.printToIni(o);
+        _mcgMaxDistMultiplier.printToIni(o);
+        _mcgSmoothType.printToIni(o);
+
 		return o;
 	}
 	ParamCategory TaoParameter::getCategory() const {
@@ -67,9 +102,6 @@ namespace lapis {
 		_title.renderGui();
 
 		_idAlgo.renderGui();
-		_segAlgo.renderGui();
-		_vectorizeSegments.renderGui();
-
 		_mindist.renderGui();
 
 		ImGui::Text("Minimum Tree Height:");
@@ -82,6 +114,34 @@ namespace lapis {
 		if (_sameMinHt.currentState()) {
 			ImGui::EndDisabled();
 		}
+
+
+		ImGui::Text("Segmentation Aglorithms: ");
+		ImGui::SameLine();
+		_doWatershed.renderGui();
+		ImGui::SameLine();
+        _doMcgaughey.renderGui();
+
+		ImGui::BeginTabBar("Segmentation Algorithms");
+
+		if (_doWatershed.currentState()) {
+			if (ImGui::BeginTabItem("Watershed")) {
+				_vectorizeWatershed.renderGui();
+				ImGui::EndTabItem();
+			}
+		}
+		if (_doMcgaughey.currentState()) {
+			if (ImGui::BeginTabItem("McGaughey")) {
+				_mcgNvertices.renderGui();
+				_mcgSlopechangeMultiplier.renderGui();
+				_mcgHeightCutoffMultiplier.renderGui();
+				_mcgMaxDistMultiplier.renderGui();
+				_mcgSmoothType.renderGui();
+				ImGui::EndTabItem();
+			}
+        }
+
+		ImGui::EndTabBar();
 	}
 	void TaoParameter::importFromBoost() {
 
@@ -93,8 +153,29 @@ namespace lapis {
 		}
 		_mindist.importFromBoost();
 		_idAlgo.importFromBoost();
-		_segAlgo.importFromBoost();
-		_vectorizeSegments.importFromBoost();
+
+        _doWatershed.importFromBoost();
+        _vectorizeWatershed.importFromBoost();
+
+        _doMcgaughey.importFromBoost();
+        _mcgNvertices.importFromBoost();
+        _mcgSlopechangeMultiplier.importFromBoost();
+        _mcgHeightCutoffMultiplier.importFromBoost();
+        _mcgMaxDistMultiplier.importFromBoost();
+        _mcgSmoothType.importFromBoost();
+
+		//if doTaos is true, then we should default to having at least one segmentation algorithm on
+		//watershed seems like a reasonable default
+        ParameterManager& pm = parameterManager();
+		if (pm.doTaos()) {
+			int segAlgoCount = 0;
+            segAlgoCount += _doWatershed.currentState() ? 1 : 0;
+            segAlgoCount += _doMcgaughey.currentState() ? 1 : 0;
+
+			if (segAlgoCount == 0) {
+				_doWatershed.setState(true);
+			}
+		}
 	}
 	void TaoParameter::updateUnits() {
 		_minht.updateUnits();
@@ -143,13 +224,33 @@ namespace lapis {
 			return false;
 		}
 
-		switch (_segAlgo.currentSelection()) {
-		case SegAlgo::WATERSHED:
-			_segmentAlgorithm = std::make_unique<WatershedSegment>(minTaoHt(),pm.maxHt(),pm.binSize());
-			break;
-		default:
-			log.logError("Invalid TAO Segment algorithm");
-			return false;
+		if (_doWatershed.currentState()) {
+			_segmentAlgorithms.emplace_back(new WatershedSegment(minTaoHt(), pm.maxHt(), pm.binSize(), _vectorizeWatershed.currentState()));
+		}
+		if (_doMcgaughey.currentState()) {
+			if (_mcgNvertices.getValueLogErrors() < 3) {
+				log.logError("Number of vertices for McGaughey algorithm must be at least 3");
+				return false;
+            }
+			if (_mcgSlopechangeMultiplier.getValueLogErrors() <= 0) {
+				log.logError("Slope change multiplier for McGaughey algorithm must be greater than 0");
+				return false;
+			}
+			if (_mcgHeightCutoffMultiplier.getValueLogErrors() <= 0) {
+				log.logError("Height cutoff multiplier for McGaughey algorithm must be greater than 0");
+				return false;
+            }
+			if (_mcgMaxDistMultiplier.getValueLogErrors() <= 0) {
+				log.logError("Maximum distance multiplier for McGaughey algorithm must be greater than 0");
+				return false;
+			}
+			_segmentAlgorithms.emplace_back(new McGaugheySegment(
+				(int)_mcgNvertices.getValueLogErrors(),
+				_mcgSlopechangeMultiplier.getValueLogErrors(),
+				_mcgHeightCutoffMultiplier.getValueLogErrors(),
+				_mcgMaxDistMultiplier.getValueLogErrors(),
+				_mcgSmoothType.currentSelection()));
+
 		}
 
 		_runPrepared = true;
@@ -157,7 +258,7 @@ namespace lapis {
 	}
 	void TaoParameter::cleanAfterRun() {
 		_idAlgorithm.reset();
-		_segmentAlgorithm.reset();
+		_segmentAlgorithms.clear();
 		_runPrepared = false;
 	}
 	coord_t TaoParameter::minTaoHt() const
@@ -173,14 +274,10 @@ namespace lapis {
 		prepareForRun();
 		return _idAlgorithm.get();
 	}
-	TaoSegmentAlgorithm* TaoParameter::taoSegAlgo()
+	const std::vector<std::unique_ptr<TaoSegmentAlgorithm>>& TaoParameter::taoSegAlgos()
 	{
 		prepareForRun();
-		return _segmentAlgorithm.get();
-	}
-	bool TaoParameter::vectorizeSegments()
-	{
-		return _vectorizeSegments.currentState();
+		return _segmentAlgorithms;
 	}
 	int TaoParameter::IdAlgoDecider::operator()(const std::string& s) const
 	{
@@ -197,19 +294,29 @@ namespace lapis {
 		}
 		return "other";
 	}
-	int TaoParameter::SegAlgoDecider::operator()(const std::string& s) const
+
+	int TaoParameter::McGaugheySmoothDecider::operator()(const std::string& s) const
 	{
-		const static std::regex watershedregex{ ".*water.*",std::regex::icase };
-		if (std::regex_match(s, watershedregex)) {
-			return SegAlgo::WATERSHED;
+		const static std::regex fusionregex{ ".*fusion.*",std::regex::icase };
+		const static std::regex simpleregex{ ".*simple.*",std::regex::icase };
+		if (std::regex_match(s, fusionregex)) {
+			return (int)McGaugheySmoothType::fusion;
 		}
-		return SegAlgo::OTHER;
-	}
-	std::string TaoParameter::SegAlgoDecider::operator()(int i) const
+		else if (std::regex_match(s, simpleregex)) {
+			return (int)McGaugheySmoothType::simple;
+		}
+		return (int)McGaugheySmoothType::none;
+    }
+    std::string TaoParameter::McGaugheySmoothDecider::operator()(int i) const
 	{
-		if (i == SegAlgo::WATERSHED) {
-			return "watershed";
+		switch ((McGaugheySmoothType)i) {
+		case McGaugheySmoothType::fusion:
+			return "fusion";
+		case McGaugheySmoothType::simple:
+			return "simple";
+		case McGaugheySmoothType::none:
+		default:
+			return "none";
 		}
-		return "other";
-	}
+    }
 }

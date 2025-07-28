@@ -3,7 +3,7 @@
 #define LP_TAOIDALGORITHM_H
 
 #include"algo_pch.hpp"
-
+#include"TaoAlgoCommonStuff.hpp"
 
 namespace lapis {
 
@@ -15,7 +15,7 @@ namespace lapis {
 
 		virtual ~TaoIdAlgorithm() = default;
 
-		virtual std::vector<cell_t> identifyTaos(const Raster<csm_t>& csm) = 0;
+		virtual std::vector<IDedTao> identifyTaos(const Raster<csm_t>& csm, UniqueIdGenerator& idGenerator) = 0;
 
 		virtual void describeInPdf(MetadataPdf& pdf, TaoParameterGetter*) = 0;
 	};

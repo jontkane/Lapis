@@ -70,7 +70,7 @@ namespace lapis {
 		const std::vector<std::string>& strataNames() override;
 
 		TaoIdAlgorithm* taoIdAlgorithm() override;
-		TaoSegmentAlgorithm* taoSegAlgorithm() override;
+		const std::vector<std::unique_ptr<TaoSegmentAlgorithm>>& taoSegAlgorithms() override;
 
 
 		Raster<coord_t> bufferedElev(const Raster<coord_t>& unbufferedElev) override;
@@ -94,7 +94,6 @@ namespace lapis {
 		bool doFineInt() override;
 		bool doTopo() override;
 		bool doStratumMetrics() override;
-		bool doVectorizeSegments() override;
 
 		bool isDebugNoAlign() override;
 		bool isDebugNoOutput() override;

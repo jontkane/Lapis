@@ -11,17 +11,17 @@ namespace lapis {
 	public:
 		HighPoints(coord_t minHtCsmZUnits, coord_t minDistCsmXYUnits);
 
-		std::vector<cell_t> identifyTaos(const Raster<csm_t>& csm);
+		std::vector<IDedTao> identifyTaos(const Raster<csm_t>& csm, UniqueIdGenerator& idGenerator) override;
 
-		void describeInPdf(MetadataPdf& pdf, TaoParameterGetter* getter);
+		void describeInPdf(MetadataPdf& pdf, TaoParameterGetter* getter) override;
 
 		//for testing
-		coord_t minHt();
-		coord_t minDist();
+		coord_t minHt() const;
+		coord_t minDist() const;
 
 	private:
 
-		std::vector<cell_t> _taoCandidates(const Raster<csm_t>& csm);
+		std::vector<IDedTao> _taoCandidates(const Raster<csm_t>& csm, UniqueIdGenerator& idGenerator) const;
 
 		coord_t _minHt;
 		coord_t _minDist;

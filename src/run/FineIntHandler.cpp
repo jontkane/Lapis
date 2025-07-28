@@ -101,34 +101,31 @@ namespace lapis {
 			//so we give it an empty CRS to force all isConsistent functions to return true
 			thisext.defineCRS(CoordRef());
 
-			Raster<intensity_t> thisNumerator, thisDenominator;
-
 			if (!thisext.overlaps(numerator)) {
 				continue;
 			}
 			thisext = cropExtent(thisext, numerator);
 
-			try {
-				//in certain circumstances, writing a raster to the harddrive and then reading it back off will cause very minor differences to the CRS which cause them to not register as consistent.
-				//this slightly hacky solution sidesteps that problem
-				Extent e = (Extent)numerator;
-				e.defineCRS(CoordRef(""));
+			//in certain circumstances, writing a raster to the harddrive and then reading it back off will cause very minor differences to the CRS which cause them to not register as consistent.
+			//this slightly hacky solution sidesteps that problem
+			Extent e = (Extent)numerator;
+			e.defineCRS(CoordRef(""));
 
-				thisNumerator = Raster<intensity_t>{ getFullTempFilename(fineIntTempDir(),_numeratorBasename,OutputUnitLabel::Unitless,i).string(),
-					e, SnapType::near};
-				thisDenominator = Raster<intensity_t>{ getFullTempFilename(fineIntTempDir(),_denominatorBasename,OutputUnitLabel::Unitless,i).string(),
-					e, SnapType::near };
-
-				thisNumerator.defineCRS(numerator.crs());
-				thisDenominator.defineCRS(denominator.crs());
-			}
-			catch (InvalidRasterFileException e) {
-				LapisLogger::getLogger().logWarning("Issue opening temporary intensity file " + std::to_string(i));
+			std::optional<Raster<intensity_t>> thisNumeratorOpt = tryOpenRaster<intensity_t>(
+				getFullTempFilename(fineIntTempDir(), _numeratorBasename, OutputUnitLabel::Unitless, i));
+			if (!thisNumeratorOpt) {
 				continue;
 			}
+            std::optional<Raster<intensity_t>> thisDenominatorOpt = tryOpenRaster<intensity_t>(
+                getFullTempFilename(fineIntTempDir(), _denominatorBasename, OutputUnitLabel::Unitless, i));
+			if (!thisDenominatorOpt) {
+				continue;
+			}
+			thisNumeratorOpt->defineCRS(numerator.crs());
+			thisDenominatorOpt->defineCRS(denominator.crs());
 
-			numerator.overlay(thisNumerator, [](intensity_t a, intensity_t b) {return a + b; });
-			denominator.overlay(thisDenominator, [](intensity_t a, intensity_t b) {return a + b; });
+			numerator.overlay(*thisNumeratorOpt, [](intensity_t a, intensity_t b) {return a + b; });
+			denominator.overlay(*thisDenominatorOpt, [](intensity_t a, intensity_t b) {return a + b; });
 
 			if (!extentInit) {
 				extentInit = true;

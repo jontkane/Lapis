@@ -232,9 +232,9 @@ namespace lapis {
 	{
 		return getParam<TaoParameter>().taoIdAlgo();
 	}
-	TaoSegmentAlgorithm* LapisParameters::taoSegAlgorithm()
+	const std::vector<std::unique_ptr<TaoSegmentAlgorithm>>& LapisParameters::taoSegAlgorithms()
 	{
-		return getParam<TaoParameter>().taoSegAlgo();
+		return getParam<TaoParameter>().taoSegAlgos();
 	}
 	Raster<coord_t> LapisParameters::bufferedElev(const Raster<coord_t>& unbufferedElev)
 	{
@@ -266,10 +266,6 @@ namespace lapis {
 	const std::string& LapisParameters::name()
 	{
 		return getParam<NameParameter>().name();
-	}
-	bool LapisParameters::doVectorizeSegments()
-	{
-		return getParam<TaoParameter>().vectorizeSegments();
 	}
 
 	void LapisParameters::describeParameters(MetadataPdf& pdf)
