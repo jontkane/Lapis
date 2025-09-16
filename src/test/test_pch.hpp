@@ -1,7 +1,7 @@
-#pragma once
-#ifndef LP_TESTPCH_H
-#define LP_TESTPCH_H
-
 #include<gtest/gtest.h>
-
-#endif
+#include<string>
+#include<filesystem>
+#include<stdlib.h>
+#include<yaml-cpp/yaml.h>
+#include"..\algorithms\AllAlgorithmTypes.hpp"
+#include"..\algorithms\AllDemAlgorithms.hpp"

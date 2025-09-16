@@ -1,7 +1,0 @@
-proj.db successfully loaded
-10 Las Files Found
-10 of the las files had the following CRS: WGS 84 / UTM zone 10N + NAVD88 height and the following vertical units: metre. If this seems wrong, consider specifying the CRS and units manually.
-Out CRS: WGS 84 / UTM zone 10N + NAVD88 height
-1 Dem Files Found
-1 of the dem files had the following CRS: WGS 84 / UTM zone 10N + NAVD88 height and the following vertical units: metre. If this seems wrong, consider specifying the CRS and units manually.
-Some or all of the laz files are earlier than version 1.4. They are more likely to have incorrect CRS information. Please consider manually specifying their CRS and units.

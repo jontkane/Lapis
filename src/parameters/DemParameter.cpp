@@ -152,6 +152,7 @@ namespace lapis {
 		std::set<DemFileAlignment> fileAligns;
 		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
 		std::optional<LinearUnit> lasUnits;
+		coord_t minCellSizeInM;
 
 		switch (_demAlgo.currentSelection()) {
 		case DemAlgo::DONTNORMALIZE:
@@ -184,6 +185,16 @@ namespace lapis {
 				}
 			}
 
+			minCellSizeInM = std::numeric_limits<coord_t>::max();
+			for (auto& dem : fileAligns) {
+				const Alignment& align = dem.align;
+				auto converter = LinearUnitConverter(align.crs().getXYLinearUnits(), linearUnitPresets::meter);
+				coord_t xResInM = converter.convertOne(align.xres());
+				coord_t yResInM = converter.convertOne(align.yres());
+				minCellSizeInM = std::min(minCellSizeInM, xResInM);
+				minCellSizeInM = std::min(minCellSizeInM, yResInM);
+			}
+
 			log.logMessage(std::to_string(fileAligns.size()) + " Dem Files Found");
 			if (fileAligns.size() == 0) {
 				return false;
@@ -200,6 +211,14 @@ namespace lapis {
 				ss << pair.first.getShortName() << " and the following vertical units: ";
 				ss << pair.first.getZUnits().name() << ". If this seems wrong, consider specifying the CRS and units manually.";
 				log.logMessage(ss.str());
+			}
+
+			if (minCellSizeInM < 0.5) {
+				int minCellSizeInCm = static_cast<int>(std::round(minCellSizeInM * 100));
+				std::stringstream ss;
+				ss << "At least one dem file has a resolution of " << minCellSizeInCm << " cm. ";
+				ss << "Very fine resolution dem files may cause a large amount of memory usage, and possibly cause a crash.";
+				log.logWarning(ss.str());
 			}
 
 			for (const DemFileAlignment& d : fileAligns) {

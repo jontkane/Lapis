@@ -295,7 +295,15 @@ namespace lapis {
 
 		size_t totalPoints = 0;
 		while (pointGetter->pointsRemaining()) {
-			std::span<LasPoint> view = pointGetter->getPoints(nPoints);
+			std::span<LasPoint> view;
+			try {
+				view = pointGetter->getPoints(nPoints);
+			}
+			catch (InvalidLasFileException e) {
+                std::string fullError = std::string(e.what()) + " in file " + filename;
+				log.logError(fullError);
+				return;
+            }
 			totalPoints += view.size();
 			for (ProductHandler* handler : HandlerRegistrar::get()) {
 				if (handler->doThisProduct()) {

@@ -201,12 +201,12 @@ namespace lapis {
 				continue;
 			}
 			std::optional<Raster<taoid_t>> segmentsOpt = tryOpenRaster<taoid_t>(
-                getSegmentRasterFilename(tile, segmenter.get(), true));
+                getSegmentRasterFilename(tile, segmenter.get(), true), false);
 			if (!segmentsOpt) {
 				continue;
 			}
 			std::optional<Raster<csm_t>> taoHeightOpt = tryOpenRaster<csm_t>(
-                getTaoHeightRasterFilename(tile, segmenter.get(), true));
+                getTaoHeightRasterFilename(tile, segmenter.get(), true), false);
 			if (!taoHeightOpt) {
 				continue;
 			}
@@ -239,7 +239,7 @@ namespace lapis {
 
 					std::optional<Raster<csm_t>> otherTaoHeight = tryOpenRaster<csm_t>(
                         getTaoHeightRasterFilename(otherTile, segmenter.get(), true),
-						*segmentsOpt, SnapType::out);
+						*segmentsOpt, SnapType::out, false);
                     if (!otherTaoHeight) {
 						continue;
                     }

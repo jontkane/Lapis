@@ -64,23 +64,27 @@ namespace lapis {
 		void tryRemove(std::filesystem::path p);
 
 		template<class T>
-		std::optional<Raster<T>> tryOpenRaster(const std::filesystem::path& filename) const
+		std::optional<Raster<T>> tryOpenRaster(const std::filesystem::path& filename, bool warnOnFailure = true) const
 		{
 			try {
 				return Raster<T>(filename.string());
 			}
 			catch (...) {
-				LapisLogger::getLogger().logWarning("Error opening raster file: " + filename.string());
+				if (warnOnFailure) {
+					LapisLogger::getLogger().logWarning("Error opening raster file: " + filename.string());
+				}
                 return std::nullopt;
 			}
         }
 		template<class T>
-		std::optional<Raster<T>> tryOpenRaster(const std::filesystem::path& filename, const Extent& e, SnapType snap) const {
+		std::optional<Raster<T>> tryOpenRaster(const std::filesystem::path& filename, const Extent& e, SnapType snap, bool warnOnFailure = true) const {
 			try {
 				return Raster<T>(filename.string(), e, snap);
 			}
 			catch (...) {
-				LapisLogger::getLogger().logWarning("Error opening raster file: " + filename.string());
+				if (warnOnFailure) {
+					LapisLogger::getLogger().logWarning("Unable to open raster file: " + filename.string());
+				}
 				return std::nullopt;
             }
 		}

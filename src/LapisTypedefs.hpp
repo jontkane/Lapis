@@ -5,6 +5,8 @@
 #define LAPIS_VERSION_MAJOR 0
 #define LAPIS_VERSION_MINOR 9
 
+//if this is true, the program will catch errors and log them in the gui
+//if false, the program will crash (and provide a more useful traceback)
 #define LAPIS_HANDLE_ERRORS true
 
 namespace lapis {

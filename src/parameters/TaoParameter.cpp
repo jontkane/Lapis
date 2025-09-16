@@ -240,6 +240,10 @@ namespace lapis {
 				log.logError("Height cutoff multiplier for McGaughey algorithm must be greater than 0");
 				return false;
             }
+			if (_mcgHeightCutoffMultiplier.getValueLogErrors() >= 1) {
+				log.logError("Height cutoff multiplier for McGaughey algorithm must be less than 1");
+				return false;
+            }
 			if (_mcgMaxDistMultiplier.getValueLogErrors() <= 0) {
 				log.logError("Maximum distance multiplier for McGaughey algorithm must be greater than 0");
 				return false;

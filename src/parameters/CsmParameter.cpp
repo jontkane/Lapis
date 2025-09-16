@@ -120,6 +120,7 @@ namespace lapis {
 
 		_csmAlgorithm = std::make_unique<MaxPoint>(_footprintDiameter.getValueLogErrors());
 
+		//TODO: make the 5 and 6 here not magic numbers (they will likely remain unconfigurable)
 		coord_t lookDist = linearUnitPresets::meter.convertOneFromThis(5, _csmAlign->crs().getXYLinearUnits());
 		if (_smooth.currentSelection() > 1 && _fill.currentState()) {
 			_csmPostProcessor = std::make_unique<SmoothAndFill>(_smooth.currentSelection(), 6, lookDist);

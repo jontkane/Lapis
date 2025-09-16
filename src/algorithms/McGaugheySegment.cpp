@@ -49,27 +49,37 @@ namespace lapis {
 			"It generates polygons surrounding each TAO location, attempting to outline the shape of the tree canopy. "
 			"It does this by casting" << _nVertices << " rays out from the TAO location, at evenly spaced angles. "
 			"Each ray continues on until it meets a condition that indicates the edge of the tree's canopy, at which point that location is recorded as a vertex of the polygon. "
-			"The following conditions are used to determine the edge of the canopy:\n"
-			"1. The ray has traveled a distance greater than " << _maxDistMultiplier << " times the height of the TAO.\n"
-			"2. The ray has encountered a location with a height less than " << _heightCutoffMultiplier << " times the height of the TAO.\n"
-			"3. The ray has encountered a local minimum in height.\n"
-			"4. The ray has encountered a steep drop-off in height, defined as a location where the height differential between the current and next location exceeds "
-			<< _slopeChangeMultiplier << " times the height differential between the previous and current location.\n"
-			"5. The ray encounters a cell with no data (i.e., a location with no lidar returns).\n\n";
+			"The following conditions are used to determine the edge of the canopy:\n";
+		pdf.writeTextBlockWithWrap(text.str());
+		text.str("");
+		text << "1. The ray has traveled a distance greater than " << _maxDistMultiplier << " times the height of the TAO.\n";
+        pdf.writeTextBlockWithWrap(text.str());
+		text.str("");
+		text << "2. The ray has encountered a location with a height less than " << _heightCutoffMultiplier << " times the height of the TAO.\n";
+		pdf.writeTextBlockWithWrap(text.str());
+		text.str("");
+		text << "3. The ray has encountered a local minimum in height.\n";
+		pdf.writeTextBlockWithWrap(text.str());
+		text.str("");
+		text << "4. The ray has encountered a steep drop-off in height, defined as a location where the height differential between the current and next location exceeds "
+			<< _slopeChangeMultiplier << " times the height differential between the previous and current location.\n";
+		pdf.writeTextBlockWithWrap(text.str());
+		text.str("");
+		text << "5. The ray encounters a cell with no data (i.e., a location with no lidar returns).\n\n";
+		pdf.writeTextBlockWithWrap(text.str());
+		text.str("");
 		if (_smoothType == McGaugheySmoothType::fusion) {
-			text << "The polygon is then smoothed the same way as in FUSION, which is fairly complicated:\n"
+			pdf.writeTextBlockWithWrap("The polygon is then smoothed the same way as in FUSION, which is fairly complicated:\n"
 				"First, large outward 'spikes' are identified. These are vertices whose distance from the TAO location exceeds both of their neighbors by at least 25%. "
 				"They are smoothed by setting their distance from the TAO location to be the average of the distances of their two neighbors.\n"
 				"Then, large inward 'spikes' are identified. These are vertices whose distance from the TAO location is less than both of their neighbors by at least 25%. "
 				"They are smoothed the same way.\n"
 				"Finally, a final pass is done, which smooths all outward 'spikes', large or small. These are all vertices whose distance exceeds both of their neighbors, by any amount. "
-				"They are smoothed the same way.";
+				"They are smoothed the same way.");
 		}
 		else if (_smoothType == McGaugheySmoothType::simple) {
-			text << "The polygon is then smoothed by averaging the distances of each vertex with its two neighbors.";
+			pdf.writeTextBlockWithWrap("The polygon is then smoothed by averaging the distances of each vertex with its two neighbors.");
 		}
-
-		pdf.writeTextBlockWithWrap(text.str());
 	}
 	bool McGaugheySegment::producesRaster() const
 	{

@@ -1,6 +1,15 @@
+include_guard(GLOBAL)
+
+message("Inside Lapis.cmake")
+
 set(LAPIS_DIR ${CMAKE_CURRENT_LIST_DIR})
 
-include(${LAPIS_DIR}/src/gis/LapisGis.cmake)
+list(APPEND LAPIS_SCRIPTS
+    ${CMAKE_CURRENT_LIST_FILE}
+)
+
+set(LAPISGISCMAKE_PATH "${LAPIS_DIR}/src/gis/LapisGis.cmake" CACHE PATH "Path to LapisGis.cmake")
+include(${LAPISGISCMAKE_PATH})
 
 file(GLOB LAPIS_PARAMETERS_SOURCES
 	${LAPIS_DIR}/src/parameters/*.hpp
@@ -18,10 +27,6 @@ file(GLOB LAPIS_ALGO_SOURCES
 	${LAPIS_DIR}/src/algorithms/*.cpp
 	${LAPIS_DIR}/src/algorithms/*.hpp)
 
-file(GLOB LAPIS_TEST_SOURCES
-	${LAPIS_DIR}/src/test/*.cpp
-	${LAPIS_DIR}/src/test/*.hpp)
-
 file(GLOB LAPIS_IMGUI_SOURCES
 	${LAPIS_DIR}/src/imgui/*.cpp
 	${LAPIS_DIR}/src/imgui/*.h)
@@ -33,7 +38,7 @@ set(LAPIS_EXE_SOURCES
 	)
 
 add_executable(Lapis WIN32 ${LAPIS_EXE_SOURCES})
-add_executable(Lapis_test ${LAPIS_TEST_SOURCES})
+copy_proj_db_after_build(Lapis)
 
 add_library(Lapis_algorithms STATIC ${LAPIS_ALGO_SOURCES})
 add_library(Lapis_params OBJECT ${LAPIS_PARAMETERS_SOURCES})
@@ -48,7 +53,6 @@ find_package(unofficial-libharu CONFIG REQUIRED)
 
 
 add_subdirectory(${LAPIS_DIR}/src/nativefiledialog-extended nfd)
-
 
 set(LAPIS_EXTERNAL_INCLUDES
 	${LAPISGIS_INCLUDES}
@@ -86,20 +90,9 @@ target_include_directories(Lapis PRIVATE ${LAPIS_EXTERNAL_INCLUDES})
 target_link_libraries(Lapis PRIVATE ${LAPIS_EXTERNAL_LINKS})
 target_link_libraries(Lapis PRIVATE ${LAPIS_INTERNAL_LINKS})
 
-target_include_directories(Lapis_test PRIVATE ${LAPIS_EXTERNAL_INCLUDES})
-target_link_libraries(Lapis_test PRIVATE ${LAPIS_EXTERNAL_LINKS})
-target_link_libraries(Lapis_test PRIVATE ${LAPIS_INTERNAL_LINKS})
-
-
-find_package(GTest REQUIRED)
-add_compile_definitions(LAPISTESTFILES="${LAPIS_DIR}/src/test/TestFiles/")
-target_include_directories(Lapis_test PRIVATE ${GTEST_INCLUDE_DIRS})
-target_link_libraries(Lapis_test PRIVATE ${GTEST_BOTH_LIBRARIES})
-
 target_precompile_headers(Lapis_params PRIVATE ${LAPIS_DIR}/src/parameters/param_pch.hpp)
 target_precompile_headers(Lapis_run PRIVATE ${LAPIS_DIR}/src/run/run_pch.hpp)
 target_precompile_headers(Lapis_algorithms PRIVATE ${LAPIS_DIR}/src/algorithms/algo_pch.hpp)
-target_precompile_headers(Lapis_test PRIVATE ${LAPIS_DIR}/src/test/test_pch.hpp)
 
 if (MSVC)
 	target_compile_options(Lapis PRIVATE /W3 /WX)
@@ -107,7 +100,6 @@ if (MSVC)
 	target_compile_options(Lapis_params PRIVATE /W3 /WX)
 	target_compile_options(Lapis_algorithms PRIVATE /W3 /WX)
 	target_compile_options(Lapis_run PRIVATE /W3 /WX)
-	target_compile_options(Lapis_test PRIVATE /W3 /WX)
 	target_compile_options(nfd PRIVATE /W0)
 	target_compile_options(Lapis_imgui PRIVATE /W0)
 else()
@@ -116,5 +108,4 @@ else()
 	target_compile_options(Lapis_params PRIVATE -Wall -Wextra -Werror)
 	target_compile_options(Lapis_algorithms PRIVATE -Wall -Wextra -Werror)
 	target_compile_options(Lapis_run PRIVATE -Wall -Wextra -Werror)
-	target_compile_options(Lapis_test PRIVATE -Wall -WExtra -Werror)
 endif()

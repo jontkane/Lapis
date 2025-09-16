@@ -1,0 +1,61 @@
+Tests:
+    #ground normalization
+    AlreadyNormalized:
+        MinHeight: [-2, 1]
+        MaxHeight: [100, 120] 
+    VendorRaster:
+        MinHeight: [-2, 1]
+        MaxHeight: [50, 100]
+    #CSM creation
+    MaxPoint:
+        FootprintRadius: [0, 0.4]
+        Resolution: [0.5, 1]
+    #CSM post-processing
+    DoNothingCsm:
+    FillCsm:
+        NeighborsNeeded: [6]
+        LookDist: [5]
+    SmoothAndFill:
+        SmoothWindow: [3, 5]
+        NeighborsNeeded: [6]
+        LookDist: [5]
+    SmoothCsm:
+        SmoothWindow: [3, 5]
+    #tree identification
+    HighPoints:
+        MinHeight: [0, 2, 5]
+        MinDist: [0, 2, 10]
+    #tree segmentation
+    McGaugheySegment:
+        NVertices: [3, 16]
+        SlopeChangeMultiplier: [2, 4]
+        HeightCutoffMultiplier: [0.33, 0.67]
+        MaxDistMultiplier: [0.75, 1.5]
+        SmoothType: ["none","simple","fusion"]
+    WatershedSegment:
+        MinHeight: [0, 2]
+        MaxHeight: [100]
+        BinSize: [0.01]
+        Vectorize: [true, false]
+#A set of algorithms and parameters that each stage should use, if it depends on previous stages
+Pipeline:
+    Normalization:
+        VendorRaster:
+            MinHeight: -2
+            MaxHeight: 100
+    CSMCreation:
+        MaxPoint:
+            FootprintRadius: 0
+            Resolution: 1
+    CSMPostProcessing:
+        DoNothingCsm: {}
+    TreeIdentification:
+        HighPoints:
+            MinHeight: 0
+            MinDist: 0
+    TreeSegmentation:
+        WatershedSegment:
+            MinHeight: 0
+            MaxHeight: 100
+            BinSize: 0.01
+            Vectorize: true

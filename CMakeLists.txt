@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(Lapis VERSION 0.5)
+project(Lapis VERSION 0.9)
 
 if(" ${CMAKE_SOURCE_DIR}" STREQUAL " ${CMAKE_BINARY_DIR}")
   message(FATAL_ERROR "
@@ -14,6 +14,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR})
 
 include(Lapis.cmake)
+include(LapisTest.cmake)
+
+add_custom_target(Lapis_scripts ALL SOURCES ${LAPIS_SCRIPTS})
 
 if(MSVC)
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Lapis)
