@@ -170,9 +170,7 @@ namespace lapis {
 	{
 		std::scoped_lock lock{ *_mut };
 		lapisCout << s << "\n";
-		if (_logFile) {
-			_logFile << s << "\n";
-		}
+		_writeToLogFile(s);
 		_messages.emplace_back(s, Message::Type::Message);
 		if (_messages.size() > 100000) {
 			_messages.pop_front();
@@ -181,18 +179,14 @@ namespace lapis {
 	void LapisLogger::logWarning(const std::string& s) {
 		std::scoped_lock lock{ *_mut };
 		lapisCerr << s << "\n";
-		if (_logFile) {
-			_logFile << s << "\n";
-		}
+		_writeToLogFile(s);
 		_messages.emplace_back(s, Message::Type::Warning);
 
 	}
 	void LapisLogger::logError(const std::string& s) {
 		std::scoped_lock lock{ *_mut };
 		lapisCerr << s << "\n";
-		if (_logFile) {
-			_logFile << s << "\n";
-		}
+		_writeToLogFile(s);
 		_messages.emplace_back(s, Message::Type::Error);
 	}
 	void LapisLogger::reset()
@@ -317,6 +311,14 @@ namespace lapis {
 		ImGui::Text("Average");
 
 		ImGui::End();
+	}
+	void LapisLogger::_writeToLogFile(const std::string& s)
+	{
+		if (!_logFile) {
+			return;
+        }
+        _logFile << s << "\n";
+		_logFile.flush();
 	}
 	inline LapisLogger::BenchmarkInfo::BenchmarkInfo() : startTime(std::chrono::high_resolution_clock::now()), endTime(), isRunning(true) {}
 	void LapisLogger::BenchmarkInfo::stopTimer()

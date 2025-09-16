@@ -121,6 +121,8 @@ namespace lapis {
 		void _renderVerboseBenchmarkWindow();
 
 		std::ofstream _logFile;
+
+		void _writeToLogFile(const std::string& s);
 	};
 }
 
