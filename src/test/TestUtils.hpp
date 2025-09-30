@@ -30,6 +30,8 @@ namespace lapis {
     std::vector<InputData> getInputDataList();
 
     std::filesystem::path getFullFilename(const std::string& algoname, const TestCase& testCase, const InputData& input, const std::string& extension);
+
+    LidarPointVector applyDefaultNormalization(const InputData& input);
 }
 
 #endif

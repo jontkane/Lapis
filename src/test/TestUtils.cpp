@@ -1,4 +1,5 @@
 #include"TestUtils.hpp"
+#include"VendorRasterTest.hpp"
 
 namespace lapis {
     void initTestEnvVars() {
@@ -87,6 +88,42 @@ namespace lapis {
         }
         ss << "." << extension;
         return findFileInEitherFolder(ss.str());
+    }
+
+    namespace {
+        struct PipelineAlgo {
+            std::string name;
+            TestCase testCase;
+        };
+
+        PipelineAlgo getPipelineSectionTestCase(const std::string& section) {
+            namespace fs = std::filesystem;
+            fs::path testYaml = lapis::findFileInEitherFolder("AlgorithmParamsTestValues.yaml");
+            YAML::Node yaml = YAML::LoadFile(testYaml.string());
+            YAML::Node sectionNode = yaml["Pipeline"][section];
+            if (!sectionNode || sectionNode.size() != 1) {
+                throw std::runtime_error("Pipeline section '" + section + "' missing or does not have exactly one algorithm.");
+            }
+            auto algoIt = sectionNode.begin();
+            std::string algoName = algoIt->first.as<std::string>();
+            std::map<std::string, YAML::Node> params;
+            for (const auto& param : algoIt->second) {
+                params[param.first.as<std::string>()] = param.second;
+            }
+            return PipelineAlgo{ algoName, TestCase{params} };
+        }
+    }
+
+    LidarPointVector applyDefaultNormalization(const InputData& input)
+    {
+        namespace fs = std::filesystem;
+        auto [algo, testCase] = getPipelineSectionTestCase("Normalization");
+        fs::path path = getFullFilename(algo, testCase, input, "laz");
+        if (!fs::exists(path)) {
+            throw std::runtime_error("File does not exist: " + path.string());
+        }
+        LasReader l{ path.string() };
+        return l.getPoints(l.nPoints());
     }
 
 
