@@ -230,7 +230,7 @@ namespace lapis {
                     cell_t otherTile = _getter->layout()->cellFromRowCol(thisRow, thisCol);
 
 					std::optional<Raster<taoid_t>> otherSegmentsOpt = tryOpenRaster<taoid_t>(
-                        getSegmentRasterFilename(otherTile, segmenter.get(), true),
+                        getSegmentRasterFilename(otherTile, segmenter.get(), false),
 						*segmentsOpt, SnapType::out);
 					if (!otherSegmentsOpt) {
 						continue;
@@ -238,7 +238,7 @@ namespace lapis {
 					segmentsOpt->overlay(*otherSegmentsOpt, [](auto a, auto b) {return a; });
 
 					std::optional<Raster<csm_t>> otherTaoHeight = tryOpenRaster<csm_t>(
-                        getTaoHeightRasterFilename(otherTile, segmenter.get(), true),
+                        getTaoHeightRasterFilename(otherTile, segmenter.get(), false),
 						*segmentsOpt, SnapType::out, false);
                     if (!otherTaoHeight) {
 						continue;
