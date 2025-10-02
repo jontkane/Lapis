@@ -4,6 +4,9 @@
 #include"..\parameters\ParameterGetter.hpp"
 
 namespace lapis {
+
+
+
 	FillCsm::FillCsm(int neighborsNeeded, coord_t lookDistCsmXYUnits)
 		: _maxMisses(8 - neighborsNeeded), _cardinalFillDist((rowcol_t)lookDistCsmXYUnits), _diagonalFillDist((rowcol_t)(lookDistCsmXYUnits / std::sqrt(2)))
 	{

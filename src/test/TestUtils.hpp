@@ -32,6 +32,8 @@ namespace lapis {
     std::filesystem::path getFullFilename(const std::string& algoname, const TestCase& testCase, const InputData& input, const std::string& extension);
 
     LidarPointVector applyDefaultNormalization(const InputData& input);
+
+    Raster<csm_t> applyDefaultCsm(const InputData& input);
 }
 
 #endif

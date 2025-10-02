@@ -77,8 +77,14 @@ doMaxPoint = function(yamlfragment, input) {
   writeRaster(r, getFullFilename("MaxPoint",input$shortname, yamlfragment,"tif"))
 }
 
-doDoNothingCsm = function(yamlfragment, input) {}
-doFillCsm = function(yamlfragment, input) {}
+doDoNothingCsm = function(yamlfragment, input) {
+  #this algorithm represents not post-processing the csm
+  #as such, the C++ test can just read the existing csm from the pipeline
+}
+doFillCsm = function(yamlfragment, input) {
+  #lidR and lapis do not have particularly comparable filling algorithms
+  #as such, this will have to be tested from first principles, not from comparison to lidR
+}
 doSmoothAndFill = function(yamlfragment, input) {}
 doSmoothCsm = function(yamlfragment, input) {}
 doHighPoints = function(yamlfragment, input) {}

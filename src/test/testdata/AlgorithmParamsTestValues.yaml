@@ -12,13 +12,8 @@ Tests:
         Resolution: [0.5, 1]
     #CSM post-processing
     DoNothingCsm:
-    FillCsm:
-        NeighborsNeeded: [6]
-        LookDist: [5]
-    SmoothAndFill:
-        SmoothWindow: [3, 5]
-        NeighborsNeeded: [6]
-        LookDist: [5]
+        Dummy: [0] #to ensure there's something to loop over
+    #FillCsm and SmoothAndFillCsm would go here, but my filling algorithm is not mimicking anything in lidR
     SmoothCsm:
         SmoothWindow: [3, 5]
     #tree identification

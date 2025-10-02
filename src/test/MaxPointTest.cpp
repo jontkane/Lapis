@@ -1,5 +1,4 @@
 #include"MaxPointTest.hpp"
-#include"TestUtils.hpp"
 #include"..\algorithms\MaxPoint.hpp"
 
 namespace lapis {

@@ -126,5 +126,16 @@ namespace lapis {
         return l.getPoints(l.nPoints());
     }
 
+    Raster<csm_t> applyDefaultCsm(const InputData& input)
+    {
+        namespace fs = std::filesystem;
+        auto [algo, testCase] = getPipelineSectionTestCase("CSMCreation");
+        fs::path path = getFullFilename(algo, testCase, input, "tif");
+        if (!fs::exists(path)) {
+            throw std::runtime_error("File does not exist: " + path.string());
+        }
+        return Raster<csm_t>{ path.string() };
+    }
+
 
 }
