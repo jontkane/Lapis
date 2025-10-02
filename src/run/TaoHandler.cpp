@@ -231,7 +231,7 @@ namespace lapis {
 
 					std::optional<Raster<taoid_t>> otherSegmentsOpt = tryOpenRaster<taoid_t>(
                         getSegmentRasterFilename(otherTile, segmenter.get(), false),
-						*segmentsOpt, SnapType::out);
+						*segmentsOpt, SnapType::out, false);
 					if (!otherSegmentsOpt) {
 						continue;
                     }
