@@ -13,9 +13,14 @@ Tests:
     #CSM post-processing
     DoNothingCsm:
         Dummy: [0] #to ensure there's something to loop over
-    #FillCsm and SmoothAndFillCsm would go here, but my filling algorithm is not mimicking anything in lidR
+    FillCsm:
+        Dummy: [0] #FillCsm is not mimicking anything in lidR and implements tests is a way orthogonal to this file
     SmoothCsm:
         SmoothWindow: [3, 5]
+    SmoothAndFill:
+        SmoothWindow: [3, 5]
+        NeighborsNeeded: [3, 5]
+        LookDist: [3, 6]
     #tree identification
     HighPoints:
         MinHeight: [0, 2, 5]

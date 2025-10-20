@@ -36,43 +36,42 @@ namespace lapis {
             };
 
         for (const InputData& input : getInputDataList()) {
-            std::vector<int> smoothWindows = { 3,5 };
-            std::vector<int> neighborsNeededList = { 3,5 };
-            std::vector<coord_t> lookDists = { 3.0,6.0 };
-            for (int smoothWindow : smoothWindows) {
-                for (int neighborsNeeded : neighborsNeededList) {
-                    for (coord_t lookDist : lookDists) {
-                        FillCsm fillAlgo{ neighborsNeeded, lookDist };
-                        SmoothCsm smoothAlgo{ smoothWindow };
-                        SmoothAndFill algo{ smoothWindow, neighborsNeeded, lookDist };
-                        Raster<csm_t> defaultCsm = applyDefaultCsm(input);
-                        Raster<csm_t> smoothedCsm = smoothAlgo.postProcess(defaultCsm);
-                        Raster<csm_t> filledCsm = fillAlgo.postProcess(defaultCsm);
-                        Raster<csm_t> smoothAndFillCsm = algo.postProcess(defaultCsm);
+            for (const TestCase& test : getTests(smoothAndFillName)) {
 
-                        checkSameAlignment(defaultCsm, smoothAndFillCsm);
-                        checkSameAlignment(smoothAndFillCsm, smoothedCsm);
-                        checkSameAlignment(smoothAndFillCsm, filledCsm);
+                int smoothWindow = test.params.at(smoothWindowParamName).as<int>();
+                coord_t lookDist = test.params.at(fillCsmLookDistParam).as<coord_t>();
+                int neighborsNeeded = test.params.at(fillCsmNeighborsNeededParam).as<int>();
+                {
 
-                        for (cell_t cell : CellIterator(smoothAndFillCsm)) {
-                            if (defaultCsm[cell].has_value()) {
-                                //should be smoothed value
-                                EXPECT_TRUE(smoothedCsm[cell].has_value());
-                                EXPECT_TRUE(smoothAndFillCsm[cell].has_value());
-                                EXPECT_NEAR(smoothAndFillCsm[cell].value(), smoothedCsm[cell].value(), LAPIS_TEST_SMALL_EPSILON);
-                            }
-                            else {
-                                EXPECT_EQ(smoothAndFillCsm[cell].has_value(), filledCsm[cell].has_value());
-                                if (filledCsm[cell].has_value()) {
-                                    EXPECT_NEAR(smoothAndFillCsm[cell].value(), filledCsm[cell].value(), LAPIS_TEST_SMALL_EPSILON);
-                                }
+                    FillCsm fillAlgo{ neighborsNeeded, lookDist };
+                    SmoothCsm smoothAlgo{ smoothWindow };
+                    SmoothAndFill algo{ smoothWindow, neighborsNeeded, lookDist };
+                    Raster<csm_t> defaultCsm = applyDefaultCsm(input);
+                    Raster<csm_t> smoothedCsm = smoothAlgo.postProcess(defaultCsm);
+                    Raster<csm_t> filledCsm = fillAlgo.postProcess(defaultCsm);
+                    Raster<csm_t> smoothAndFillCsm = algo.postProcess(defaultCsm);
+
+                    checkSameAlignment(defaultCsm, smoothAndFillCsm);
+                    checkSameAlignment(smoothAndFillCsm, smoothedCsm);
+                    checkSameAlignment(smoothAndFillCsm, filledCsm);
+
+                    for (cell_t cell : CellIterator(smoothAndFillCsm)) {
+                        if (defaultCsm[cell].has_value()) {
+                            //should be smoothed value
+                            EXPECT_TRUE(smoothedCsm[cell].has_value());
+                            EXPECT_TRUE(smoothAndFillCsm[cell].has_value());
+                            EXPECT_NEAR(smoothAndFillCsm[cell].value(), smoothedCsm[cell].value(), LAPIS_TEST_SMALL_EPSILON);
+                        }
+                        else {
+                            EXPECT_EQ(smoothAndFillCsm[cell].has_value(), filledCsm[cell].has_value());
+                            if (filledCsm[cell].has_value()) {
+                                EXPECT_NEAR(smoothAndFillCsm[cell].value(), filledCsm[cell].value(), LAPIS_TEST_SMALL_EPSILON);
                             }
                         }
-
                     }
+
                 }
             }
         }
     }
-
 }

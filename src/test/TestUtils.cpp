@@ -137,5 +137,16 @@ namespace lapis {
         return Raster<csm_t>{ path.string() };
     }
 
+    Raster<csm_t> applyDefaultCsmPostProcess(const InputData& input)
+    {
+        auto [algo, testCase] = getPipelineSectionTestCase("CSMPostProcessing");
+        if (algo == "DoNothingCsm") {
+            return applyDefaultCsm(input);
+        }
+        else {
+            throw std::runtime_error("Additional code needed to support other csm post-processing algorithms in default pipeline");
+        }
+    }
+
 
 }

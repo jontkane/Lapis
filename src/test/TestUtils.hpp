@@ -34,6 +34,8 @@ namespace lapis {
     LidarPointVector applyDefaultNormalization(const InputData& input);
 
     Raster<csm_t> applyDefaultCsm(const InputData& input);
+
+    Raster<csm_t> applyDefaultCsmPostProcess(const InputData& input);
 }
 
 #endif
