@@ -16,6 +16,7 @@ doOneAlgorithm = function(name, yamlfragment) {
   for (i in 1:nrow(combos)) {
     l = list()
     thisparams = as.list(combos[i, ])
+    names(thisparams) = colnames(combos)
     l[["yamlfragment"]] = thisparams
     for (j in 1:length(inputfiles)) {
       l[["input"]] = inputfiles[[j]]
@@ -86,7 +87,13 @@ doFillCsm = function(yamlfragment, input) {
   #as such, this will have to be tested from first principles, not from comparison to lidR
 }
 doSmoothAndFill = function(yamlfragment, input) {}
-doSmoothCsm = function(yamlfragment, input) {}
+doSmoothCsm = function(yamlfragment, input) {
+  csm = tests$Pipeline$CSMCreation
+  csm = getFullFilename(names(csm),input$shortname,csm[[1]],"tif")
+  csm = rast(csm)
+  csm = focal(csm,w=yamlfragment$SmoothWindow[[1]],fun="mean",na.rm=T)
+  writeRaster(csm,getFullFilename("SmoothCsm",input$shortname,yamlfragment,"tif"))
+}
 doHighPoints = function(yamlfragment, input) {}
 doMcGaugheySegment = function(yamlfragment, input) {}
 doWatershedSegment = function(yamlfragment, input) {}

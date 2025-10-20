@@ -7,7 +7,7 @@ namespace lapis {
     const std::string footprintParam = "FootprintRadius";
     const std::string maxPointName = "MaxPoint";
 
-    Raster<csm_t> applyMaxPointRaster(const InputData& input, const TestCase& testCase) {
+    Raster<csm_t> applyMaxPoint(const InputData& input, const TestCase& testCase) {
         LidarPointVector normalized = applyDefaultNormalization(input);
         coord_t xmin = std::numeric_limits<coord_t>::max();
         coord_t ymin = std::numeric_limits<coord_t>::max();
@@ -34,7 +34,7 @@ namespace lapis {
     TEST(CsmAlgorithms, MaxPointTest) {
         for (const InputData& input : getInputDataList()) {
             for (const TestCase& testCase : getTests(maxPointName)) {
-                Raster<csm_t> testRaster = applyMaxPointRaster(input, testCase);
+                Raster<csm_t> testRaster = applyMaxPoint(input, testCase);
                 Raster<csm_t> truthRaster = Raster<csm_t>(getFullFilename(maxPointName, testCase, input, "tif").string());
 
                 if (testCase.params.at(footprintParam).as<coord_t>() == 0) {

@@ -6,7 +6,7 @@
 #include"TestUtils.hpp"
 
 namespace lapis {
-    Raster<csm_t> applyMaxPointRaster(const InputData& input, const TestCase& testCase);
+    Raster<csm_t> applyMaxPoint(const InputData& input, const TestCase& testCase);
 }
 
 #endif
