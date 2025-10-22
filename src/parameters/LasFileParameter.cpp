@@ -107,16 +107,13 @@ namespace lapis {
 
 		_lasLayout = std::make_shared<VectorDataset<Polygon>>(outCrs);
 		_lasLayout->addStringField("Filename", 255);
-		std::unordered_map<CoordRef, CoordTransform, CoordRefHasher, CoordRefComparator> transforms;
 
 		for (const LasFileExtent& l : s) {
 			const CoordRef& crs = l.ext.crs();
-			if (!transforms.contains(crs)) {
-				transforms.emplace(crs, CoordTransform(crs, outCrs));
-			}
+            const CoordTransform& transform = CoordTransformFactory::getTransform(crs, outCrs);
 			countByCRS.try_emplace(crs, 0);
 			countByCRS[crs]++;
-			QuadExtent q{ l.ext, transforms.at(crs) };
+			QuadExtent q{ l.ext, transform };
 			LasExtent e = { q.outerExtent(), l.ext.nPoints() };
 			fileExtentVector.emplace_back(l.file, e);
 

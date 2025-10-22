@@ -318,16 +318,11 @@ namespace lapis {
 			return _demLayout;
 		}
 
-		//constructing the transforms is a significant amount of time, so going through the effort to cache them is worth it
-		std::unordered_map<CoordRef, CoordTransform, CoordRefHasher, CoordRefComparator> transforms;
-
 		_demLayout = std::make_shared<VectorDataset<Polygon>>(pm.outputCrs());
 		_demLayout->addStringField("Filename", 255);
 		for (const auto& fileAlign : _demFileAligns) {
-			if (!transforms.contains(fileAlign.align.crs())) {
-				transforms.emplace(fileAlign.align.crs(), CoordTransform(fileAlign.align.crs(), pm.outputCrs()));
-			}
-			_demLayout->addGeometry(Polygon(QuadExtent((Extent)fileAlign.align, transforms.at(fileAlign.align.crs()))));
+            const CoordTransform& transform = CoordTransformFactory::getTransform(fileAlign.align.crs(), pm.outputCrs());
+			_demLayout->addGeometry(Polygon(QuadExtent((Extent)fileAlign.align, transform)));
 			_demLayout->back().setStringField("Filename", fileAlign.file.string());
 		}
 		return _demLayout;
@@ -364,10 +359,10 @@ namespace lapis {
 
 		for (size_t i = 0; i < _demFileAligns.size(); ++i) {
 
-			std::optional<CoordTransform> tr;
+			std::optional<const CoordTransform*> tr;
 				
 			if (!_demFileAligns[i].align.crs().isConsistentHoriz(out.crs())) {
-				tr = CoordTransform(out.crs(), _demFileAligns[i].align.crs());
+                tr = &CoordTransformFactory::getTransform(out.crs(), _demFileAligns[i].align.crs());
 			}
 
 			Extent e = QuadExtent(_demFileAligns[i].align,layout.crs()).outerExtent();
@@ -391,7 +386,7 @@ namespace lapis {
 
 					CoordXY xy{ out.xFromCellUnsafe(cell),out.yFromCellUnsafe(cell) };
 					if (tr) {
-						xy = tr.value().transformSingleXY(xy.x, xy.y);
+						xy = tr.value()->transformSingleXY(xy.x, xy.y);
 					}
 
 					auto v = demopt.value().extract(xy.x,xy.y, ExtractMethod::bilinear);
