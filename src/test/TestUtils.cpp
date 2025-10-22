@@ -1,5 +1,6 @@
 #include"TestUtils.hpp"
 #include"VendorRasterTest.hpp"
+#include"HighPointTest.hpp"
 
 namespace lapis {
     void initTestEnvVars() {
@@ -145,6 +146,19 @@ namespace lapis {
         }
         else {
             throw std::runtime_error("Additional code needed to support other csm post-processing algorithms in default pipeline");
+        }
+    }
+
+    std::vector<IDedTao> applyDefaultTreeIdentification(const InputData& input)
+    {
+        auto [algo, testCase] = getPipelineSectionTestCase("TreeIdentification");
+        if (algo == "HighPoints") {
+            csm_t minHeight = testCase.params.at("MinHeight").as<csm_t>();
+            coord_t minDist = testCase.params.at("MinDist").as<coord_t>();
+            return applyHighPoint(input, testCase);
+        }
+        else {
+            throw std::runtime_error("Additional code needed to support other tree identification algorithms in default pipeline");
         }
     }
 

@@ -6,7 +6,7 @@
 #include"TestUtils.hpp"
 
 namespace lapis {
-    VectorDataset<Point> applyHighPoint(const InputData& input, const TestCase& testCase);
+    std::vector<IDedTao> applyHighPoint(const InputData& input, const TestCase& testCase);
 }
 
 #endif

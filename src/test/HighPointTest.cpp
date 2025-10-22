@@ -7,7 +7,7 @@ namespace lapis {
     const std::string highPointMinDistName = "MinDist";
 
 
-    VectorDataset<Point> applyHighPoint(const InputData& input, const TestCase& testCase)
+    std::vector<IDedTao> applyHighPoint(const InputData& input, const TestCase& testCase)
     {
         Raster<csm_t> csm = applyDefaultCsmPostProcess(input);
 
@@ -15,19 +15,7 @@ namespace lapis {
         coord_t minDist = testCase.params.at(highPointMinDistName).as<coord_t>();
 
         std::unique_ptr<UniqueIdGenerator> idGen = std::make_unique<GenerateIdByTile>(1, 0);
-        std::vector<IDedTao> taos = HighPoints(minHeight, minDist).identifyTaos(csm, *idGen);
-
-        VectorDataset<Point> outputDataset(csm.crs());
-        outputDataset.addIntegerField("ID");
-        for (const IDedTao& tao : taos) {
-            coord_t x = csm.xFromCellUnsafe(tao.location);
-            coord_t y = csm.yFromCellUnsafe(tao.location);
-            Point p{ x,y,csm.crs() };
-            outputDataset.addGeometry(p);
-            outputDataset.back().setNumericField<taoid_t>("ID", tao.id);
-        }
-
-        return outputDataset;
+        return HighPoints(minHeight, minDist).identifyTaos(csm, *idGen);
     }
 
     TEST(TaoIDAlgoTest, HighPointTest) {
@@ -41,11 +29,11 @@ namespace lapis {
                 //5. all tao cells are local maxima (or tied)
 
                 Raster<csm_t> csm = applyDefaultCsmPostProcess(input);
-                VectorDataset<Point> testDataset = applyHighPoint(input, testCase);
+                std::vector<IDedTao> testDataset = applyHighPoint(input, testCase);
                 csm_t minHeight = testCase.params.at(highPointMinHeightName).as<csm_t>();
                 coord_t minDist = testCase.params.at(highPointMinDistName).as<coord_t>();
 
-                if (testDataset.nFeature() == 0) {
+                if (testDataset.size() == 0) {
                     bool hasValidCell = false;
                     for (cell_t cell : CellIterator(csm)) {
                         if (csm.atCellUnsafe(cell).has_value() && csm.atCellUnsafe(cell).value() >= minHeight) {
@@ -58,11 +46,11 @@ namespace lapis {
                 }
 
                 std::set<cell_t> occupiedCells;
-                for (const auto& feature : testDataset) {
-                    coord_t x = feature.getGeometry().x();
-                    coord_t y = feature.getGeometry().y();
-                    ASSERT_TRUE(csm.contains(x, y));
-                    cell_t cell = csm.cellFromXYUnsafe(x, y);
+                for (auto tao : testDataset) {
+                    cell_t cell = tao.location;
+                    ASSERT_TRUE(cell >= 0 && cell < csm.ncell());
+                    coord_t x = csm.xFromCellUnsafe(cell);
+                    coord_t y = csm.yFromCellUnsafe(cell);
                     ASSERT_TRUE(csm.atCellUnsafe(cell).has_value());
                     ASSERT_GE(csm.atCellUnsafe(cell).value(), minHeight);
                     ASSERT_TRUE(occupiedCells.find(cell) == occupiedCells.end());
@@ -92,13 +80,13 @@ namespace lapis {
                     }
                 }
 
-                for (size_t i = 0; i < testDataset.nFeature(); ++i) {
-                    coord_t x1 = testDataset.getFeature(i).getGeometry().x();
-                    coord_t y1 = testDataset.getFeature(i).getGeometry().y();
-                    for (size_t j = i + 1; j < testDataset.nFeature(); ++j) {
-                        coord_t x2 = testDataset.getFeature(j).getGeometry().x();
-                        coord_t y2 = testDataset.getFeature(j).getGeometry().y();
-                        coord_t dist = std::sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+                for (size_t i = 0; i < testDataset.size(); ++i) {
+                    coord_t x1 = csm.xFromCellUnsafe(testDataset[i].location);
+                    coord_t y1 = csm.yFromCellUnsafe(testDataset[i].location);
+                    for (size_t j = i + 1; j < testDataset.size(); ++j) {
+                        coord_t x2 = csm.xFromCellUnsafe(testDataset[j].location);
+                        coord_t y2 = csm.yFromCellUnsafe(testDataset[j].location);
+                        coord_t dist = std::sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
                         ASSERT_GE(dist, minDist);
                     }
                 }

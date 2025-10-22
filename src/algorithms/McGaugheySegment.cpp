@@ -99,6 +99,9 @@ namespace lapis {
             throw std::runtime_error("Tao location has no value in the raster.");
         }
         csm_t height = v.value();
+		if (height <= 0) {
+            throw std::runtime_error("Tao location has non-positive height.");
+		}
 
         double angleSpacing = 2. * M_PI / _nVertices;
         static double sqrtTwo = std::sqrt(2.);
@@ -106,7 +109,7 @@ namespace lapis {
 
         const csm_t heightCutoff = height * _heightCutoffMultiplier;
         const coord_t maxDist = height * _maxDistMultiplier;
-        const int nPoints = std::min(maxPoints, (int)(maxDist * sqrtTwo / csm.xres()));
+		const int nPoints = std::max(1, std::min(maxPoints, (int)(maxDist * sqrtTwo / csm.xres())));
         const coord_t pointSpacing = maxDist / nPoints;
 
         std::vector<coord_t> vertexDistances;

@@ -36,6 +36,8 @@ namespace lapis {
     Raster<csm_t> applyDefaultCsm(const InputData& input);
 
     Raster<csm_t> applyDefaultCsmPostProcess(const InputData& input);
+
+    std::vector<IDedTao> applyDefaultTreeIdentification(const InputData& input);
 }
 
 #endif
