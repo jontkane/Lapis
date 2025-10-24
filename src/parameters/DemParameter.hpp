@@ -18,7 +18,8 @@ namespace lapis {
 	class DemParameter : public Parameter {
 
 	private:
-		class DemContainerWrapper; //forward declare
+        class DemOpenerAbstract;
+		class DemContainerWrapper;
 
 	public:
 
@@ -57,6 +58,11 @@ namespace lapis {
 		//using a bilinear extraction from the rasters provided by the user
 		Raster<coord_t> bufferElevation(const Raster<coord_t>& unbuffered, const Extent& desired);
 
+		//dependency injection for tests
+        void setFileSystemWrapperForTests(std::unique_ptr<FileSystemWrapper>&& fsWrapper);
+        void setDemOpenerForTests(std::unique_ptr<DemOpenerAbstract>&& demOpener);
+
+
 	private:
 		Title _title{ "Ground Model Method" };
 
@@ -75,17 +81,23 @@ namespace lapis {
 			Alignment align;
 		};
 		friend bool operator<(const DemFileAlignment& a, const DemFileAlignment& b);
-		class DemOpener {
+
+		class DemOpenerAbstract {
+		public:
+			virtual DemFileAlignment operator()(const std::filesystem::path& f) const = 0;
+            virtual ~DemOpenerAbstract() = default;
+		};
+
+		class DemOpener : public DemOpenerAbstract {
 		public:
 
-			DemOpener(const CoordRef& crsOverride, const LinearUnit& unitOverride);
+			DemOpener();
 
-			DemFileAlignment operator()(const std::filesystem::path& f) const;
-
-		private:
-			const CoordRef& _crsOverride;
-			const LinearUnit& _unitOverride;
+			DemFileAlignment operator()(const std::filesystem::path& f) const override;
 		};
+
+		std::unique_ptr<FileSystemWrapper> _fsWrapper = std::unique_ptr<FileSystemWrapper>(new RealFileSystem{});
+        std::unique_ptr<DemOpenerAbstract> _mockedDemOpener = std::unique_ptr<DemOpenerAbstract>(new DemOpener{});
 
 		std::vector<DemFileAlignment> _demFileAligns;
 		std::shared_ptr<VectorDataset<Polygon>> _demLayout;

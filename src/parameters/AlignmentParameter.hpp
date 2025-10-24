@@ -35,9 +35,9 @@ namespace lapis {
 		const Alignment& getFullAlignment();
 		std::shared_ptr<Alignment> metricAlign();
 
-		bool isDebug() const;
-
 		void describeInPdf(MetadataPdf& pdf);
+
+		void updateFromFile(const std::string& filename);
 
 	private:
 
@@ -56,13 +56,12 @@ namespace lapis {
 		"The desired CRS for the output layers\n"
 				"Can be a filename, or a manual specification (usually EPSG)","Same as Las Files" };
 
-		CheckBox _debugNoAlign{ "Debug No Alignment","debug-no-alignment" };
-
 		std::string _alignCmd = "alignment";
 
-		std::string _alignFileBoostString;
+		FileSelectButton _alignFile = FileSelectButton("Specify From File", "align",
+			"A raster file you want the output metrics to align with\n"
+			"Overwritten by --cellsize and --out-crs options");
 
-		NFD::UniquePathU8 _nfdAlignFile;
 
 		bool _displayManualWindow = false;
 		bool _displayErrorWindow = false;

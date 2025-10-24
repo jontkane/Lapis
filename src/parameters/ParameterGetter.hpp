@@ -148,10 +148,6 @@ namespace lapis {
 		//this fuction is intended to produce matadata only for parameters not associated with a single product
 		virtual void describeParameters(MetadataPdf& pdf) = 0;
 
-		virtual bool isDebugNoAlign() = 0;
-		virtual bool isDebugNoOutput() = 0;
-		virtual bool isAnyDebug() = 0;
-
 		enum class ParseResults {
 			invalidOpts, helpPrinted, validOpts, guiRequested
 		};

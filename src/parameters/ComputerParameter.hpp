@@ -30,6 +30,8 @@ namespace lapis {
 
 		int nThread() const;
 
+        bool isDebugNoInput() const;
+
 	private:
 		static int _defaultNThread();
 

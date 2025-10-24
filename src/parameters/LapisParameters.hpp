@@ -95,10 +95,6 @@ namespace lapis {
 		bool doTopo() override;
 		bool doStratumMetrics() override;
 
-		bool isDebugNoAlign() override;
-		bool isDebugNoOutput() override;
-		bool isAnyDebug() override;
-
 		ParseResults parseArgs(const std::vector<std::string>& args) override;
 		ParseResults parseIni(const std::string& path) override;
 

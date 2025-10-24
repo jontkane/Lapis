@@ -87,8 +87,24 @@ namespace lapis {
 		_fileSpecsBoost.clear();
 		return changed;
 	}
-	const std::set<std::string>& FileSpecifierSet::getSpecifiers() const
+	const std::unordered_set<std::string>& FileSpecifierSet::getSpecifiers() const
 	{
 		return _fileSpecsSet;
+	}
+	std::vector<std::filesystem::path> RealFileSystem::listDirectory(const std::filesystem::path& dirPath) const
+	{
+		std::vector<std::filesystem::path> entries;
+		for (const auto& entry : std::filesystem::directory_iterator(dirPath)) {
+			entries.push_back(entry.path());
+		}
+		return entries;
+	}
+	bool RealFileSystem::isDirectory(const std::filesystem::path& path) const
+	{
+		return std::filesystem::is_directory(path);
+	}
+	bool RealFileSystem::isRegularFile(const std::filesystem::path& path) const
+	{
+		return std::filesystem::is_regular_file(path);
 	}
 }

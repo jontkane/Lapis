@@ -27,15 +27,11 @@ namespace lapis {
 		_cellsize.addHelpText("The cellsize is the size of each pixel on a side.\n\n"
 			"This cellsize will be used for coarse output rasters, like point metrics, but not for fine output rasters, like the canopy surface model.\n\n");
 
-		_debugNoAlign.addHelpText("This checkbox should only be displayed in debug mode. If you see it in a public release, please contact the developer.");
+        _alignFile.addShortCmdAlias('A');
 	}
 	void AlignmentParameter::addToCmd(BoostOptDesc& visible,
 		BoostOptDesc& hidden) {
-		visible.add_options()
-			((_alignCmd + ",A").c_str(), boost::program_options::value<std::string>(&_alignFileBoostString),
-				"A raster file you want the output metrics to align with\n"
-				"Overwritten by --cellsize and --out-crs options");
-
+		_alignFile.addToCmd(visible, hidden);
 		_cellsize.addToCmd(visible, hidden);
 		_xres.addToCmd(visible, hidden);
 		_yres.addToCmd(visible, hidden);
@@ -43,8 +39,6 @@ namespace lapis {
 		_xorigin.addToCmd(visible, hidden);
 		_yorigin.addToCmd(visible, hidden);
 		_crs.addToCmd(visible, hidden);
-
-		_debugNoAlign.addToCmd(visible, hidden);
 	}
 	std::ostream& AlignmentParameter::printToIni(std::ostream& o) {
 
@@ -64,14 +58,10 @@ namespace lapis {
 		_manualWindow();
 		_errorWindow();
 		_title.renderGui();
-		if (ImGui::Button("Specify From File")) {
-			NFD::OpenDialog(_nfdAlignFile);
-		}
 
-		if (_nfdAlignFile) {
-			_alignFileBoostString = _nfdAlignFile.get();
-			importFromBoost();
-			_nfdAlignFile.reset();
+		if (_alignFile.renderGui()) {
+			updateFromFile(_alignFile.currentPath());
+			_alignFile.setPath("");
 		}
 
 		ImGui::SameLine();
@@ -97,10 +87,6 @@ namespace lapis {
 				_yres.copyFrom(_cellsize);
 			}
 		}
-
-#ifndef NDEBUG
-		_debugNoAlign.renderGui();
-#endif
 	}
 	void AlignmentParameter::updateUnits() {
 		_cellsize.updateUnits();
@@ -111,51 +97,10 @@ namespace lapis {
 		_yorigin.updateUnits();
 	}
 	void AlignmentParameter::importFromBoost() {
-		if (_alignFileBoostString.size()) {
-			try {
-				Alignment a{ _alignFileBoostString };
-
-				std::optional<LinearUnit> srcOpt = a.crs().getXYLinearUnits();
-
-				if (!srcOpt) {
-					LapisLogger::getLogger().logError("At this time, output coordinate reference systems must be projected. Lat/lon output may be supported in future releases.");
-					return;
-				}
-				LinearUnitConverter converter{ srcOpt.value(), parameterManager().outUnits()};
-
-				_xres.setValue(converter(a.xres()));
-				_yres.setValue(converter(a.yres()));
-				if (a.xres() == a.yres()) {
-					_xyResDiffCheck = false;
-					_cellsize.setValue(converter(a.xres()));
-				}
-				else {
-					_xyResDiffCheck = true;
-				}
-
-				_xorigin.setValue(converter(a.xOrigin()));
-				_yorigin.setValue(converter(a.yOrigin()));
-				if (a.xOrigin() == a.yOrigin()) {
-					_xyOriginDiffCheck = true;
-					_origin.setValue(converter(a.xOrigin()));
-				}
-				else {
-					_xyOriginDiffCheck = false;
-				}
-
-				if (!a.crs().isEmpty()) {
-					_crs.setCrs(a.crs());
-				}
-				else {
-					_crs.reset();
-				}
-			}
-			catch (InvalidRasterFileException e) {
-				_displayErrorWindow = true;
-			}
-
+		if (_alignFile.importFromBoost()) {
+            updateFromFile(_alignFile.currentPath());
+            _alignFile.setPath("");
 		}
-		_alignFileBoostString.clear();
 		if (_cellsize.importFromBoost()) {
 			_xres.copyFrom(_cellsize);
 			_yres.copyFrom(_cellsize);
@@ -192,7 +137,6 @@ namespace lapis {
 		}
 
 		_crs.importFromBoost();
-		_debugNoAlign.importFromBoost();
 	}
 	const CoordRef& AlignmentParameter::getCurrentOutCrs() const {
 		return _crs.cachedCrs();
@@ -204,12 +148,6 @@ namespace lapis {
 	}
 	bool AlignmentParameter::prepareForRun() {
 		if (_runPrepared) {
-			return true;
-		}
-		if (_debugNoAlign.currentState()) {
-			//something intentionally weird so nothing will match it unless it copied from it
-			_align = std::make_shared<Alignment>(Extent(0, 50, 10, 60), 8, 6, 13, 19);
-			_runPrepared = true;
 			return true;
 		}
 		ParameterManager& pm = parameterManager();
@@ -290,10 +228,6 @@ namespace lapis {
 		prepareForRun();
 		return _align;
 	}
-	bool AlignmentParameter::isDebug() const
-	{
-		return _debugNoAlign.currentState();
-	}
 	void AlignmentParameter::describeInPdf(MetadataPdf& pdf)
 	{
         ParameterManager& pm = parameterManager();
@@ -338,6 +272,52 @@ namespace lapis {
 		while (std::getline(wkt, line)) {
 			pdf.writeLeftAlignedTextLine(line, pdf.normalFont(), 12.f);
 		}
+	}
+	void AlignmentParameter::updateFromFile(const std::string& filename)
+	{
+		try {
+			Alignment a{ filename };
+
+			std::optional<LinearUnit> srcOpt = a.crs().getXYLinearUnits();
+
+			if (!srcOpt) {
+				LapisLogger::getLogger().logError("At this time, output coordinate reference systems must be projected. Lat/lon output may be supported in future releases.");
+				return;
+			}
+			LinearUnitConverter converter{ srcOpt.value(), parameterManager().outUnits() };
+
+			_xres.setValue(converter(a.xres()));
+			_yres.setValue(converter(a.yres()));
+			if (a.xres() == a.yres()) {
+				_xyResDiffCheck = false;
+				_cellsize.setValue(converter(a.xres()));
+			}
+			else {
+				_xyResDiffCheck = true;
+			}
+
+			_xorigin.setValue(converter(a.xOrigin()));
+			_yorigin.setValue(converter(a.yOrigin()));
+			if (a.xOrigin() == a.yOrigin()) {
+				_xyOriginDiffCheck = true;
+				_origin.setValue(converter(a.xOrigin()));
+			}
+			else {
+				_xyOriginDiffCheck = false;
+			}
+
+			if (!a.crs().isEmpty()) {
+				_crs.setCrs(a.crs());
+			}
+			else {
+				_crs.reset();
+			}
+		}
+		catch (InvalidRasterFileException e) {
+			LapisLogger::getLogger().logError("Error reading alignment raster file: " + filename);
+			_displayErrorWindow = true;
+		}
+
 	}
 	void AlignmentParameter::_manualWindow()
 	{

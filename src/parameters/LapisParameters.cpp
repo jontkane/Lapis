@@ -319,19 +319,6 @@ namespace lapis {
 		return getParam<PointMetricParameter>().doStratumMetrics();
 	}
 
-	bool LapisParameters::isDebugNoAlign()
-	{
-		return getParam<AlignmentParameter>().isDebug();
-	}
-	bool LapisParameters::isDebugNoOutput()
-	{
-		return getParam<OutputParameter>().isDebugNoOutput();
-	}
-	bool LapisParameters::isAnyDebug()
-	{
-		return isDebugNoAlign() || isDebugNoOutput();
-	}
-
 	LapisParameters::ParseResults LapisParameters::parseArgs(const std::vector<std::string>& args)
 	{
 		namespace po = boost::program_options;

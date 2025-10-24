@@ -34,7 +34,6 @@ namespace lapis {
 	private:
 		FolderTextInput _output{ "Output Folder:","output",
 			"The output folder to store results in" };
-		CheckBox _debugNoOutput{ "Debug no Output","debug-no-output" };
 
 		std::filesystem::path _outPath;
 		bool _runPrepared = false;

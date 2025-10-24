@@ -65,21 +65,6 @@ namespace lapis {
 			"The elevation of the ground beneath each point was estimated with a bilinear interpolation from those rasters.");
 	}
 
-
-	//this class exists to make VendorRaster easier to navigate in IDEs, because DemParameter is not in the same library
-	//it shows the skeleton of the minimum VendorRaster needs to function
-	class EmptyFileGetter {
-	public:
-		//this function doesn't have to return a vector; it just needs to return something iterable
-		//the list should be sorted though, so that, when multiple dems overlap, the one that appears earlier is the correct one to use
-		const std::vector<Alignment>& demAligns() { return _aligns; }
-
-		//this should return the dem corresponding to the Nth element in the container demAligns returns
-		std::optional<Raster<coord_t>> getDem(size_t n, const Extent& e) { return Raster<coord_t>(); }
-
-	private:
-		std::vector<Alignment> _aligns;
-	};
 	template<class FILEGETTER>
 	inline VendorRasterApplier<FILEGETTER>::VendorRasterApplier(FILEGETTER* getter, LasReader&& l, const CoordRef& outCrs, coord_t minHt, coord_t maxHt)
 		: DemAlgoApplier(std::move(l), outCrs, minHt, maxHt), _getter(getter)

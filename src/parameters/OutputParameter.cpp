@@ -12,12 +12,10 @@ namespace lapis {
 
 	OutputParameter::OutputParameter() {
 		_output.addShortCmdAlias('O');
-		_debugNoOutput.addHelpText("This checkbox should only be displayed in debug mode. If you see it in a public release, please contact the developer.");
 	}
 	void OutputParameter::addToCmd(BoostOptDesc& visible,
 		BoostOptDesc& hidden) {
 		_output.addToCmd(visible, hidden);
-		_debugNoOutput.addToCmd(visible, hidden);
 	}
 	std::ostream& OutputParameter::printToIni(std::ostream& o) {
 		_output.printToIni(o);
@@ -27,21 +25,10 @@ namespace lapis {
 		return ParamCategory::data;
 	}
 	void OutputParameter::renderGui() {
-		if (_debugNoOutput.currentState()) {
-			ImGui::BeginDisabled();
-		}
 		_output.renderGui();
-		if (_debugNoOutput.currentState()) {
-			ImGui::EndDisabled();
-		}
-#ifndef NDEBUG
-		ImGui::SameLine();
-		_debugNoOutput.renderGui();
-#endif
 	}
 	void OutputParameter::importFromBoost() {
 		_output.importFromBoost();
-		_debugNoOutput.importFromBoost();
 	}
 	void OutputParameter::updateUnits() {}
 	bool OutputParameter::prepareForRun() {
@@ -60,10 +47,6 @@ namespace lapis {
 			return false;
 		}
 		namespace fs = std::filesystem;
-		if (_debugNoOutput.currentState()) {
-			_runPrepared = true;
-			return true;
-		}
 		try {
 			fs::create_directories(_outPath);
 		}
@@ -81,9 +64,5 @@ namespace lapis {
 	{
 		prepareForRun();
 		return _outPath;
-	}
-	bool OutputParameter::isDebugNoOutput() const
-	{
-		return _debugNoOutput.currentState();
 	}
 }

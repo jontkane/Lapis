@@ -75,21 +75,22 @@ namespace lapis {
 
         ParameterManager& pm = parameterManager();
 
-		if (pm.isDebugNoAlign()) {
-			_runPrepared = true;
-			return true;
-		}
 		LapisLogger& log = LapisLogger::getLogger();
 		log.setProgress("Identifying LAS Files");
 
-		std::set<LasFileExtent> s = _specifiers.getFiles<LasOpener,LasFileExtent>(LasOpener(_crs.cachedCrs(),_unit.currentSelection()));
+		std::vector<LasFileExtent> s = _specifiers.getFiles<LasOpenerAbstract,LasFileExtent>(
+            *_mockedLasOpener,
+			_fsWrapper.get()
+		);
 		auto it = s.begin();
 		while (it != s.end()) {
 			auto& las = *it;
-			++it;
+			las.ext.defineCRS(_crs.cachedCrs());
+            las.ext.setZUnits(_unit.currentSelection());
 			if (!pm.overlapsAoI(las.ext)) {
-				s.erase(las);
+				it = s.erase(it);
 			}
+			++it;
 		}
 
 		CoordRef outCrs = pm.userCrsSpecification();
@@ -259,8 +260,7 @@ namespace lapis {
 		}
 	}
 
-	LasFileParameter::LasOpener::LasOpener(const CoordRef& crsOverride, const LinearUnit& unitOverride)
-		: _crsOverride(crsOverride), _unitOverride(unitOverride)
+	LasFileParameter::LasOpener::LasOpener()
 	{
 	}
 
@@ -275,14 +275,6 @@ namespace lapis {
 		}
 		try {
 			LasExtent e{ f.string() };
-
-			if (!_crsOverride.isEmpty()) {
-				e.defineCRS(_crsOverride);
-			}
-
-			if (!_unitOverride.isUnknown()) {
-				e.setZUnits(_unitOverride);
-			}
 			return { f,e };
 		}
 		catch (InvalidLasFileException e) {
@@ -293,5 +285,14 @@ namespace lapis {
 			log.logWarning("Unknown error reading " + f.string());
 			throw InvalidLasFileException("");
 		}
+	}
+
+	void LasFileParameter::setFileSystemWrapperForTests(std::unique_ptr<FileSystemWrapper>&& fsWrapper)
+	{
+		_fsWrapper = std::move(fsWrapper);
+	}
+	void LasFileParameter::setLasOpenerForTests(std::unique_ptr<LasOpenerAbstract>&& lasOpener)
+	{
+        _mockedLasOpener = std::move(lasOpener);
 	}
 }

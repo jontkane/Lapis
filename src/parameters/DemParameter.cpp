@@ -149,7 +149,8 @@ namespace lapis {
 		LapisLogger& log = LapisLogger::getLogger();
         ParameterManager& pm = parameterManager();
 
-		std::set<DemFileAlignment> fileAligns;
+		std::vector<DemFileAlignment> fileAligns;
+		std::vector<DemFileAlignment>::iterator it;
 		std::unordered_map<CoordRef, int, CoordRefHasher, CoordRefComparator> countByCRS;
 		std::optional<LinearUnit> lasUnits;
 		coord_t minCellSizeInM;
@@ -178,11 +179,24 @@ namespace lapis {
 				_demUnitsCache = lasUnits.value();
 			}
 
-			fileAligns = _specifiers.getFiles<DemOpener, DemFileAlignment>(DemOpener(_crs.cachedCrs(),_demUnitsCache));
-			for (auto& dem : fileAligns) {
-				if (!pm.overlapsAoI(dem.align)) {
-					fileAligns.erase(dem);
+			fileAligns = _specifiers.getFiles<DemOpenerAbstract, DemFileAlignment>(
+				*_mockedDemOpener,
+				_fsWrapper.get()
+            );
+			fileAligns = _specifiers.getFiles<DemOpener, DemFileAlignment>(DemOpener());
+            it = fileAligns.begin();
+			while (it != fileAligns.end()) {
+				DemFileAlignment& dem = *it;
+				if (!_crs.cachedCrs().isEmpty()) {
+					dem.align.defineCRS(_crs.cachedCrs());
 				}
+				dem.align.setZUnits(_demUnitsCache);
+				if (!pm.overlapsAoI(dem.align)) {
+					it = fileAligns.erase(it);
+				}
+				else {
+					++it;
+                }
 			}
 
 			minCellSizeInM = std::numeric_limits<coord_t>::max();
@@ -255,7 +269,7 @@ namespace lapis {
 	DemAlgorithm* DemParameter::demAlgorithm()
 	{
 		return _algorithm.get();
-	}
+	} 
 	DemParameter::DemContainerWrapper DemParameter::demAligns()
 	{
 		prepareForRun();
@@ -399,8 +413,15 @@ namespace lapis {
 		}
 		return out;
 	}
-	DemParameter::DemOpener::DemOpener(const CoordRef& crsOverride, const LinearUnit& unitOverride)
-		:_crsOverride(crsOverride), _unitOverride(unitOverride)
+	void DemParameter::setFileSystemWrapperForTests(std::unique_ptr<FileSystemWrapper>&& fsWrapper)
+	{
+        _fsWrapper = std::move(fsWrapper);
+	}
+	void DemParameter::setDemOpenerForTests(std::unique_ptr<DemOpenerAbstract>&& demOpener)
+	{
+        _mockedDemOpener = std::move(demOpener);
+	}
+	DemParameter::DemOpener::DemOpener()
 	{
 	}
 	DemParameter::DemFileAlignment DemParameter::DemOpener::operator()(const std::filesystem::path& f) const
@@ -410,11 +431,6 @@ namespace lapis {
 			throw InvalidRasterFileException("");
 		}
 		Alignment a{ f.string() };
-
-		if (!_crsOverride.isEmpty()) {
-			a.defineCRS(_crsOverride);
-		}
-		a.setZUnits(_unitOverride);
 		return { f,a };
 	}
 	int DemParameter::DemAlgoDecider::operator()(const std::string& s) const

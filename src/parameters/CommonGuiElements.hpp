@@ -17,5 +17,6 @@
 #include"GuiClassCheckBoxes.hpp"
 #include"GuiRadioSelect.hpp"
 #include"GuiTitle.hpp"
+#include"GuiFileSelectButton.hpp"
 
 #endif

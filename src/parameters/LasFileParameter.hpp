@@ -7,6 +7,7 @@
 namespace lapis {
 
 	class LasFileParameter : public Parameter {
+		class LasOpenerAbstract;
 	public:
 
 		LasFileParameter();
@@ -38,6 +39,9 @@ namespace lapis {
 
 		std::shared_ptr<VectorDataset<Polygon>> lasFileLayout();
 
+		void setFileSystemWrapperForTests(std::unique_ptr<FileSystemWrapper>&& fsWrapper);
+        void setLasOpenerForTests(std::unique_ptr<LasOpenerAbstract>&& lasOpener);
+
 	private:
 		FileSpecifierSet _specifiers{ "Las","las",
 		"Specify input point cloud (las/laz) files in one of three ways:\n"
@@ -58,18 +62,22 @@ namespace lapis {
 			std::filesystem::path file;
 			LasExtent ext;
 		};
-		class LasOpener {
+		class LasOpenerAbstract {
+		public:
+			virtual ~LasOpenerAbstract() = default;
+            virtual LasFileExtent operator()(const std::filesystem::path& f) const = 0;
+		};
+		class LasOpener : public LasOpenerAbstract {
 		public:
 
-			LasOpener(const CoordRef& crsOverride, const LinearUnit& unitOverride);
+			LasOpener();
 
-			LasFileExtent operator()(const std::filesystem::path& f) const;
-
-		private:
-			const CoordRef& _crsOverride;
-			const LinearUnit& _unitOverride;
+			LasFileExtent operator()(const std::filesystem::path& f) const override;
 		};
 		friend bool operator<(const LasFileParameter::LasFileExtent& a, const LasFileParameter::LasFileExtent& b);
+
+        std::unique_ptr<LasOpenerAbstract> _mockedLasOpener = std::unique_ptr<LasOpenerAbstract>(new LasOpener{});
+        std::unique_ptr<FileSystemWrapper> _fsWrapper = std::unique_ptr<FileSystemWrapper>(new RealFileSystem{});
 
 		bool _runPrepared = false;
 
