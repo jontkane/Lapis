@@ -36,6 +36,8 @@ namespace lapis {
 
 		bool importFromBoost() override;
 
+        void addSpecifier(const std::string& specifier);
+
 		const std::unordered_set<std::string>& getSpecifiers() const;
 
 		template<class OPENER, class RETURNTYPE>

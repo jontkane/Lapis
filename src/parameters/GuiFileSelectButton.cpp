@@ -22,7 +22,7 @@ namespace lapis {
     }
     bool FileSelectButton::renderGui()
     {
-        std::string label = _buttonText;
+        std::string label = _guiDesc;
         label += "##" + _cmdName;
         bool changed = false;
         if (ImGui::Button(label.c_str())) {

@@ -26,7 +26,7 @@ namespace lapis {
 		auto& vec = _alignsByCrs[crs];
 		for (size_t i = 0; i < _demFileAligns.size(); ++i) {
 			const Alignment& baseAlign = _demFileAligns[i].align;
-			vec[i] = std::make_unique<Alignment>(baseAlign.transformAlignment(crs));
+			vec[i] = std::make_unique<Alignment>(transformAlignment(baseAlign, crs));
 		}
 		currentlyWorking = false;
 	}
@@ -251,7 +251,7 @@ namespace lapis {
 					return (a.align.xres() * a.align.yres()) < (b.align.xres() * b.align.yres());
 				}
 				else {
-					Alignment tmp = b.align.transformAlignment(a.align.crs());
+					Alignment tmp = transformAlignment(b.align, a.align.crs());
 					return (a.align.xres() * a.align.yres()) < (tmp.xres() * tmp.yres());
 				}
 			};
@@ -269,7 +269,12 @@ namespace lapis {
 	DemAlgorithm* DemParameter::demAlgorithm()
 	{
 		return _algorithm.get();
-	} 
+	}
+	bool DemParameter::demExists() const
+	{
+        return _demAlgo.currentSelection() != DemAlgo::DONTNORMALIZE;
+	}
+
 	DemParameter::DemContainerWrapper DemParameter::demAligns()
 	{
 		prepareForRun();

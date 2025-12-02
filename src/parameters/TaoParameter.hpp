@@ -69,8 +69,8 @@ namespace lapis {
 		std::vector<std::unique_ptr<TaoSegmentAlgorithm>> _segmentAlgorithms;
 		RadioBoolean _sameMinHt{ "tao-same-min-ht","Same as Point Metric Canopy Cutoff","Other:" };
 
-		CheckBox _doWatershed{ "Watershed", "watershed" };
-		CheckBox _vectorizeWatershed{ "Produce Polygons" ,"vectorize-segments" };
+		CheckBox _doWatershed{ "Watershed", "do-watershed" };
+		CheckBox _vectorizeWatershed{ "Produce Polygons" ,"vectorize-watershed" };
 
         CheckBox _doMcgaughey{ "McGaughey", "do-mcgaughey" };
         NumericTextBox _mcgNvertices{ "Number of Vertices:", "mcg-nvertices", 16 };

@@ -1,0 +1,171 @@
+Alignment:
+  # All explicit
+  - xres: 20
+    yres: 20
+    cellsize: 50
+    xorigin: 1
+    yorigin: 1
+    origin: 0.5
+    out-crs: "EPSG:26910"
+  # Only cellsize for resolution, only origin for origin
+  - cellsize: 40
+    origin: 0.25
+    out-crs: "EPSG:26910"
+  # Mixed: xres set, yres from cellsize; xorigin set, yorigin from origin
+  - xres: 10
+    cellsize: 15
+    xorigin: 0.1
+    origin: 0.2
+    out-crs: "EPSG:32633"
+  # Mixed: yres set, xres from cellsize; yorigin set, xorigin from origin
+  - yres: 12
+    cellsize: 18
+    yorigin: 0.3
+    origin: 0.4
+  # All unspecified
+  - {}
+
+AoI:
+  # All specified
+  - aoixmin: 0
+    aoixmax: 10
+    aoiymin: 0
+    aoiymax: 10
+    aoicrs: "EPSG:26910"
+  # All unspecified
+  - {}
+  # Only aoixmin specified (should terminate)
+  - aoixmin: 0
+
+Computer:
+  - nthread: 1
+  - nthread: 4
+
+Csm:
+  # Defaults
+  - {}
+  # All Specified
+  - csm-cellsize: 2
+    smooth: 5
+    skip-csm-metrics: true
+    no-csm-fill: true
+  # Invalid smooth value
+  - smooth: 4
+
+Filter:
+  # Defaults
+  - {}
+  # All Specified
+  - minht: 0
+    maxht: 50
+    use-withheld: true
+    class: 2,3,4
+    max-scan-angle: 20
+
+  # Class Blacklist
+  - minht: -5
+    maxht: 80
+    class: ~2,4
+
+FineInt:
+  # Defaults
+  - {}
+
+  # Explicit values
+  - fine-int-cellsize: 3
+    fine-int-cutoff: 4
+
+  # Both 'same' flags set
+  - fine-int-cellsize: 5
+    fine-int-cutoff: 6
+    fine-int-same-cellsize: true
+    fine-int-same-cutoff: true
+
+  # no-cutoff flag set
+  - fine-int-cellsize: 7
+    fine-int-cutoff: 8
+    fine-int-same-cutoff: true
+    fine-int-no-cutoff: true
+
+Name:
+  - name: "Test1"
+  - {}
+
+Output:
+  - output: "output1/"
+  - {}
+
+OutUnit:
+  - user-units: "meters"
+  - user-units: "feet"
+  - {}
+
+PointMetric:
+  - {}
+  - canopy: 3
+    strata: 1,5,10
+    adv-point: true
+    skip-strata: true
+
+Tao:
+  - {}
+  - min-tao-ht: 3
+    min-tao-dist: 1
+    id-algo: "highpoint"
+    do-watershed: true
+    vectorize-watershed: true
+  - tao-same-min-ht: true
+    min-tao-ht: 5         # should be ignored
+    do-mcgaughey: true
+    mcg-nvertices: 20
+    mcg-slope-change-factor: 5
+    mcg-height-cutoff-factor: 0.5
+    mcg-max-dist-factor: 1
+    mcg-smooth-type: "simple"
+  - do-mcgaughey: true
+    mcg-nvertices: 16
+    mcg-slope-change-factor: 4
+    mcg-height-cutoff-factor: 0.6
+    mcg-max-dist-factor: 0.8
+    mcg-smooth-type: "none"
+  - min-tao-ht: 2.5
+    min-tao-dist: 0.5
+    id-algo: highpoint
+
+Topo:
+  - {}
+  - topo-scale: "100,200"
+    use-radians: true
+
+WhichProducts:
+  - {}
+  - skip-csm: true
+    skip-point-metrics: true
+    skip-tao: true
+    skip-topo: true
+    fine-int: true
+
+Dem:
+  - dem: "raster_100_200_10_10_100_100_EPSG26910.tif"
+  - dem:
+      - "raster_100_200_10_10_100_100_EPSG26910.tif"
+      - "raster_200_300_10_10_100_100_EPSG32633.tif"
+    dem-units: "meters"
+    dem-crs: "EPSG:26910"
+    dem-algo: "raster"
+  - dem: "raster_150_250_5_5_50_50_EPSG26910.tif"
+    dem-units: "feet"
+    dem-algo: "none"
+
+Las:
+  - las: "las_100_200_110_210_10000_EPSG26910.laz"
+  - las:
+      - "las_100_200_110_210_10000_EPSG26910.laz"
+      - "las_120_220_130_230_15000_EPSG26910.laz"
+    las-units: "meters"
+    las-crs: "EPSG:26910"
+  - las:
+      - "las_100_200_120_220_10000_EPSG26910.laz"
+      - "las_110_210_130_230_15000_EPSG26910.laz"
+    las-units: "feet"
+    las-crs: "EPSG:32633"

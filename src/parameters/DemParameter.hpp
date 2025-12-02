@@ -20,8 +20,14 @@ namespace lapis {
 	private:
         class DemOpenerAbstract;
 		class DemContainerWrapper;
+		friend class MockDemOpener;
 
 	public:
+
+		struct DemFileAlignment {
+			std::filesystem::path file;
+			Alignment align;
+		};
 
 		DemParameter();
 		LAPIS_PARAMETER_REGISTER_DECLARE;
@@ -44,6 +50,8 @@ namespace lapis {
 		void reset() override;
 
 		DemAlgorithm* demAlgorithm();
+
+		bool demExists() const;
 
 		DemContainerWrapper demAligns();
 		const Alignment& demAlign(size_t index, const CoordRef& crs);
@@ -76,10 +84,6 @@ namespace lapis {
 			{"*.*"},
 		std::unique_ptr<nfdnfilteritem_t>() };
 
-		struct DemFileAlignment {
-			std::filesystem::path file;
-			Alignment align;
-		};
 		friend bool operator<(const DemFileAlignment& a, const DemFileAlignment& b);
 
 		class DemOpenerAbstract {

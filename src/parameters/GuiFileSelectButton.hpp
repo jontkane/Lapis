@@ -20,7 +20,6 @@ namespace lapis {
         NFD::UniquePathU8 _nfdPath;
         std::string _boostString;
         std::string _currentPath;
-        std::string _buttonText;
     };
 }
 

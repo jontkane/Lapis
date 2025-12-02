@@ -107,4 +107,9 @@ namespace lapis {
 	{
 		return std::filesystem::is_regular_file(path);
 	}
+
+	void FileSpecifierSet::addSpecifier(const std::string& specifier)
+	{
+        _fileSpecsSet.insert(specifier);
+	}
 }

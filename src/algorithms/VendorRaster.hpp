@@ -115,7 +115,7 @@ namespace lapis {
 
 		Alignment finestAlign = *(_getter->demAligns().begin());
 		Extent buffer = bufferExtent(projE, std::max(finestAlign.xres(), finestAlign.yres()));
-		finestAlign = finestAlign.transformAlignment(projE.crs());
+		finestAlign = transformAlignment(finestAlign, projE.crs());
 
 		for (size_t i = 0; i < _getter->nDem(); ++i) {
 			Alignment projAlign = _getter->demAlign(i, _crs);
@@ -128,7 +128,7 @@ namespace lapis {
 				continue;
 			}
 			if (!dem.value().crs().isConsistentHoriz(projE.crs())) {
-				dem = dem.value().transformRaster(projE.crs(), ExtractMethod::bilinear);
+				dem = transformRaster(dem.value(), projE.crs(), ExtractMethod::bilinear);
 			}
 			overlappingDems.emplace_back(std::move(dem.value()));
 		}
@@ -150,7 +150,7 @@ namespace lapis {
 			}
 			Raster<coord_t> resampled;
 			if (!_dem->consistentAlignment(dem)) {
-				resampled = dem.resample(*_dem, ExtractMethod::bilinear);
+				resampled = resampleRaster(dem, *_dem, ExtractMethod::bilinear);
 			}
 			const Raster<coord_t>* useRaster = _dem->consistentAlignment(dem) ? &dem : &resampled;
 

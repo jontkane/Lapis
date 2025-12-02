@@ -130,6 +130,7 @@ namespace lapis {
 		virtual LasReader getLas(size_t i) = 0;
 		virtual std::optional<LinearUnit> lasZUnits() = 0;
 
+        virtual bool demExists() = 0;
 		virtual std::unique_ptr<DemAlgoApplier> demAlgorithm(LasReader&& l) = 0;
 
 		//userCrsSpecification() returns what the user actually selected. It may be an empty crs, indicating no particular preference

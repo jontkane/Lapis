@@ -85,8 +85,12 @@ namespace lapis {
 		auto it = s.begin();
 		while (it != s.end()) {
 			auto& las = *it;
-			las.ext.defineCRS(_crs.cachedCrs());
-            las.ext.setZUnits(_unit.currentSelection());
+			if (!_crs.cachedCrs().isEmpty()) {
+				las.ext.defineCRS(_crs.cachedCrs());
+			}
+			if (!_unit.currentSelection().isUnknown()) {
+				las.ext.setZUnits(_unit.currentSelection());
+			}
 			if (!pm.overlapsAoI(las.ext)) {
 				it = s.erase(it);
 			}

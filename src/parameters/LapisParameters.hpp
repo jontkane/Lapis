@@ -36,6 +36,7 @@ namespace lapis {
 		std::optional<LinearUnit> lasZUnits() override;
 
 		std::unique_ptr<DemAlgoApplier> demAlgorithm(LasReader&& l) override;
+        bool demExists() override;
 
 		const CoordRef& userCrsSpecification() override;
 		const CoordRef& outputCrs() override;

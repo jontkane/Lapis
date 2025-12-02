@@ -8,6 +8,7 @@ namespace lapis {
 
 	class LasFileParameter : public Parameter {
 		class LasOpenerAbstract;
+		friend class MockLasOpener;
 	public:
 
 		LasFileParameter();

@@ -203,6 +203,10 @@ namespace lapis {
 		x->setMinMax(minHt(), maxHt());
 		return x->getApplier(std::move(l), metricAlign()->crs());
 	}
+	bool LapisParameters::demExists()
+	{
+        return getParam<DemParameter>().demExists();
+	}
 	int LapisParameters::nThread() 
 	{
 		return getParam<ComputerParameter>().nThread();
@@ -312,7 +316,7 @@ namespace lapis {
 	}
 	bool LapisParameters::doTopo()
 	{
-		return getParam<WhichProductsParameter>().doTopo();
+		return getParam<WhichProductsParameter>().doTopo() && demExists();
 	}
 	bool LapisParameters::doStratumMetrics()
 	{

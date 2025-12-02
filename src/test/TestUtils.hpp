@@ -38,6 +38,34 @@ namespace lapis {
     Raster<csm_t> applyDefaultCsmPostProcess(const InputData& input);
 
     std::vector<IDedTao> applyDefaultTreeIdentification(const InputData& input);
+
+    class TestFileSystemNoIO : public FileSystemWrapper {
+    public:
+        virtual ~TestFileSystemNoIO() = default;
+        virtual std::vector<std::filesystem::path> listDirectory(const std::filesystem::path& dirPath) const override;
+        virtual bool isDirectory(const std::filesystem::path& path) const override;
+        virtual bool isRegularFile(const std::filesystem::path& path) const override;
+
+        void addDirectory(const std::filesystem::path& dirPath);
+        void addFile(const std::filesystem::path& filePath);
+        void clear();
+
+    private:
+        std::unordered_set<std::filesystem::path> _directories;
+        std::unordered_set<std::filesystem::path> _files;
+        std::unordered_map<std::filesystem::path, std::vector<std::filesystem::path>> _dirContents;
+    };
+
+    class MockDemOpener : public DemParameter::DemOpenerAbstract {
+    public:
+        static std::string fileNameFromAlignment(const Alignment& a);
+        virtual DemParameter::DemFileAlignment operator()(const std::filesystem::path& f) const override;
+    };
+    class MockLasOpener : public LasFileParameter::LasOpenerAbstract {
+    public:
+        static std::string fileNameFromLasExtent(const LasExtent& le);
+        virtual LasFileParameter::LasFileExtent operator()(const std::filesystem::path& f) const override;
+    };
 }
 
 #endif

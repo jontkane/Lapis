@@ -1,5 +1,6 @@
 #include"param_pch.hpp"
 #include"WhichProductsParameter.hpp"
+#include"LapisParameters.hpp"
 
 namespace lapis {
 
@@ -55,7 +56,17 @@ namespace lapis {
 		if (!_doCsm.currentState()) {
 			ImGui::EndDisabled();
 		}
+
+		bool hasDem = parameterManager().demExists();
+		if (!hasDem) {
+			ImGui::BeginDisabled();
+			_doTopo.setState(false);
+        }
 		_doTopo.renderGui();
+		if (!hasDem) {
+			ImGui::EndDisabled();
+        }
+
 		_doFineInt.renderGui();
 	}
 	void WhichProductsParameter::importFromBoost() {

@@ -5,3 +5,6 @@
 #include<yaml-cpp/yaml.h>
 #include"..\algorithms\AllAlgorithmTypes.hpp"
 #include"..\algorithms\AllDemAlgorithms.hpp"
+#include"..\parameters\GuiFileSpecifier.hpp"
+#include"..\parameters\DemParameter.hpp"
+#include"..\parameters\LasFileParameter.hpp"
