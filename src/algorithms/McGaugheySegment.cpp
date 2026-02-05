@@ -14,6 +14,7 @@ namespace lapis {
     {
         VectorDataset<MultiPolygon> polygons{ bufferedCsm.crs() };
         polygons.addNumericField<taoid_t>("ID");
+		polygons.reserve(taos.size());
         for (IDedTao tao : taos) {
             coord_t x = bufferedCsm.xFromCellUnsafe(tao.location);
             coord_t y = bufferedCsm.yFromCellUnsafe(tao.location);

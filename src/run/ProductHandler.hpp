@@ -148,7 +148,7 @@ namespace lapis {
 		try {
 			v.writeShapefile(filename.string());
 		}
-		catch (InvalidRasterFileException e) {
+		catch (InvalidVectorFileException e) {
 			LapisLogger::getLogger().logWarning("Error writing " + filename.string());
 		}
 	}

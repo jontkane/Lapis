@@ -44,29 +44,6 @@ namespace lapis {
 		std::string _segmentRasterFolderName = "SegmentRasters";
 		std::string _segmentPolygonFolderName = "SegmentPolygons";
 		std::string _taoHeightFolderName = "TaoHeightRasters";
-
-
-		/*struct TaoIdMap {
-		using IDToCoord = std::unordered_map<taoid_t, cell_t>;
-		std::unordered_map<cell_t, IDToCoord> tileToLocalNames;
-		std::unordered_map<cell_t, taoid_t> cellToFinalName;
-		};
-
-		TaoIdMap idMap;
-
-		struct TaoInfo {
-		coord_t x, y;
-		csm_t height;
-		coord_t area;
-		};
-
-		void _writeHighPointsAsArray(const std::vector<cell_t>& highPoints, const Raster<csm_t>& bufferedCsm, const Raster<taoid_t>& bufferedSegments,
-		const Extent& unbufferedExtent, cell_t tile) const;
-		std::vector<TaoInfo> _readHighPointsFromArray(cell_t tile) const;
-
-		void _updateMap(const Raster<taoid_t>& segments, const std::vector<cell_t>& highPoints, const Extent& unbufferedExtent, cell_t tileidx);
-		Raster<taoid_t> _fixTaoIdsThread(cell_t tile) const;
-		void _writeIdLayers(cell_t tile) const;*/
 	};
 }
 

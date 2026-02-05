@@ -279,6 +279,7 @@ namespace lapis {
 		}
 		catch (InvalidLasFileException e) {
 			log.logWarning(e.what());
+			return;
 		}
 		if (!pm.overlapsAoI(lr))
 		{

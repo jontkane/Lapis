@@ -64,6 +64,7 @@ namespace lapis {
         pointsVector.addRealField("X");
         pointsVector.addRealField("Y");
         pointsVector.addRealField("Height");
+		pointsVector.reserve(highPoints.size());
 		for (IDedTao tao : highPoints) {
             coord_t x = bufferedCsm.xFromCellUnsafe(tao.location);
             coord_t y = bufferedCsm.yFromCellUnsafe(tao.location);
