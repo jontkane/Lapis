@@ -58,36 +58,64 @@ namespace lapis {
 		if (!_boostString.size()) {
 			return false;
 		}
-		std::regex whitelistregex{ "$|([0-9]+(,[0-9]+)*)" };
-		std::regex blacklistregex{ "~($|([0-9]+(,[0-9]+)*))" };
 
 		bool isWhiteList = true;
+		std::string parseString = _boostString;
 
-		if (std::regex_match(_boostString, whitelistregex)) {
-			isWhiteList = true;
-		}
-		else if (std::regex_match(_boostString, blacklistregex)) {
+		if (parseString[0] == '~') {
 			isWhiteList = false;
-			_boostString = _boostString.substr(1, _boostString.size());
-		}
-		else {
-			LapisLogger::getLogger().logError("Incorrect formatting for class string");
-			_boostString.clear();
-			return false;
+			parseString = parseString.substr(1);
 		}
 
-		std::stringstream tokenizer{ _boostString };
+		if (parseString.empty()) {
+			for (size_t i = 0; i < _checks.size(); ++i) {
+				_checks[i] = !isWhiteList;
+			}
+			_nChecked = isWhiteList ? 0 : _checks.size();
+			_boostString.clear();
+			_updateDisplayString();
+			return true;
+		}
+
+		std::stringstream tokenizer{ parseString };
 		std::string temp;
 		std::unordered_set<int> set;
+
 		while (std::getline(tokenizer, temp, ',')) {
-			int cl = std::stoi(temp);
-			if (cl > _checks.size() || cl < 0) {
-				LapisLogger::getLogger().logError("Class values must be between 0 and 255");
+			if (temp.empty()) {
+				continue;
 			}
-			else {
-				set.insert(cl);
+
+			bool validNumber = true;
+			for (char c : temp) {
+				if (!std::isdigit(c)) {
+					validNumber = false;
+					break;
+				}
+			}
+
+			if (!validNumber) {
+				LapisLogger::getLogger().logError("Something other than a positive integer in class string: " + temp);
+				_boostString.clear();
+				return false;
+			}
+
+			try {
+				int cl = std::stoi(temp);
+				if (cl > 255 || cl < 0) {
+					LapisLogger::getLogger().logError("Class values must be between 0 and 255, got: " + std::to_string(cl));
+				}
+				else {
+					set.insert(cl);
+				}
+			}
+			catch (const std::exception&) {
+				LapisLogger::getLogger().logError("Invalid number in class string: " + temp);
+				_boostString.clear();
+				return false;
 			}
 		}
+
 		for (size_t i = 0; i < _checks.size(); ++i) {
 			if (set.contains((int)i)) {
 				_checks[i] = isWhiteList;
@@ -96,6 +124,7 @@ namespace lapis {
 				_checks[i] = !isWhiteList;
 			}
 		}
+
 		_nChecked = 0;
 		for (size_t i = 0; i < _checks.size(); ++i) {
 			if (_checks[i]) {
@@ -121,6 +150,11 @@ namespace lapis {
 		}
 		_checks[idx] = b;
 		_updateDisplayString();
+	}
+	void ClassCheckBoxes::setStateAsString(const std::string& s)
+	{
+		_boostString = s;
+        importFromBoost();
 	}
 	std::shared_ptr<LasFilter> ClassCheckBoxes::getFilter() const
 	{

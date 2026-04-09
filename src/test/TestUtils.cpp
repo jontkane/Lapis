@@ -262,4 +262,85 @@ namespace lapis {
         };
     }
 
+    TestParameterGetter::TestParameterGetter(const std::filesystem::path& yamlPath)
+    {
+        YAML::Node yaml = YAML::LoadFile(yamlPath.string());
+
+        for (const auto& groupNode : yaml) {
+            ParameterGroup group;
+            group.name = groupNode.first.as<std::string>();
+
+            for (const auto& entry : groupNode.second) {
+                std::map<std::string, YAML::Node> params;
+                if (entry.IsMap()) {
+                    for (const auto& param : entry) {
+                        params[param.first.as<std::string>()] = param.second;
+                    }
+                }
+                group.entries.push_back(std::move(params));
+            }
+
+            if (!group.entries.empty()) {
+                groups_.push_back(std::move(group));
+            }
+        }
+    }
+
+    std::vector<std::string> TestParameterGetter::getDefaultTestParameters() const
+    {
+        std::vector<std::string> argv;
+        for (const auto& group : groups_) {
+            if (!group.entries.empty()) {
+                appendParamsToArgv(argv, group.entries[0]);
+            }
+        }
+        return argv;
+    }
+
+    std::vector<std::vector<std::string>> TestParameterGetter::getAllTestParameter() const
+    {
+        std::vector<std::vector<std::string>> allCases;
+        allCases.push_back(getDefaultTestParameters());
+
+        for (size_t groupIdx = 0; groupIdx < groups_.size(); ++groupIdx) {
+            const auto& varyingGroup = groups_[groupIdx];
+
+            for (size_t entryIdx = 1; entryIdx < varyingGroup.entries.size(); ++entryIdx) {
+                std::vector<std::string> argv;
+
+                for (size_t i = 0; i < groups_.size(); ++i) {
+                    if (i == groupIdx) {
+                        appendParamsToArgv(argv, varyingGroup.entries[entryIdx]);
+                    }
+                    else {
+                        if (!groups_[i].entries.empty()) {
+                            appendParamsToArgv(argv, groups_[i].entries[0]);
+                        }
+                    }
+                }
+
+                allCases.push_back(std::move(argv));
+            }
+        }
+
+        return allCases;
+    }
+
+    void TestParameterGetter::appendParamsToArgv(std::vector<std::string>& argv, const std::map<std::string, YAML::Node>& params) const
+    {
+        for (const auto& [key, value] : params) {
+            if (value.IsSequence()) {
+                std::stringstream ss;
+                for (size_t i = 0; i < value.size(); ++i) {
+                    if (i > 0) ss << ",";
+                    ss << value[i].as<std::string>();
+                }
+                argv.push_back("--" + key + "=" + ss.str());
+            }
+            else {
+                argv.push_back("--" + key + "=" + value.as<std::string>());
+            }
+        }
+    }
+
 }

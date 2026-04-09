@@ -1,5 +1,4 @@
 Alignment:
-  # All explicit
   - xres: 20
     yres: 20
     cellsize: 50
@@ -7,34 +6,27 @@ Alignment:
     yorigin: 1
     origin: 0.5
     out-crs: "EPSG:26910"
-  # Only cellsize for resolution, only origin for origin
   - cellsize: 40
     origin: 0.25
     out-crs: "EPSG:26910"
-  # Mixed: xres set, yres from cellsize; xorigin set, yorigin from origin
   - xres: 10
     cellsize: 15
     xorigin: 0.1
     origin: 0.2
     out-crs: "EPSG:32633"
-  # Mixed: yres set, xres from cellsize; yorigin set, xorigin from origin
   - yres: 12
     cellsize: 18
     yorigin: 0.3
     origin: 0.4
-  # All unspecified
   - {}
 
 AoI:
-  # All specified
   - aoixmin: 0
     aoixmax: 10
     aoiymin: 0
     aoiymax: 10
     aoicrs: "EPSG:26910"
-  # All unspecified
   - {}
-  # Only aoixmin specified (should terminate)
   - aoixmin: 0
 
 Computer:
@@ -42,46 +34,32 @@ Computer:
   - nthread: 4
 
 Csm:
-  # Defaults
   - {}
-  # All Specified
   - csm-cellsize: 2
     smooth: 5
     skip-csm-metrics: true
     no-csm-fill: true
-  # Invalid smooth value
   - smooth: 4
 
 Filter:
-  # Defaults
   - {}
-  # All Specified
   - minht: 0
     maxht: 50
     use-withheld: true
     class: 2,3,4
     max-scan-angle: 20
-
-  # Class Blacklist
   - minht: -5
     maxht: 80
     class: ~2,4
 
 FineInt:
-  # Defaults
   - {}
-
-  # Explicit values
   - fine-int-cellsize: 3
     fine-int-cutoff: 4
-
-  # Both 'same' flags set
   - fine-int-cellsize: 5
     fine-int-cutoff: 6
     fine-int-same-cellsize: true
     fine-int-same-cutoff: true
-
-  # no-cutoff flag set
   - fine-int-cellsize: 7
     fine-int-cutoff: 8
     fine-int-same-cutoff: true
@@ -101,6 +79,7 @@ OutUnit:
   - {}
 
 PointMetric:
+  - adv-point: true
   - {}
   - canopy: 3
     strata: 1,5,10
@@ -115,7 +94,7 @@ Tao:
     do-watershed: true
     vectorize-watershed: true
   - tao-same-min-ht: true
-    min-tao-ht: 5         # should be ignored
+    min-tao-ht: 5
     do-mcgaughey: true
     mcg-nvertices: 20
     mcg-slope-change-factor: 5

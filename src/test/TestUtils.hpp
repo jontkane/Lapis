@@ -66,6 +66,42 @@ namespace lapis {
         static std::string fileNameFromLasExtent(const LasExtent& le);
         virtual LasFileParameter::LasFileExtent operator()(const std::filesystem::path& f) const override;
     };
+
+    class TestParameterGetter {
+    public:
+        TestParameterGetter(const std::filesystem::path& yamlPath);
+        std::vector<std::string> getDefaultTestParameters() const;
+        std::vector<std::vector<std::string>> getAllTestParameter() const;
+    private:
+        struct ParameterGroup {
+            std::string name;
+            std::vector<std::map<std::string, YAML::Node>> entries;
+        };
+
+        std::vector<ParameterGroup> groups_;
+
+        void appendParamsToArgv(std::vector<std::string>& argv,
+            const std::map<std::string, YAML::Node>& params) const;
+    };
+
+    class CoutSuppressor {
+    public:
+        CoutSuppressor() : oldBuf_(std::cout.rdbuf()) {
+            std::cout.rdbuf(nullStream_.rdbuf());
+        }
+
+        ~CoutSuppressor() {
+            std::cout.rdbuf(oldBuf_);
+        }
+
+        // Non-copyable
+        CoutSuppressor(const CoutSuppressor&) = delete;
+        CoutSuppressor& operator=(const CoutSuppressor&) = delete;
+
+    private:
+        std::streambuf* oldBuf_;
+        std::ostringstream nullStream_;
+    };
 }
 
 #endif

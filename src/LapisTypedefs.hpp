@@ -7,7 +7,7 @@
 
 //if this is true, the program will catch errors and log them in the gui
 //if false, the program will crash (and provide a more useful traceback)
-#define LAPIS_HANDLE_ERRORS true
+#define LAPIS_HANDLE_ERRORS false
 
 namespace lapis {
 	using csm_t = coord_t;

@@ -19,6 +19,7 @@ namespace lapis {
 
 		const std::array<bool, 256>& allChecks() const;
 		void setState(size_t idx, bool b);
+        void setStateAsString(const std::string& s);
 
 		std::shared_ptr<LasFilter> getFilter() const;
 

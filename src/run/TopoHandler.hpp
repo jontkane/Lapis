@@ -51,17 +51,6 @@ namespace lapis {
 
 		ParamGetter* _getter;
 
-		class ElevMergerRasterCell {
-		public:
-			void addRaster(const Raster<coord_t>& dtm, const Extent& thisCell);
-			xtl::xoptional<coord_t> reportMeanAndDealloc();
-
-		private:
-			xtl::xoptional<coord_t> finishedMean;
-			std::unique_ptr<Raster<coord_t>> miniRaster;
-			bool anyData = false;
-		};
-
 		class ElevMerger {
 		public:
 			ElevMerger(TopoHandler::ParamGetter* p);
@@ -69,8 +58,13 @@ namespace lapis {
 			Raster<coord_t> meanElev();
 
 		private:
-			Raster<ElevMergerRasterCell> cells;
-			TopoHandler::ParamGetter* getter;
+			std::once_flag init;
+			Raster<coord_t> sum;
+			Raster<coord_t> count;
+			Alignment fineAlign;
+			std::vector<bool> fineCellDone;
+			std::vector<std::mutex> coarseCellMutexes;
+			std::vector<std::mutex> fineCellMutexes;
 		};
 
 		std::unique_ptr<ElevMerger> merger;

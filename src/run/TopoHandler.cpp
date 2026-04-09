@@ -90,18 +90,19 @@ namespace lapis {
 	}
 	void TopoHandler::cleanup()
 	{
+
+		LapisLogger& log = LapisLogger::getLogger();
+		log.setProgress("Calculating Topography Metrics");
+
 		Raster<coord_t> elev = merger->meanElev();
 
 		writeRasterLogErrors(getFullFilename(topoDir(), "MeanElevation", OutputUnitLabel::Default), elev);
 
-		LapisLogger& log = LapisLogger::getLogger();
-		log.setProgress("Calculating Small-Scale Topography");
 		for (TopoMetric& metric : _topoMetrics) {
 			Raster<metric_t> r = focal<metric_t, coord_t>(elev, 3, metric.fun);
 			writeRasterLogErrors(getFullFilename(topoDir(), metric.name, metric.unit), r);
 		}
 
-		log.setProgress("Calculating Large-Scale Topography");
 		Extent unbuffered = (Extent)elev;
 		Raster<coord_t> buffered = _getter->bufferedElev(elev);
 		for (TopoRadiusMetric& metric : _topoRadiusMetrics) {
@@ -160,97 +161,53 @@ namespace lapis {
 		: name(name), fun(fun), unit(unit), pdfDesc(pdfDesc)
 	{
 	}
-	void TopoHandler::ElevMergerRasterCell::addRaster(const Raster<coord_t>& dtm, const Extent& thisCell)
+	
+	TopoHandler::ElevMerger::ElevMerger(TopoHandler::ParamGetter* p) : 
+        sum(*p->metricAlign()), count(*p->metricAlign()), coarseCellMutexes(p->metricAlign()->ncell()), fineCellMutexes(10000)
 	{
-		if (anyData && !miniRaster) {
-			//should be an inaccessible branch if upstream functions do what they ought to
-			return;
-		}
-		if (!anyData) {
-			//set up
-			Alignment a = extendAlignment(dtm, thisCell, SnapType::near);
-			a = cropAlignment(a, thisCell, SnapType::near);
-			miniRaster = std::make_unique<Raster<coord_t>>(a);
-			anyData = true;
-		}
+        coord_t maxWindow = p->topoWindows().empty() ? 0 : *std::max_element(p->topoWindows().begin(), p->topoWindows().end());
 
-		for (cell_t dtmCell : CellIterator(dtm, *miniRaster, SnapType::near)) {
-
-			if (!dtm[dtmCell].has_value()) {
-				continue;
-			}
-
-			coord_t x = dtm.xFromCell(dtmCell);
-			coord_t y = dtm.yFromCell(dtmCell);
-
-			cell_t miniCell = miniRaster->cellFromXYUnsafe(x, y);
-			if (miniRaster->atCellUnsafe(miniCell).has_value()) {
-				continue;
-			}
-
-			miniRaster->atCellUnsafe(miniCell).has_value() = true;
-			miniRaster->atCellUnsafe(miniCell).value() = dtm[dtmCell].value();
-		}
-
-		//if the raster is full, cache the mean and dealloc early
-		coord_t numerator = 0;
-		coord_t denominator = 0;
-		for (cell_t cell : CellIterator(*miniRaster)) {
-			if (!miniRaster->atCellUnsafe(cell).has_value()) {
-				return;
-			}
-			numerator += miniRaster->atCellUnsafe(cell).value();
-			denominator++;
-		}
-		finishedMean.value() = numerator / denominator;
-		finishedMean.has_value() = true;
-		miniRaster.reset(nullptr);
-
-	}
-	xtl::xoptional<coord_t> TopoHandler::ElevMergerRasterCell::reportMeanAndDealloc()
-	{
-		if (!anyData) {
-			return xtl::missing<coord_t>();
-		}
-		if (anyData && !miniRaster) {
-			return finishedMean;
-		}
-
-		coord_t numerator = 0;
-		coord_t denominator = 0;
-		for (cell_t cell : CellIterator(*miniRaster)) {
-			if (!miniRaster->atCellUnsafe(cell).has_value()) {
-				continue;
-			}
-			numerator += miniRaster->atCellUnsafe(cell).value();
-			denominator++;
-		}
-		miniRaster.reset(nullptr);
-		if (denominator == 0) {
-			return xtl::missing<coord_t>();
-		}
-		finishedMean.has_value() = true;
-		finishedMean.value() = numerator / denominator;
-		return finishedMean;
-	}
-	TopoHandler::ElevMerger::ElevMerger(TopoHandler::ParamGetter* p) : cells(*p->metricAlign()), getter(p)
-	{
 	}
 	void TopoHandler::ElevMerger::addRaster(const Raster<coord_t>& dtm)
 	{
-		for (cell_t cell : CellIterator(cells, dtm, SnapType::out)) {
-			std::scoped_lock<std::mutex> lock{ getter->cellMutex(cell) };
-			cells[cell].value().addRaster(dtm, cells.extentFromCell(cell));
+		std::call_once(init, [&]() {
+			fineAlign = cropAlignment(extendAlignment(dtm, sum, SnapType::out), sum, SnapType::out);
+			fineCellDone.resize(fineAlign.ncell(), false);
+			});
+
+		for (cell_t fineCell : CellIterator(fineAlign, dtm, SnapType::near)) {
+            std::scoped_lock fineLock{ fineCellMutexes[fineCell % fineCellMutexes.size()] };
+			if (fineCellDone[fineCell]) {
+				continue;
+			}
+
+            coord_t x = fineAlign.xFromCellUnsafe(fineCell);
+            coord_t y = fineAlign.yFromCellUnsafe(fineCell);
+
+			if (!sum.contains(x, y)) {
+				continue;
+			}
+			cell_t dtmCell = dtm.cellFromXY(x, y);
+            auto dtmV = dtm.atCellUnsafe(dtmCell);
+			if (!dtmV.has_value()) {
+				continue;
+			}
+
+            cell_t coarseCell = sum.cellFromXY(x, y);
+			std::scoped_lock coarseLock{ coarseCellMutexes[coarseCell] };
+
+            fineCellDone[fineCell] = true;
+			auto sumV = sum.atCellUnsafe(coarseCell);
+			sumV.has_value() = true;
+			sumV.value() += dtmV.value();
+            auto countV = count.atCellUnsafe(coarseCell);
+            countV.has_value() = true;
+			countV.value() += 1;
+
 		}
 	}
 	Raster<coord_t> TopoHandler::ElevMerger::meanElev()
 	{
-		Raster<coord_t> meanElev = Raster<coord_t>((Alignment)cells);
-		for (cell_t cell : CellIterator(meanElev)) {
-			auto v = cells[cell].value().reportMeanAndDealloc();
-			meanElev[cell].has_value() = v.has_value();
-			meanElev[cell].value() = v.value();
-		}
-		return meanElev;
+		return sum / count;
 	}
 }

@@ -155,6 +155,7 @@ namespace lapis {
 		std::optional<LinearUnit> lasUnits;
 		coord_t minCellSizeInM;
 
+		std::vector<std::pair<std::filesystem::path, std::string>> faultyFiles;
 		switch (_demAlgo.currentSelection()) {
 		case DemAlgo::DONTNORMALIZE:
 			_algorithm = std::make_unique<AlreadyNormalized>();
@@ -184,9 +185,35 @@ namespace lapis {
 				_fsWrapper.get()
             );
 			fileAligns = _specifiers.getFiles<DemOpener, DemFileAlignment>(DemOpener());
+
+
             it = fileAligns.begin();
 			while (it != fileAligns.end()) {
 				DemFileAlignment& dem = *it;
+				bool isFaulty = false;
+				std::string faultyReason;
+
+				if (std::abs(dem.align.xres()) < 1e-4 || std::abs(dem.align.yres()) < 1e-4) {
+					isFaulty = true;
+					faultyReason = "Invalid resolution (zero or near-zero)";
+				}
+				else if (dem.align.nrow() == 0 || dem.align.ncol() == 0) {
+					isFaulty = true;
+					faultyReason = "Zero dimensions";
+				}
+				else if (dem.align.xmin() == 0.0 && dem.align.ymin() == 0.0 &&
+					dem.align.xres() == 1.0 && dem.align.yres() == 1.0 &&
+					dem.align.ncol() == 1 && dem.align.nrow() == 1) {
+					isFaulty = true;
+					faultyReason = "Default/invalid geotransform";
+				}
+
+				if (isFaulty) {
+					faultyFiles.push_back({ dem.file, faultyReason });
+					it = fileAligns.erase(it);
+					continue;
+				}
+
 				if (!_crs.cachedCrs().isEmpty()) {
 					dem.align.defineCRS(_crs.cachedCrs());
 				}
@@ -197,6 +224,23 @@ namespace lapis {
 				else {
 					++it;
                 }
+			}
+
+			if (!faultyFiles.empty()) {
+				std::stringstream ss;
+				ss << "Warning: " << faultyFiles.size() << " faulty DEM file(s) excluded:";
+				log.logWarning(ss.str());
+
+				for (size_t i = 0; i < std::min(faultyFiles.size(), size_t(10)); ++i) {
+					std::stringstream ss2;
+					ss2 << "  " << faultyFiles[i].first.filename().string()
+						<< ": " << faultyFiles[i].second;
+					log.logWarning(ss2.str());
+				}
+
+				if (faultyFiles.size() > 10) {
+					log.logWarning("  ... and " + std::to_string(faultyFiles.size() - 10) + " more");
+				}
 			}
 
 			minCellSizeInM = std::numeric_limits<coord_t>::max();
@@ -349,7 +393,7 @@ namespace lapis {
 	Raster<coord_t> DemParameter::bufferElevation(const Raster<coord_t>& unbuffered, const Extent& desired)
 	{
 		if (!desired.overlaps(unbuffered)) {
-			throw OutsideExtentException("Outisde extent in bufferElevation");
+			throw OutsideExtentException("Outside extent in bufferElevation");
 		}
 
 		Alignment a = unbuffered;
@@ -435,6 +479,7 @@ namespace lapis {
 			|| f.extension() == ".xml") { //excluding commonly-found non-raster files to prevent slow calls to GDAL
 			throw InvalidRasterFileException("");
 		}
+
 		Alignment a{ f.string() };
 		return { f,a };
 	}

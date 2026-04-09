@@ -20,7 +20,7 @@ namespace lapis {
             return _aligns;
         }
         Alignment demAlign(size_t n, const CoordRef& crs) const {
-            return _aligns[n].transformAlignment(crs);
+            return transformAlignment(_aligns[n], crs);
         }
         std::optional<Raster<coord_t>> getDem(size_t n, const Extent& e) {
 

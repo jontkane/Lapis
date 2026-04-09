@@ -25,7 +25,7 @@ namespace lapis {
 		std::shared_ptr<Raster<coord_t>> _dem;
 		LidarPointVector _points;
 
-		void _makeDem(const Extent& e);
+		void _makeDem();
 	};
 
 	//this class contains the implementation of the simplest dem algorithm: letting someone else do the work for you.
@@ -73,7 +73,7 @@ namespace lapis {
 			throw std::invalid_argument("Null getter in VendorRasterApplier");
 		}
 
-		_makeDem(_las);
+		_makeDem();
 	}
 	template<class FILEGETTER>
 	inline std::shared_ptr<Raster<coord_t>> VendorRasterApplier<FILEGETTER>::getDem()
@@ -106,7 +106,7 @@ namespace lapis {
 		return true;
 	}
 	template<class FILEGETTER>
-	inline void VendorRasterApplier<FILEGETTER>::_makeDem(const Extent& e)
+	inline void VendorRasterApplier<FILEGETTER>::_makeDem()
 	{
 
 		Extent projE = QuadExtent(_las, _crs).outerExtent();
