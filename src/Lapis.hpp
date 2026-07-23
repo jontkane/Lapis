@@ -7,6 +7,7 @@
 #include"parameters/LapisGui.hpp"
 #include"parameters/LapisParameters.hpp"
 #include"run/AllHandlers.hpp"
+#include<LapisGis.hpp>
 
 
 namespace lapis {
@@ -33,6 +34,8 @@ namespace lapis {
 		if (!args.size()) {
 			args.push_back("--help");
 		}
+
+		lapisGisInit();
 
 #ifndef NDEBUG
 		CPLSetErrorHandler(&logGDALErrors);
