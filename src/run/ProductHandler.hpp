@@ -26,6 +26,7 @@ namespace lapis {
 		//are in the same projection (including Z units) as the extent, and are contained in the extent
 		virtual void handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index) = 0;
 		virtual void finishLasFile(const Extent& e, size_t index) = 0;
+		virtual void afterLasFiles() = 0;
 		virtual void handleDem(const Raster<coord_t>& dem, size_t index) = 0;
 		virtual void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) = 0;
 		virtual void cleanup() = 0;
@@ -39,24 +40,27 @@ namespace lapis {
 		std::filesystem::path tempDir() const;
 
 		//generates an appropriate filename for a "normal" metric
-		std::filesystem::path getFullFilename(const std::filesystem::path& dir, const std::string& baseName,
-			OutputUnitLabel u, const std::string& extension = "tif") const;
+		static std::filesystem::path getFullFilename(ParamGetter* getter, const std::filesystem::path& dir, const std::string& baseName,
+			OutputUnitLabel u, const std::string& extension = "tif");
 		//generates an appropriate filename for a temporary file which needs to be indexed for later recovery
-		std::filesystem::path getFullTempFilename(const std::filesystem::path& dir, const std::string& baseName,
-			OutputUnitLabel u, size_t index, const std::string& extension = "tif") const;
+		static std::filesystem::path getFullTempFilename(ParamGetter* getter, const std::filesystem::path& dir, const std::string& baseName,
+			OutputUnitLabel u, size_t index, const std::string& extension = "tif");
 		//generates an appropriate filename for a file which needs to be indexed by the tile it represents
-		std::filesystem::path getFullTileFilename(const std::filesystem::path& dir, const std::string& baseName,
-			OutputUnitLabel u, cell_t tile, const std::string& extension = "tif") const;
+		static std::filesystem::path getFullTileFilename(ParamGetter* getter, const std::filesystem::path& dir, const std::string& baseName,
+			OutputUnitLabel u, cell_t tile, const std::string& extension = "tif");
+
+		template<class T>
+		static void writeRasterLogErrors(const std::filesystem::path& filename, Raster<T>& r);
+
+		template<class T>
+		static std::optional<DiskBackedRaster<T>> makeDiskBackedRasterLogErrors(const std::filesystem::path& filename, const Alignment& a);
+
+		template<class GEOMETRY>
+		static void writeVectorLogErrors(const std::filesystem::path& filename, VectorDataset<GEOMETRY>& v);
 
 	protected:
 		ParamGetter* _sharedGetter;
 		void deleteTempDirIfEmpty() const;
-
-		template<class T>
-		void writeRasterLogErrors(const std::filesystem::path& filename, Raster<T>& r) const;
-
-		template<class GEOMETRY>
-		void writeVectorLogErrors(const std::filesystem::path& filename, VectorDataset<GEOMETRY>& v) const;
 
 		template<class T>
 		Raster<T> getEmptyRasterFromTile(cell_t tile, const Alignment& a, coord_t minBufferMeters) const;
@@ -67,6 +71,8 @@ namespace lapis {
 		std::optional<Raster<T>> tryOpenRaster(const std::filesystem::path& filename, bool warnOnFailure = true) const
 		{
 			try {
+                ParameterManager& pm = parameterManager();
+				auto lock = pm.ioLock(filename);
 				return Raster<T>(filename.string());
 			}
 			catch (...) {
@@ -79,6 +85,8 @@ namespace lapis {
 		template<class T>
 		std::optional<Raster<T>> tryOpenRaster(const std::filesystem::path& filename, const Extent& e, SnapType snap, bool warnOnFailure = true) const {
 			try {
+                ParameterManager& pm = parameterManager();
+                auto lock = pm.ioLock(filename);
 				return Raster<T>(filename.string(), e, snap);
 			}
 			catch (...) {
@@ -123,7 +131,7 @@ namespace lapis {
 	});
 
 	template<class T>
-	inline void ProductHandler::writeRasterLogErrors(const std::filesystem::path& filename, Raster<T>& r) const
+	inline void ProductHandler::writeRasterLogErrors(const std::filesystem::path& filename, Raster<T>& r)
 	{
 		namespace fs = std::filesystem;
 		LapisLogger& log = LapisLogger::getLogger();
@@ -131,14 +139,32 @@ namespace lapis {
 		fs::create_directories(filename.parent_path());
 
 		try {
+            ParameterManager& pm = parameterManager();
+			auto lock = pm.ioLock(filename);
 			r.writeRaster(filename.string());
 		}
 		catch (InvalidRasterFileException e) {
 			LapisLogger::getLogger().logWarning("Error writing " + filename.string());
 		}
 	}
+	template<class T>
+	inline std::optional<DiskBackedRaster<T>> ProductHandler::makeDiskBackedRasterLogErrors(const std::filesystem::path& filename, const Alignment& a)
+	{
+        namespace fs = std::filesystem;
+        LapisLogger& log = LapisLogger::getLogger();
+        fs::create_directories(filename.parent_path());
+        try {
+            ParameterManager& pm = parameterManager();
+            auto lock = pm.ioLock(filename);
+			return DiskBackedRaster<T>(a, filename.string());
+        }
+        catch (InvalidRasterFileException e) {
+            LapisLogger::getLogger().logWarning("Error creating raster " + filename.string());
+        }
+		return std::nullopt;
+	}
 	template<class GEOMETRY>
-	inline void ProductHandler::writeVectorLogErrors(const std::filesystem::path& filename, VectorDataset<GEOMETRY>& v) const
+	inline void ProductHandler::writeVectorLogErrors(const std::filesystem::path& filename, VectorDataset<GEOMETRY>& v)
 	{
 		namespace fs = std::filesystem;
 		LapisLogger& log = LapisLogger::getLogger();
@@ -146,6 +172,8 @@ namespace lapis {
 		fs::create_directories(filename.parent_path());
 
 		try {
+            ParameterManager& pm = parameterManager();
+            auto lock = pm.ioLock(filename);
 			v.writeShapefile(filename.string());
 		}
 		catch (InvalidVectorFileException e) {

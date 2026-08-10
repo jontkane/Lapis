@@ -94,7 +94,9 @@ namespace lapis {
 			if (!pm.overlapsAoI(las.ext)) {
 				it = s.erase(it);
 			}
-			++it;
+			else {
+				++it;
+			}
 		}
 
 		CoordRef outCrs = pm.userCrsSpecification();
@@ -185,6 +187,7 @@ namespace lapis {
 			LapisLogger::getLogger().logWarning(ss.str());
 			return LasReader();
 		}
+
 		LasReader out{ _lasFileNames[n] };
 
 		if (out.versionMinor() < 4 && !_warnedAboutVersionMinor && _crs.cachedCrs().isEmpty()) {
@@ -204,6 +207,12 @@ namespace lapis {
 			out.setZUnits(unitOverride);
 		}
 		return out;
+	}
+
+	const std::string& LasFileParameter::getLasFileName(size_t n)
+	{
+		prepareForRun();
+		return _lasFileNames[n];
 	}
 
 	std::optional<LinearUnit> LasFileParameter::lasZUnits()

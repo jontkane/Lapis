@@ -23,5 +23,5 @@ COPY %vcpkg%\installed\%triplet%\share\proj\proj.ini bin\RelWithDebInfo\proj.ini
 COPY %vcpkg%\installed\%triplet%\share\proj\proj.db bin\MinSizeRel\proj.db
 COPY %vcpkg%\installed\%triplet%\share\proj\proj.ini bin\MinSizeRel\proj.ini
 
-cmake %lapis% -DCMAKE_TOOLCHAIN_FILE=%vcpkg%\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=%triplet%
+cmake %lapis% -DCMAKE_TOOLCHAIN_FILE=%vcpkg%\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=%triplet% -DPROJ_DB_PATH=%vcpkg%\installed\%triplet%\share\proj\proj.db
 popd

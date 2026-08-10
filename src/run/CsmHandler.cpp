@@ -70,11 +70,6 @@ namespace lapis {
 		tryRemove(csmDir());
 		tryRemove(csmTempDir());
 		tryRemove(csmMetricDir());
-
-		if (!_getter->doCsmMetrics()) {
-			return;
-		}
-		_initMetrics();
 	}
 	void CsmHandler::handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index)
 	{
@@ -92,8 +87,15 @@ namespace lapis {
 	void CsmHandler::finishLasFile(const Extent& e, size_t index)
 	{
 		LapisLogger::getLogger().endVerboseBenchmarkTimer("Assign points to CSM cells");
-		writeRasterLogErrors(getFullTempFilename(csmTempDir(), _csmBaseName, OutputUnitLabel::Default, index), *_csmGenerators[index]->currentCsm());
+		writeRasterLogErrors(getFullTempFilename(_getter, csmTempDir(), _csmBaseName, OutputUnitLabel::Default, index), *_csmGenerators[index]->currentCsm());
 		_csmGenerators.erase(index);
+	}
+	void CsmHandler::afterLasFiles()
+	{
+        if (!_getter->doCsmMetrics()) {
+            return;
+        }
+		_initMetrics();
 	}
 	void CsmHandler::handleDem(const Raster<coord_t>& dem, size_t index)
 	{
@@ -117,7 +119,7 @@ namespace lapis {
 		log.beginVerboseBenchmarkTimer("Write CSM tiles");
 		Raster<csm_t> unbuffered = cropRaster(bufferedCsm, cropExt, SnapType::near);
 
-		writeRasterLogErrors(getFullTileFilename(csmDir(), _csmBaseName, OutputUnitLabel::Default, tile), unbuffered);
+		writeRasterLogErrors(getFullTileFilename(_getter, csmDir(), _csmBaseName, OutputUnitLabel::Default, tile), unbuffered);
 		log.endVerboseBenchmarkTimer("Write CSM tiles");
 	}
 	void CsmHandler::cleanup()
@@ -127,7 +129,7 @@ namespace lapis {
 
 		LapisLogger::getLogger().setProgress("Writing Canopy Metrics");
 		for (CSMMetricRaster& metric : _csmMetrics) {
-			writeRasterLogErrors(getFullFilename(csmMetricDir(), metric.name, metric.unit),metric.raster);
+			writeRasterLogErrors(getFullFilename(_getter, csmMetricDir(), metric.name, metric.unit),metric.raster);
 		}
 		_csmMetrics = std::vector<CSMMetricRaster>();
 	}
@@ -142,7 +144,7 @@ namespace lapis {
 		overall << "A canopy surface model (CSM) is a raster product representing Lapis' best guess at the height of the canopy "
 			"at each point in the area. ";
 		overall << "The CSM files can be found in the CanopySurfaceModel directory. They have names like ";
-		overall << getFullTileFilename("", _csmBaseName, OutputUnitLabel::Default, 0, "tif") << ". ";
+		overall << getFullTileFilename(_getter, "", _csmBaseName, OutputUnitLabel::Default, 0, "tif") << ". ";
 		
 		int nTiles = 0;
 		for (cell_t cell = 0; cell < _getter->layout()->ncell(); ++cell) {
@@ -182,7 +184,7 @@ namespace lapis {
 			"the canopy pixels contained in the larger metric pixel.");
 
 		for (auto& metric : _csmMetrics) {
-			pdf.writeSubsectionTitle(getFullFilename("", metric.name, metric.unit).string());
+			pdf.writeSubsectionTitle(getFullFilename(_getter, "", metric.name, metric.unit).string());
 			std::stringstream desc;
 			desc << metric.pdfDesc << " ";
 			switch (metric.unit) {
@@ -238,7 +240,7 @@ namespace lapis {
 				continue;
 			}
 			thisext = cropExtent(thisext, bufferedCsm);
-			std::filesystem::path filename = getFullTempFilename(csmTempDir(), _csmBaseName, OutputUnitLabel::Default, i);
+			std::filesystem::path filename = getFullTempFilename(_getter, csmTempDir(), _csmBaseName, OutputUnitLabel::Default, i);
             std::optional<Raster<csm_t>> thisCsmOpt = tryOpenRaster<csm_t>(filename, bufferedCsm, SnapType::out);
 			if (!thisCsmOpt) {
 				continue;

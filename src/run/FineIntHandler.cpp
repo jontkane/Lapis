@@ -70,11 +70,13 @@ namespace lapis {
 			}
 		}
 
-		writeRasterLogErrors(getFullTempFilename(fineIntTempDir(), _numeratorBasename, OutputUnitLabel::Unitless, index), numerator);
-		writeRasterLogErrors(getFullTempFilename(fineIntTempDir(), _denominatorBasename, OutputUnitLabel::Unitless, index), denominator);
+		writeRasterLogErrors(getFullTempFilename(_getter, fineIntTempDir(), _numeratorBasename, OutputUnitLabel::Unitless, index), numerator);
+		writeRasterLogErrors(getFullTempFilename(_getter, fineIntTempDir(), _denominatorBasename, OutputUnitLabel::Unitless, index), denominator);
 
 		_tiles.erase(index);
 	}
+	void FineIntHandler::afterLasFiles()
+	{}
 	void FineIntHandler::handleDem(const Raster<coord_t>& dem, size_t index)
 	{
 	}
@@ -112,12 +114,12 @@ namespace lapis {
 			e.defineCRS(CoordRef(""));
 
 			std::optional<Raster<intensity_t>> thisNumeratorOpt = tryOpenRaster<intensity_t>(
-				getFullTempFilename(fineIntTempDir(), _numeratorBasename, OutputUnitLabel::Unitless, i));
+				getFullTempFilename(_getter, fineIntTempDir(), _numeratorBasename, OutputUnitLabel::Unitless, i));
 			if (!thisNumeratorOpt) {
 				continue;
 			}
             std::optional<Raster<intensity_t>> thisDenominatorOpt = tryOpenRaster<intensity_t>(
-                getFullTempFilename(fineIntTempDir(), _denominatorBasename, OutputUnitLabel::Unitless, i));
+                getFullTempFilename(_getter, fineIntTempDir(), _denominatorBasename, OutputUnitLabel::Unitless, i));
 			if (!thisDenominatorOpt) {
 				continue;
 			}
@@ -143,7 +145,7 @@ namespace lapis {
 
 		Raster<intensity_t> meanIntensity = numerator / denominator;
 		meanIntensity = cropRaster(meanIntensity, extentWithData, SnapType::out);
-		writeRasterLogErrors(getFullTileFilename(fineIntDir(), _fineIntBaseName, OutputUnitLabel::Unitless, tile), meanIntensity);
+		writeRasterLogErrors(getFullTileFilename(_getter, fineIntDir(), _fineIntBaseName, OutputUnitLabel::Unitless, tile), meanIntensity);
 		log.endVerboseBenchmarkTimer("Mosaic temporary intensity files");
 	}
 	void FineIntHandler::cleanup() {
@@ -164,7 +166,7 @@ namespace lapis {
 		
 		std::stringstream productDesc;
 		productDesc << "To reduce filesize, the intensity layers have been tiled. ";
-		productDesc << "The tiles have names like: " << getFullTileFilename("", _fineIntBaseName, OutputUnitLabel::Unitless, 0) << ". ";
+		productDesc << "The tiles have names like: " << getFullTileFilename(_getter, "", _fineIntBaseName, OutputUnitLabel::Unitless, 0) << ". ";
 		productDesc << "The filename indicates the row and column of the tile. The location of each tile can be viewed in the file TileLayout.shp in the Layout directory. ";
 		pdf.writeTextBlockWithWrap(productDesc.str());
 		pdf.blankLine();

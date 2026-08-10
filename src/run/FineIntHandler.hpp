@@ -14,6 +14,7 @@ namespace lapis {
 		void prepareForRun() override;
 		void handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index) override;
 		void finishLasFile(const Extent& e, size_t index) override;
+        void afterLasFiles() override;
 		void handleDem(const Raster<coord_t>& dem, size_t index) override;
 		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
 		void cleanup() override;

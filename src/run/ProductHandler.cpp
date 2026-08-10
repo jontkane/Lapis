@@ -35,13 +35,13 @@ namespace lapis {
 			LapisLogger::getLogger().logWarning("Unable to delete " + p.string());
 		}
 	}
-	std::filesystem::path ProductHandler::getFullFilename(const std::filesystem::path& dir,
-		const std::string& baseName, OutputUnitLabel u, const std::string& extension) const
+	std::filesystem::path ProductHandler::getFullFilename(ParamGetter* getter, const std::filesystem::path& dir,
+		const std::string& baseName, OutputUnitLabel u, const std::string& extension)
 	{
 		std::string unitString;
 		using oul = OutputUnitLabel;
 		if (u == oul::Default) {
-			LinearUnit outUnit = _sharedGetter->outUnits();
+			LinearUnit outUnit = getter->outUnits();
 			std::regex meterregex{ ".*met.*",std::regex::icase };
 			std::regex footregex{ ".*f(o|e)(o|e)t.*",std::regex::icase };
 			if (std::regex_match(outUnit.name(), meterregex)) {
@@ -60,20 +60,20 @@ namespace lapis {
 		else if (u == oul::Degree) {
 			unitString = "_Degrees";
 		}
-		std::string runName = _sharedGetter->name().size() ? _sharedGetter->name() + "_" : "";
+		std::string runName = getter->name().size() ? getter->name() + "_" : "";
 		std::filesystem::path fullPath = dir / (runName + baseName + unitString + "." + extension);
 		return fullPath;
 	}
-	std::filesystem::path ProductHandler::getFullTempFilename(const std::filesystem::path& dir,
-		const std::string& baseName, OutputUnitLabel u, size_t index, const std::string& extension) const
+	std::filesystem::path ProductHandler::getFullTempFilename(ParamGetter* getter, const std::filesystem::path& dir,
+		const std::string& baseName, OutputUnitLabel u, size_t index, const std::string& extension)
 	{
-		return getFullFilename(dir, baseName + "_" + std::to_string(index), u, extension);
+		return getFullFilename(getter, dir, baseName + "_" + std::to_string(index), u, extension);
 	}
-	std::filesystem::path ProductHandler::getFullTileFilename(const std::filesystem::path& dir,
-		const std::string& baseName, OutputUnitLabel u, cell_t tile, const std::string& extension) const
+	std::filesystem::path ProductHandler::getFullTileFilename(ParamGetter* getter, const std::filesystem::path& dir,
+		const std::string& baseName, OutputUnitLabel u, cell_t tile, const std::string& extension)
 	{
 
-		return getFullFilename(dir, baseName + "_" + _sharedGetter->layoutTileName(tile), u, extension);
+		return getFullFilename(getter, dir, baseName + "_" + getter->layoutTileName(tile), u, extension);
 	}
 
 	HandlerRegistrar& HandlerRegistrar::get()

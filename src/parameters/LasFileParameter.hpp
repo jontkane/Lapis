@@ -35,6 +35,7 @@ namespace lapis {
 		const std::vector<Extent>& sortedLasExtents();
 		
 		LasReader getLas(size_t n);
+        const std::string& getLasFileName(size_t n);
 
 		std::optional<LinearUnit> lasZUnits();
 

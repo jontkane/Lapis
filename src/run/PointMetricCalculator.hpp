@@ -91,41 +91,40 @@ namespace lapis {
 		//this function will deallocate the histogram vector. Call it once you're done with the data here.
 		void cleanUp();
 
-		//These functions insert the result of the given calculation into the given raster at the given cell
-		void meanCanopy(Raster<metric_t>& r, cell_t cell);
-		void stdDevCanopy(Raster<metric_t>& r, cell_t cell);
-		void p25Canopy(Raster<metric_t>& r, cell_t cell);
-		void p50Canopy(Raster<metric_t>& r, cell_t cell);
-		void p75Canopy(Raster<metric_t>& r, cell_t cell);
-		void p95Canopy(Raster<metric_t>& r, cell_t cell);
-		void returnCount(Raster<metric_t>& r, cell_t cell);
-		void canopyCover(Raster<metric_t>& r, cell_t cell);
+		xtl::xoptional<metric_t> meanCanopy();
+		xtl::xoptional<metric_t> stdDevCanopy();
+		xtl::xoptional<metric_t> p25Canopy();
+		xtl::xoptional<metric_t> p50Canopy();
+		xtl::xoptional<metric_t> p75Canopy();
+		xtl::xoptional<metric_t> p95Canopy();
+		xtl::xoptional<metric_t> returnCount();
+		xtl::xoptional<metric_t> canopyCover();
 
 		//these are currently classed as "advanced" metrics. Grouped separately for clarity
-		void coverAboveMean(Raster<metric_t>& r, cell_t cell);
-		void canopyReliefRatio(Raster<metric_t>& r, cell_t cell);
-		void skewnessCanopy(Raster<metric_t>& r, cell_t cell);
-		void kurtosisCanopy(Raster<metric_t>& r, cell_t cell);
-		void p05Canopy(Raster<metric_t>& r, cell_t cell);
-		void p10Canopy(Raster<metric_t>& r, cell_t cell);
-		void p15Canopy(Raster<metric_t>& r, cell_t cell);
-		void p20Canopy(Raster<metric_t>& r, cell_t cell);
-		void p30Canopy(Raster<metric_t>& r, cell_t cell);
-		void p35Canopy(Raster<metric_t>& r, cell_t cell);
-		void p40Canopy(Raster<metric_t>& r, cell_t cell);
-		void p45Canopy(Raster<metric_t>& r, cell_t cell);
-		void p55Canopy(Raster<metric_t>& r, cell_t cell);
-		void p60Canopy(Raster<metric_t>& r, cell_t cell);
-		void p65Canopy(Raster<metric_t>& r, cell_t cell);
-		void p70Canopy(Raster<metric_t>& r, cell_t cell);
-		void p80Canopy(Raster<metric_t>& r, cell_t cell);
-		void p85Canopy(Raster<metric_t>& r, cell_t cell);
-		void p90Canopy(Raster<metric_t>& r, cell_t cell);
-		void p99Canopy(Raster<metric_t>& r, cell_t cell);
-		void meanIntensity(Raster<metric_t>& r, cell_t cell);
+		xtl::xoptional<metric_t> coverAboveMean();
+		xtl::xoptional<metric_t> canopyReliefRatio();
+		xtl::xoptional<metric_t> skewnessCanopy();
+		xtl::xoptional<metric_t> kurtosisCanopy();
+		xtl::xoptional<metric_t> p05Canopy();
+		xtl::xoptional<metric_t> p10Canopy();
+		xtl::xoptional<metric_t> p15Canopy();
+		xtl::xoptional<metric_t> p20Canopy();
+		xtl::xoptional<metric_t> p30Canopy();
+		xtl::xoptional<metric_t> p35Canopy();
+		xtl::xoptional<metric_t> p40Canopy();
+		xtl::xoptional<metric_t> p45Canopy();
+		xtl::xoptional<metric_t> p55Canopy();
+		xtl::xoptional<metric_t> p60Canopy();
+		xtl::xoptional<metric_t> p65Canopy();
+		xtl::xoptional<metric_t> p70Canopy();
+		xtl::xoptional<metric_t> p80Canopy();
+		xtl::xoptional<metric_t> p85Canopy();
+		xtl::xoptional<metric_t> p90Canopy();
+		xtl::xoptional<metric_t> p99Canopy();
+		xtl::xoptional<metric_t> meanIntensity();
 
-		void stratumCover(Raster<metric_t>& r, cell_t cell, size_t stratumIdx);
-		void stratumPercent(Raster<metric_t>& r, cell_t cell, size_t stratumIdx);
+		xtl::xoptional<metric_t> stratumCover(size_t stratumIdx);
+		xtl::xoptional<metric_t> stratumPercent(size_t stratumIdx);
 
 		//TODO: put in functions to dump the data to the harddrive, or to read it off
 
@@ -140,7 +139,7 @@ namespace lapis {
 
 		intensity_t _totalIntensity = 0;
 
-		void _quantileCanopy(Raster<metric_t>& r, cell_t cell, metric_t q);
+		xtl::xoptional<metric_t> _quantileCanopy(metric_t q);
 
 
 

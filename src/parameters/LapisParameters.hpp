@@ -12,7 +12,6 @@ namespace lapis {
 	class DemAlgorithm;
 
 	class LapisParameters : public ParameterManager {
-
 	public:
 		LapisParameters();
 		LapisParameters(const LapisParameters&) = delete;
@@ -33,6 +32,7 @@ namespace lapis {
 
 		const std::vector<Extent>& lasExtents() override;
 		LasReader getLas(size_t i) override;
+        const std::string& getLasFileName(size_t i) override;
 		std::optional<LinearUnit> lasZUnits() override;
 
 		std::unique_ptr<DemAlgoApplier> demAlgorithm(LasReader&& l) override;
@@ -63,6 +63,7 @@ namespace lapis {
 		CsmPostProcessor* csmPostProcessAlgorithm() override;
 
 		int nThread() override;
+		IOLock ioLock(const std::filesystem::path& path) override;
 		coord_t binSize() override;
 		size_t tileFileSize() override;
 
@@ -114,6 +115,8 @@ namespace lapis {
 		std::shared_ptr<Raster<bool>> _layout;
 
 		std::shared_ptr<void> _pdf;
+
+		std::unordered_map<std::filesystem::path, std::unique_ptr<std::counting_semaphore<MAX_CONCURRENT_IO>>> _semaphores;
 	};
 
 

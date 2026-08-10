@@ -29,8 +29,7 @@ namespace lapis {
 		void reset() override;
 
 		int nThread() const;
-
-        bool isDebugNoInput() const;
+        int concurrentIO() const;
 
 	private:
 		static int _defaultNThread();
@@ -39,7 +38,8 @@ namespace lapis {
 
 		NumericTextBox _thread{ "Number of Threads:","thread", (double)_defaultNThread(),
 		"The number of threads to run Lapis on. Defaults to the number of cores on the computer" };
-		std::string _threadCmd = "thread";
+
+        NumericTextBox _concurrentIO{ "Number of concurrent read/writes per drive: ", "concurrentIO", 4.0, "The number of concurrent read/write operations per drive. Defaults to 4" };
 	};
 }
 

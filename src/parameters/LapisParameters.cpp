@@ -193,6 +193,10 @@ namespace lapis {
 		getParam<AoIParameter>().addFilter(l);
 		return l;
 	}
+	const std::string& LapisParameters::getLasFileName(size_t i)
+	{
+        return getParam<LasFileParameter>().getLasFileName(i);
+	}
 	std::optional<LinearUnit> LapisParameters::lasZUnits()
 	{
 		return getParam<LasFileParameter>().lasZUnits();
@@ -210,6 +214,16 @@ namespace lapis {
 	int LapisParameters::nThread() 
 	{
 		return getParam<ComputerParameter>().nThread();
+	}
+	SharedParameterGetter::IOLock LapisParameters::ioLock(const std::filesystem::path& path)
+	{
+		static std::mutex mut;
+        std::scoped_lock<std::mutex> lock(mut);
+		std::filesystem::path root = path.root_path();
+        if (!_semaphores.contains(root)) {
+            _semaphores[root] = std::make_unique<std::counting_semaphore<MAX_CONCURRENT_IO>>(getParam<ComputerParameter>().concurrentIO());
+        }
+        return IOLock(*_semaphores.at(root));
 	}
 	coord_t LapisParameters::binSize()
 	{

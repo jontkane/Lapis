@@ -9,6 +9,7 @@
 #include<vector>
 #include<filesystem>
 #include<queue>
+#include<semaphore>
 
 #define BOOST_ALL_DYN_LINK
 

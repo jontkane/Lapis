@@ -87,6 +87,12 @@ namespace lapis {
 			}
 			LAPIS_CHECK_ABORT_AND_DEALLOC;
 
+            for (ProductHandler* handler : HandlerRegistrar::get()) {
+                if (handler->doThisProduct()) {
+                    handler->afterLasFiles();
+                }
+            }
+			LAPIS_CHECK_ABORT_AND_DEALLOC;
 
 			int nTile = 0;
 			for (cell_t cell : CellIterator(*pm.layout())) {
@@ -274,12 +280,16 @@ namespace lapis {
 		LapisLogger& log = LapisLogger::getLogger();
 
 		LasReader lr;
-		try {
-			lr = pm.getLas(n);
-		}
-		catch (InvalidLasFileException e) {
-			log.logWarning(e.what());
-			return;
+        std::filesystem::path lasFile = pm.getLasFileName(n);
+		{
+			auto lock = pm.ioLock(lasFile);
+			try {
+				lr = pm.getLas(n);
+			}
+			catch (InvalidLasFileException e) {
+				log.logWarning(e.what());
+				return;
+			}
 		}
 		if (!pm.overlapsAoI(lr))
 		{
@@ -298,6 +308,7 @@ namespace lapis {
 		while (pointGetter->pointsRemaining()) {
 			std::span<LasPoint> view;
 			try {
+                auto lock = pm.ioLock(filename);
 				view = pointGetter->getPoints(nPoints);
 			}
 			catch (InvalidLasFileException e) {

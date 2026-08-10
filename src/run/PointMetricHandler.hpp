@@ -14,6 +14,7 @@ namespace lapis {
 		void prepareForRun() override;
 		void handlePoints(const std::span<LasPoint>& points, const Extent& e, size_t index) override;
 		void finishLasFile(const Extent& e, size_t index) override;
+		void afterLasFiles() override;
 		void handleDem(const Raster<coord_t>& dem, size_t index) override;
 		void handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) override;
 		void cleanup() override;
@@ -38,13 +39,17 @@ namespace lapis {
 			FIRST, ALL
 		};
 		struct TwoRasters {
-			std::optional<Raster<metric_t>> first;
-			std::optional<Raster<metric_t>> all;
-			TwoRasters(ParamGetter* getter);
-			Raster<metric_t>& get(ReturnType r);
+			std::optional<DiskBackedRaster<metric_t>> first;
+			std::optional<DiskBackedRaster<metric_t>> all;
+			std::optional<DiskBackedRaster<metric_t>>& get(ReturnType r);
+
+			TwoRasters() = default;
+            TwoRasters(ParamGetter* getter,
+				const std::optional<std::filesystem::path>& firstPath,
+				const std::optional<std::filesystem::path>& allPath);
 		};
 
-		using MetricFunc = void(PointMetricCalculator::*)(Raster<metric_t>& r, cell_t cell);
+		using MetricFunc = xtl::xoptional<metric_t>(PointMetricCalculator::*)();
 		struct PointMetricRasters {
 			std::string name;
 			MetricFunc fun;
@@ -53,11 +58,13 @@ namespace lapis {
 			std::string pdfDesc;
 
 			PointMetricRasters(ParamGetter* getter, const std::string& name,
-				MetricFunc fun, OutputUnitLabel unit, const std::string& pdfDesc);
+				MetricFunc fun, OutputUnitLabel unit, const std::string& pdfDesc,
+				const std::optional<std::filesystem::path>& firstDir,
+				const std::optional<std::filesystem::path>& allDir);
 		};
 		std::vector<PointMetricRasters> _pointMetrics;
 
-		using StratumFunc = void(PointMetricCalculator::*)(Raster<metric_t>& r, cell_t cell, size_t stratumIdx);
+        using StratumFunc = xtl::xoptional<metric_t>(PointMetricCalculator::*)(size_t stratumIdx);
 		struct StratumMetricRasters {
 			std::string baseName;
 			StratumFunc fun;
@@ -66,7 +73,9 @@ namespace lapis {
 			std::string pdfDesc;
 
 			StratumMetricRasters(ParamGetter* getter, const std::string& baseName,
-				StratumFunc fun, OutputUnitLabel unit, const std::string& pdfDesc);
+				StratumFunc fun, OutputUnitLabel unit, const std::string& pdfDesc,
+				const std::optional<std::filesystem::path>& firstDir,
+				const std::optional<std::filesystem::path>& allDir);
 		};
 		std::vector<StratumMetricRasters> _stratumMetrics;
 
@@ -74,12 +83,37 @@ namespace lapis {
 
 		template<bool ALL_RETURNS, bool FIRST_RETURNS>
 		void _assignPointsToCalculators(const std::span<LasPoint>& points);
-		void _writePointMetricRasters(const std::filesystem::path& dir, ReturnType r);
 		void _processPMCCell(cell_t cell, PointMetricCalculator& pmc, ReturnType r);
 
 		void _initMetrics();
 		void _stratumPdf(MetadataPdf& pdf);
 		void _metricPdf(MetadataPdf& pdf);
+
+		class WriteBatcher {
+		public:
+
+			WriteBatcher();
+            void addTask(DiskBackedRaster<metric_t>* raster, cell_t cell, xtl::xoptional<metric_t> value);
+            void flush();
+			~WriteBatcher();
+
+		private:
+			struct WriteTask {
+                DiskBackedRaster<metric_t>* raster;
+                cell_t cell;
+                xtl::xoptional<metric_t> value;
+			};
+
+			//150MB worth of tasks
+			inline constexpr static size_t MAX_BATCH_SIZE = 150 * 1024 * 1024 / sizeof(WriteTask);
+
+            std::vector<WriteTask> _tasks;
+            std::mutex _mutex;
+
+			void _flushUnsafe();
+		};
+
+        WriteBatcher _writeBatcher;
 	};
 }
 

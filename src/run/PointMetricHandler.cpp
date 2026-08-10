@@ -9,7 +9,16 @@ namespace lapis {
 	HANDLER_REGISTER_DEFINITION(PointMetricHandler);
 	void PointMetricHandler::reset()
 	{
-		*this = PointMetricHandler(_getter);
+		_writeBatcher.flush();
+
+		_pointMetrics.clear();
+		_pointMetrics.shrink_to_fit();
+		_stratumMetrics.clear();
+		_stratumMetrics.shrink_to_fit();
+
+		_allReturnPMC.reset();
+		_firstReturnPMC.reset();
+		_nLaz = Raster<int>();
 	}
 
 	bool PointMetricHandler::doThisProduct()
@@ -45,13 +54,19 @@ namespace lapis {
 		using namespace std::chrono;
 		for (PointMetricRasters& v : _pointMetrics) {
 			MetricFunc& f = v.fun;
-			(pmc.*f)(v.rasters.get(r), cell);
+            std::optional<DiskBackedRaster<metric_t>>& rasterOpt = v.rasters.get(r);
+			if (rasterOpt.has_value()) {
+                _writeBatcher.addTask(&rasterOpt.value(), cell, (pmc.*f)());
+			}
 		}
 		std::vector<long long> stratumTimes;
 		for (StratumMetricRasters& v : _stratumMetrics) {
 			StratumFunc& f = v.fun;
 			for (size_t i = 0; i < v.rasters.size(); ++i) {
-				(pmc.*f)(v.rasters[i].get(r), cell, i);
+                std::optional<DiskBackedRaster<metric_t>>& rasterOpt = v.rasters[i].get(r);
+                if (rasterOpt.has_value()) {
+                    _writeBatcher.addTask(&rasterOpt.value(), cell, (pmc.*f)(i));
+                }
 			}
 		}
 		pmc.cleanUp();
@@ -60,10 +75,19 @@ namespace lapis {
 	{
 		using pmc = PointMetricCalculator;
 		using oul = OutputUnitLabel;
+		namespace fs = std::filesystem;
 
+		std::optional<fs::path> firstDir = std::nullopt;
+        if (_getter->doFirstReturnMetrics()) {
+            firstDir = _getter->doAllReturnMetrics() ? pointMetricDir() / "FirstReturns" : pointMetricDir();
+        }
+        std::optional<fs::path> allDir = std::nullopt;
+        if (_getter->doAllReturnMetrics()) {
+            allDir = _getter->doFirstReturnMetrics() ? pointMetricDir() / "AllReturns" : pointMetricDir();
+        }
 		auto addPointMetric = [&](const std::string& name, MetricFunc f, oul u,
 			const std::string& pdfDesc) {
-			_pointMetrics.emplace_back(_getter, name, f, u, pdfDesc);
+			_pointMetrics.emplace_back(_getter, name, f, u, pdfDesc, firstDir, allDir);
 		};
 
 		addPointMetric("Mean_CanopyHeight", &pmc::meanCanopy, oul::Default,
@@ -132,15 +156,27 @@ namespace lapis {
 				"Useful for assessing at-a-glance whether intensity values are comparable across the entire area.");
 		}
 
+
+        std::optional<fs::path> firstStratumDir = std::nullopt;
+        if (_getter->doFirstReturnMetrics()) {
+            firstStratumDir = firstDir.value() / "StratumMetrics";
+        }
+        std::optional<fs::path> allStratumDir = std::nullopt;
+        if (_getter->doAllReturnMetrics()) {
+            allStratumDir = allDir.value() / "StratumMetrics";
+        }
+
 		if (_getter->doStratumMetrics()) {
 			if (_getter->strataBreaks().size()) {
 				_stratumMetrics.emplace_back(_getter, "StratumCover_",
 					&pmc::stratumCover, oul::Percent,
 					"The number of returns that fall in this stratum, as a percentage of "
-				"the number of returns in this stratum or lower. A proxy for the cover present in this stratum.");
+				"the number of returns in this stratum or lower. A proxy for the cover present in this stratum.",
+					firstStratumDir, allStratumDir);
 				_stratumMetrics.emplace_back(_getter, "StratumPercent_", 
 					&pmc::stratumPercent, oul::Percent,
-					"The number of returns that fall in this stratum, as a percentage of the total number of returns.");
+					"The number of returns that fall in this stratum, as a percentage of the total number of returns.",
+					firstStratumDir, allStratumDir);
 			}
 		}
 	}
@@ -158,7 +194,7 @@ namespace lapis {
 
 		for (auto& metric : _stratumMetrics) {
 			std::string genericName = metric.baseName + "XXtoXX";
-			pdf.writeSubsectionTitle(getFullFilename("",genericName,metric.unit).string());
+			pdf.writeSubsectionTitle(getFullFilename(_getter,"",genericName,metric.unit).string());
 			std::stringstream metricDesc;
 			metricDesc << metric.pdfDesc << " ";
 			if (metric.unit == OutputUnitLabel::Default) {
@@ -176,7 +212,7 @@ namespace lapis {
 	void PointMetricHandler::_metricPdf(MetadataPdf& pdf)
 	{
 		pdf.writeSubsectionTitle(
-			getFullFilename("", "XXthPercentile_CanopyHeight", OutputUnitLabel::Default).string());
+			getFullFilename(_getter,"", "XXthPercentile_CanopyHeight", OutputUnitLabel::Default).string());
 		std::stringstream percentiles;
 		percentiles << "There are a large number of metrics of this form, replacing XX with a specific number. "
 			"They are calculated as the given percentile of the heights of canopy returns. The 25th percentile is "
@@ -188,7 +224,7 @@ namespace lapis {
 			if (!metric.pdfDesc.size()) {
 				continue;
 			}
-			pdf.writeSubsectionTitle(getFullFilename("", metric.name, metric.unit).string());
+			pdf.writeSubsectionTitle(getFullFilename(_getter,"", metric.name, metric.unit).string());
 			std::stringstream metricDesc;
 			metricDesc << metric.pdfDesc << " ";
 			if (metric.unit == OutputUnitLabel::Default) {
@@ -201,17 +237,6 @@ namespace lapis {
 				metricDesc << "This metric is unitless.";
 			}
 			pdf.writeTextBlockWithWrap(metricDesc.str());
-		}
-	}
-	void PointMetricHandler::_writePointMetricRasters(const std::filesystem::path& dir, ReturnType r) {
-		for (PointMetricRasters& metric : _pointMetrics) {
-			writeRasterLogErrors(getFullFilename(dir, metric.name, metric.unit), metric.rasters.get(r));
-		}
-		for (StratumMetricRasters& metric : _stratumMetrics) {
-			for (size_t i = 0; i < metric.rasters.size(); ++i) {
-				writeRasterLogErrors(getFullFilename(dir / "StratumMetrics", metric.baseName + _getter->strataNames()[i],
-					metric.unit), metric.rasters[i].get(r));
-			}
 		}
 	}
 	PointMetricHandler::PointMetricHandler(ParamGetter* p) : ProductHandler(p)
@@ -283,26 +308,31 @@ namespace lapis {
 		}
 		log.endVerboseBenchmarkTimer("Calculating point metrics");
 	}
-	void PointMetricHandler::handleDem(const Raster<coord_t>& dem, size_t index)
+	void PointMetricHandler::afterLasFiles()
 	{
+		_writeBatcher.flush();
+
+		_pointMetrics.clear();
+		_pointMetrics.shrink_to_fit(); 
+		_stratumMetrics.clear();
+		_stratumMetrics.shrink_to_fit();
+
+		_allReturnPMC.reset();
+		_firstReturnPMC.reset();
+		_nLaz = Raster<int>();
 	}
+	void PointMetricHandler::handleDem(const Raster<coord_t>& dem, size_t index)
+	{}
 	void PointMetricHandler::handleCsmTile(const Raster<csm_t>& bufferedCsm, cell_t tile) {}
 	void PointMetricHandler::cleanup() {
-		namespace fs = std::filesystem;
+		_pointMetrics.clear();
+		_pointMetrics.shrink_to_fit();
+		_stratumMetrics.clear();
+		_stratumMetrics.shrink_to_fit();
 
-		LapisLogger::getLogger().setProgress("Writing Point Metrics");
-		if (_getter->doAllReturnMetrics()) {
-			fs::path allReturnsMetricDir = _getter->doFirstReturnMetrics() ? pointMetricDir() / "AllReturns" : pointMetricDir();
-			_writePointMetricRasters(allReturnsMetricDir, ReturnType::ALL);
-		}
-		if (_getter->doFirstReturnMetrics()) {
-			fs::path firstReturnsMetricDir = _getter->doAllReturnMetrics() ? pointMetricDir() / "FirstReturns" : pointMetricDir();
-			_writePointMetricRasters(firstReturnsMetricDir, ReturnType::FIRST);
-		}
-
-		_pointMetrics = std::vector<PointMetricRasters>();
-
-		_stratumMetrics = std::vector<StratumMetricRasters>();
+		_allReturnPMC.reset();
+		_firstReturnPMC.reset();
+		_nLaz = Raster<int>();
 	}
 	void PointMetricHandler::describeInPdf(MetadataPdf& pdf)
 	{
@@ -342,32 +372,102 @@ namespace lapis {
 	}
 
 	PointMetricHandler::PointMetricRasters::PointMetricRasters(ParamGetter* getter, const std::string& name,
-		MetricFunc fun, OutputUnitLabel unit, const std::string& pdfDesc)
-		: name(name), fun(fun), unit(unit), rasters(getter), pdfDesc(pdfDesc)
+		MetricFunc fun, OutputUnitLabel unit, const std::string& pdfDesc,
+		const std::optional<std::filesystem::path>& firstDir,
+		const std::optional<std::filesystem::path>& allDir)
+		: name(name), fun(fun), unit(unit), pdfDesc(pdfDesc)
 	{
+        namespace fs = std::filesystem;
+        std::optional<fs::path> firstPath = std::nullopt;
+        std::optional<fs::path> allPath = std::nullopt;
+        if (getter->doFirstReturnMetrics() && firstDir.has_value()) {
+            firstPath = ProductHandler::getFullFilename(getter, firstDir.value(), name, unit);
+        }
+		if (getter->doAllReturnMetrics() && allDir.has_value()) {
+            allPath = ProductHandler::getFullFilename(getter, allDir.value(), name, unit);
+        }
+		rasters = TwoRasters(getter, firstPath, allPath);
 	}
 	PointMetricHandler::StratumMetricRasters::StratumMetricRasters(ParamGetter* getter, const std::string& baseName,
-		StratumFunc fun, OutputUnitLabel unit, const std::string& pdfDesc)
+		StratumFunc fun, OutputUnitLabel unit, const std::string& pdfDesc,
+		const std::optional<std::filesystem::path>& firstDir,
+		const std::optional<std::filesystem::path>& allDir)
 		: baseName(baseName), fun(fun), unit(unit), pdfDesc(pdfDesc)
 	{
+        namespace fs = std::filesystem;
 		for (size_t i = 0; i < getter->strataBreaks().size() + 1; ++i) {
-			rasters.emplace_back(getter);
+            std::optional<fs::path> firstPath = std::nullopt;
+            std::optional<fs::path> allPath = std::nullopt;
+            if (getter->doFirstReturnMetrics() && firstDir.has_value()) {
+                firstPath = ProductHandler::getFullFilename(getter, firstDir.value(), baseName + getter->strataNames()[i], unit);
+            }
+            if (getter->doAllReturnMetrics() && allDir.has_value()) {
+                allPath = ProductHandler::getFullFilename(getter, allDir.value(), baseName + getter->strataNames()[i], unit);
+            }
+			rasters.emplace_back(getter, firstPath, allPath);
 		}
 	}
-	PointMetricHandler::TwoRasters::TwoRasters(ParamGetter* getter)
+	PointMetricHandler::TwoRasters::TwoRasters(ParamGetter* getter,
+		const std::optional<std::filesystem::path>& firstPath,
+		const std::optional<std::filesystem::path>& allPath)
 	{
-		if (getter->doAllReturnMetrics()) {
-			all = Raster<metric_t>(*getter->metricAlign());
+		if (getter->doAllReturnMetrics() && allPath.has_value()) {
+			all = ProductHandler::makeDiskBackedRasterLogErrors<metric_t>(allPath.value(), *getter->metricAlign());
 		}
-		if (getter->doFirstReturnMetrics()) {
-			first = Raster<metric_t>(*getter->metricAlign());
+		if (getter->doFirstReturnMetrics() && firstPath.has_value()) {
+			first = ProductHandler::makeDiskBackedRasterLogErrors<metric_t>(firstPath.value(), *getter->metricAlign());
 		}
 	}
-	Raster<metric_t>& PointMetricHandler::TwoRasters::get(ReturnType r)
+	std::optional<DiskBackedRaster<metric_t>>& PointMetricHandler::TwoRasters::get(ReturnType r)
 	{
 		if (r == ReturnType::ALL) {
-			return all.value();
+			return all;
 		}
-		return first.value();
+		return first;
+	}
+	PointMetricHandler::WriteBatcher::WriteBatcher()
+	{
+        _tasks.reserve(MAX_BATCH_SIZE);
+	}
+	void PointMetricHandler::WriteBatcher::addTask(DiskBackedRaster<metric_t>* raster, cell_t cell, xtl::xoptional<metric_t> value)
+	{
+        std::scoped_lock lock{ _mutex };
+        _tasks.push_back(WriteTask{ raster, cell, value });
+        if (_tasks.size() >= MAX_BATCH_SIZE) {
+            _flushUnsafe();
+        }
+	}
+	void PointMetricHandler::WriteBatcher::flush()
+	{
+        std::scoped_lock lock{ _mutex };
+		_flushUnsafe();
+	}
+	PointMetricHandler::WriteBatcher::~WriteBatcher()
+	{
+		flush();
+	}
+	void PointMetricHandler::WriteBatcher::_flushUnsafe()
+	{
+		//sort first by raster, then by cell, to minimize disk seeks
+		std::sort(_tasks.begin(), _tasks.end(), [](const WriteTask& a, const WriteTask& b) {
+			if (a.raster != b.raster) {
+				return a.raster < b.raster;
+			}
+			return a.cell < b.cell;
+			});
+
+		std::unordered_set<DiskBackedRaster<metric_t>*> rastersToFlush;
+
+		for (const WriteTask& task : _tasks) {
+			task.raster->setCellUnsafe(task.cell, task.value);
+			rastersToFlush.insert(task.raster);
+		}
+		for (DiskBackedRaster<metric_t>* raster : rastersToFlush) {
+			auto lock = parameterManager().ioLock(raster->filename());
+			raster->flush();
+		}
+
+		_tasks.clear();
+		_tasks.reserve(MAX_BATCH_SIZE);
 	}
 }

@@ -12,6 +12,8 @@
 namespace lapis {
 	using csm_t = coord_t;
 	using taoid_t = uint32_t; //int64 would be ideal but none of the common raster formats support it
+
+    constexpr int MAX_CONCURRENT_IO = 100; //needs a maximum because it's backed by std::counting_semaphore, which has a templated maximum
 }
 
 #endif

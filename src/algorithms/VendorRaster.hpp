@@ -127,8 +127,14 @@ namespace lapis {
 			if (!dem.has_value()) {
 				continue;
 			}
-			if (!dem.value().crs().isConsistentHoriz(projE.crs())) {
-				dem = transformRaster(dem.value(), projE.crs(), ExtractMethod::bilinear);
+			if (!dem->crs().isConsistentZUnits(_crs)) {
+				LinearUnitConverter converter{ dem->crs().getZUnits(),_crs.getZUnits() };
+				converter.convertManyInPlace(&dem->atCellUnsafe(0).value(), dem->ncell(), sizeof(coord_t));
+
+                dem->setZUnits(_crs.getZUnits());
+			}
+			if (!dem->crs().isConsistentHoriz(_crs)) {
+				dem = transformRaster(dem.value(), _crs, ExtractMethod::bilinear);
 			}
 			overlappingDems.emplace_back(std::move(dem.value()));
 		}
@@ -143,10 +149,6 @@ namespace lapis {
 		for (Raster<coord_t>& dem : overlappingDems) {
 			if (dem.ncell() == 0) {
 				continue;
-			}
-			if (!dem.crs().isConsistentZUnits(_dem->crs())) {
-				LinearUnitConverter converter{ dem.crs().getZUnits(),_dem->crs().getZUnits() };
-				converter.convertManyInPlace(&dem[0].value(), dem.ncell(), sizeof(coord_t));
 			}
 			Raster<coord_t> resampled;
 			if (!_dem->consistentAlignment(dem)) {

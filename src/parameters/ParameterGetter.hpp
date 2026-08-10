@@ -12,6 +12,8 @@ namespace lapis {
 
 
 	class SharedParameterGetter {
+	protected:
+		class IOLock;
 	public:
 
 		virtual ~SharedParameterGetter() = default;
@@ -27,8 +29,29 @@ namespace lapis {
 		virtual const std::filesystem::path& outFolder() = 0;
 		virtual const std::string& name() = 0;
 		virtual int nThread() = 0;
+		virtual IOLock ioLock(const std::filesystem::path& path) = 0;
 		virtual const std::vector<Extent>& lasExtents() = 0;
 		virtual std::string layoutTileName(cell_t tile) = 0;
+
+	protected:
+		class IOLock {
+		public:
+			IOLock(std::counting_semaphore<MAX_CONCURRENT_IO>& semaphore) :
+                _semaphore(semaphore) {
+                _semaphore.acquire();
+            }
+            ~IOLock() {
+                _semaphore.release();
+            }
+
+			IOLock(const IOLock&) = delete;
+			IOLock& operator=(const IOLock&) = delete;
+            IOLock(IOLock&&) = delete;
+            IOLock& operator=(IOLock&&) = delete;
+
+		private:
+            std::counting_semaphore<MAX_CONCURRENT_IO>& _semaphore;
+		};
 	};
 
 	class PointMetricParameterGetter : public virtual SharedParameterGetter {
@@ -128,6 +151,7 @@ namespace lapis {
 		virtual const LinearUnit& prevUnits() = 0;
 
 		virtual LasReader getLas(size_t i) = 0;
+        virtual const std::string& getLasFileName(size_t i) = 0;
 		virtual std::optional<LinearUnit> lasZUnits() = 0;
 
         virtual bool demExists() = 0;

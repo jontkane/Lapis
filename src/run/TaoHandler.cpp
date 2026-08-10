@@ -35,6 +35,8 @@ namespace lapis {
 	void TaoHandler::finishLasFile(const Extent& e, size_t index)
 	{
 	}
+	void TaoHandler::afterLasFiles()
+	{}
 	void TaoHandler::handleDem(const Raster<coord_t>& dem, size_t index)
 	{
 	}
@@ -259,23 +261,23 @@ namespace lapis {
     }
 	std::filesystem::path TaoHandler::getHighPointFilename(cell_t tile) const
 	{
-        return getFullTileFilename(taoDir() / _highPointFolderName, _highPointBasename, OutputUnitLabel::Unitless, tile, "shp");
+        return getFullTileFilename(_getter, taoDir() / _highPointFolderName, _highPointBasename, OutputUnitLabel::Unitless, tile, "shp");
 	}
 	std::filesystem::path TaoHandler::getSegmentRasterFilename(cell_t tile, TaoSegmentAlgorithm* segmenter, bool temp) const
 	{
         namespace fs = std::filesystem;
         fs::path baseFolder = temp ? taoTempDir() : taoDir();
-        return getFullTileFilename(baseFolder / segmenter->name() / _segmentRasterFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile, "tif");
+        return getFullTileFilename(_getter, baseFolder / segmenter->name() / _segmentRasterFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile, "tif");
 	}
 	std::filesystem::path TaoHandler::getTaoHeightRasterFilename(cell_t tile, TaoSegmentAlgorithm* segmenter, bool temp) const
 	{
 		namespace fs = std::filesystem;
 		fs::path baseFolder = temp ? taoTempDir() : taoDir();
-        return getFullTileFilename(baseFolder / segmenter->name() / _taoHeightFolderName, _taoHeightBasename, OutputUnitLabel::Default, tile, "tif");
+        return getFullTileFilename(_getter, baseFolder / segmenter->name() / _taoHeightFolderName, _taoHeightBasename, OutputUnitLabel::Default, tile, "tif");
 	}
 	std::filesystem::path TaoHandler::getSegmentPolygonFilename(cell_t tile, TaoSegmentAlgorithm* segmenter) const
 	{
-        return getFullTileFilename(taoDir() / segmenter->name() / _segmentPolygonFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile, "shp");
+        return getFullTileFilename(_getter, taoDir() / segmenter->name() / _segmentPolygonFolderName, _segmentsBasename, OutputUnitLabel::Unitless, tile, "shp");
 	}
 	void TaoHandler::describeInPdf(MetadataPdf& pdf)
 	{
@@ -297,7 +299,7 @@ namespace lapis {
 
 		pdf.writeSubsectionTitle("TAOs");
 		std::stringstream ss;
-		ss << "The TAOs themselves are stored in files with names like " << getFullTileFilename("", _highPointBasename, OutputUnitLabel::Unitless, 0, "shp") << ". ";
+		ss << "The TAOs themselves are stored in files with names like " << getFullTileFilename(_getter, "", _highPointBasename, OutputUnitLabel::Unitless, 0, "shp") << ". ";
 		ss << "These are point vector files, whose locations represent the TAOs identified by the identification algorithm. ";
 		ss << "There are six attributes in the attribute table. ID is a unique identifier for each TAO. X and Y are the coordinates of the TAO. ";
 		ss << "Height is the height of the TAO, measured from the canopy surface model, in " << pdf.strToLower(_getter->unitPlural()) << ". ";
@@ -308,7 +310,7 @@ namespace lapis {
 		pdf.writeSubsectionTitle("Segments");
 		ss.str("");
 		ss.clear();
-		ss << "The files with names like " << getFullTileFilename("", _segmentsBasename, OutputUnitLabel::Unitless, 0) << " ";
+		ss << "The files with names like " << getFullTileFilename(_getter, "", _segmentsBasename, OutputUnitLabel::Unitless, 0) << " ";
 		ss << "represent the division of the landscape into TAOs. There are two variants, raster and polygon. The raster variant assigns ";
 		ss << "each pixel's value to be the ID of the TAO it belongs to, or nodata if it doesn't belong to any TAO. ";
 		ss << "The rasters have the same resolution as the canopy surface model. The polygons represent the same data, converted into polygons,";
@@ -318,7 +320,7 @@ namespace lapis {
 		pdf.writeSubsectionTitle("Tao Height");
 		ss.str("");
 		ss.clear();
-		ss << "The files with names like " << getFullTileFilename("", _taoHeightBasename, OutputUnitLabel::Default, 0) << " ";
+		ss << "The files with names like " << getFullTileFilename(_getter, "", _taoHeightBasename, OutputUnitLabel::Default, 0) << " ";
 		ss << "are similar to the segments files, but instead of using the TAO's ID as their value, they use the TAO's height. ";
 		ss << "These are thus similar in concept to a canopy surface model, but as if trees were a constant height, instead of having varying heights throughout their area.";
 		pdf.writeTextBlockWithWrap(ss.str());

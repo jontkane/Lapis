@@ -78,6 +78,8 @@ namespace lapis {
 	void TopoHandler::finishLasFile(const Extent& e, size_t index)
 	{
 	}
+	void TopoHandler::afterLasFiles()
+	{}
 	void TopoHandler::handleDem(const Raster<coord_t>& dem, size_t index)
 	{
 		LapisLogger& log = LapisLogger::getLogger();
@@ -96,11 +98,11 @@ namespace lapis {
 
 		Raster<coord_t> elev = merger->meanElev();
 
-		writeRasterLogErrors(getFullFilename(topoDir(), "MeanElevation", OutputUnitLabel::Default), elev);
+		writeRasterLogErrors(getFullFilename(_getter, topoDir(), "MeanElevation", OutputUnitLabel::Default), elev);
 
 		for (TopoMetric& metric : _topoMetrics) {
 			Raster<metric_t> r = focal<metric_t, coord_t>(elev, 3, metric.fun);
-			writeRasterLogErrors(getFullFilename(topoDir(), metric.name, metric.unit), r);
+			writeRasterLogErrors(getFullFilename(_getter, topoDir(), metric.name, metric.unit), r);
 		}
 
 		Extent unbuffered = (Extent)elev;
@@ -118,7 +120,7 @@ namespace lapis {
 				}
 				r.mask(elev);
 				std::string fullName = metric.name + "_" + radiusNames[i];
-				writeRasterLogErrors(getFullFilename(topoDir(), fullName, metric.unit), r);
+				writeRasterLogErrors(getFullFilename(_getter, topoDir(), fullName, metric.unit), r);
 			}
 		}
 	}
@@ -127,13 +129,13 @@ namespace lapis {
 		pdf.newPage();
 		pdf.writePageTitle("Topographic Metrics");
 
-		pdf.writeSubsectionTitle(getFullFilename("", "MeanElevation", OutputUnitLabel::Default).string());
+		pdf.writeSubsectionTitle(getFullFilename(_getter, "", "MeanElevation", OutputUnitLabel::Default).string());
 		std::stringstream elevss;
 		elevss << "The mean elevation in each pixel. The units are " << _getter->unitPlural() << ".";
 		pdf.writeTextBlockWithWrap(elevss.str());
 		
 		for (TopoMetric& metric : _topoMetrics) {
-			pdf.writeSubsectionTitle(getFullFilename("", metric.name, metric.unit).string());
+			pdf.writeSubsectionTitle(getFullFilename(_getter, "", metric.name, metric.unit).string());
 			pdf.writeTextBlockWithWrap(metric.pdfDesc);
 		}
 
@@ -144,7 +146,7 @@ namespace lapis {
 		}
 		
 		for (TopoRadiusMetric& metric : _topoRadiusMetrics) {
-			pdf.writeSubsectionTitle(getFullFilename("", metric.name + "_XX" + _getter->unitPlural(), metric.unit).string());
+			pdf.writeSubsectionTitle(getFullFilename(_getter, "", metric.name + "_XX" + _getter->unitPlural(), metric.unit).string());
 			pdf.writeTextBlockWithWrap(metric.pdfDesc);
 		}
 	}
